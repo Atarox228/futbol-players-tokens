@@ -42,13 +42,13 @@ public class PlayerControllerREST {
 
             System.out.println("\n🔍 Iniciando scraping de todas las ligas...\n");
 
-            // Definir las ligas a scrapear
+            // Definir las ligas a scrapear - Map de nombre de liga + URL
             Map<String, String> ligas = new LinkedHashMap<>();
-            ligas.put("La Liga (España)", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
-            ligas.put("Premier League (Inglaterra)", "https://es.whoscored.com/regions/252/tournaments/2/seasons/10743/stages/24533/playerstatistics/inglaterra-premier-league-2025-2026");
-            ligas.put("Bundesliga (Alemania)", "https://es.whoscored.com/regions/81/tournaments/3/seasons/10720/stages/24478/playerstatistics/alemania-bundesliga-2025-2026");
-            ligas.put("Serie A (Italia)", "https://es.whoscored.com/regions/108/tournaments/5/seasons/10732/stages/24500/playerstatistics/italia-serie-a-2025-2026");
-            ligas.put("Ligue 1 (Francia)", "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
+            ligas.put("LaLiga", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
+            ligas.put("Premier League", "https://es.whoscored.com/regions/252/tournaments/2/seasons/10743/stages/24533/playerstatistics/inglaterra-premier-league-2025-2026");
+            ligas.put("Bundesliga", "https://es.whoscored.com/regions/81/tournaments/3/seasons/10720/stages/24478/playerstatistics/alemania-bundesliga-2025-2026");
+            ligas.put("Serie A", "https://es.whoscored.com/regions/108/tournaments/5/seasons/10732/stages/24500/playerstatistics/italia-serie-a-2025-2026");
+            ligas.put("Ligue 1", "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
 
             int totalJugadores = 0;
             int[] totalGuardados = {0}; // Array para poder modificar dentro del lambda
@@ -104,28 +104,91 @@ public class PlayerControllerREST {
         }
     }
 
+    @PostMapping("/scrape/new-only")
+    public ResponseEntity<String> scrapeAndSaveNewPlayersOnly() {
+        try {
+            long startTime = System.currentTimeMillis();
+
+            System.out.println("\n🔍 Iniciando scraping de jugadores NUEVOS solamente...\n");
+
+            // Definir las ligas a scrapear - Map de nombre de liga + URL
+            Map<String, String> ligas = new LinkedHashMap<>();
+            ligas.put("LaLiga", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
+            ligas.put("Premier League", "https://es.whoscored.com/regions/252/tournaments/2/seasons/10743/stages/24533/playerstatistics/inglaterra-premier-league-2025-2026");
+            ligas.put("Bundesliga", "https://es.whoscored.com/regions/81/tournaments/3/seasons/10720/stages/24478/playerstatistics/alemania-bundesliga-2025-2026");
+            ligas.put("Serie A", "https://es.whoscored.com/regions/108/tournaments/5/seasons/10732/stages/24500/playerstatistics/italia-serie-a-2025-2026");
+            ligas.put("Ligue 1", "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
+
+            int totalJugadoresNuevos = 0;
+            int[] totalGuardados = {0};
+
+            for (Map.Entry<String, String> liga : ligas.entrySet()) {
+                System.out.println("\n" + "=".repeat(60));
+                System.out.println("📍 Scrapeando NUEVOS: " + liga.getKey());
+                System.out.println("=".repeat(60) + "\n");
+
+                // Callback que guarda solo los jugadores nuevos de cada página
+                var jugadoresNuevos = scraperService.scrapeNewPlayersOnly(
+                    liga.getValue(),
+                    liga.getKey(),
+                    playersPage -> {
+                        System.out.println("💾 Guardando " + playersPage.size() + " jugadores NUEVOS de esta página...");
+                        playerService.saveAllPlayers(playersPage);
+                        totalGuardados[0] += playersPage.size();
+                        System.out.println("📊 Total NUEVO en BD: " + totalGuardados[0] + " jugadores\n");
+                    }
+                );
+
+                totalJugadoresNuevos += jugadoresNuevos.size();
+
+                System.out.println("✓ Completado: " + liga.getKey() + " (" + jugadoresNuevos.size() + " jugadores nuevos)\n");
+            }
+
+            long endTime = System.currentTimeMillis();
+            long duration = endTime - startTime;
+            long minutes = duration / 60000;
+            long seconds = (duration % 60000) / 1000;
+
+            String message = String.format(
+                "✓ Se encontraron y guardaron %d jugadores NUEVOS de todas las ligas\n⏱️ Tiempo total: %d min %d seg",
+                totalJugadoresNuevos,
+                minutes,
+                seconds
+            );
+
+            System.out.println("\n" + "=".repeat(60));
+            System.out.println(message);
+            System.out.println("=".repeat(60) + "\n");
+
+            return ResponseEntity.ok(message);
+        } catch (Exception e) {
+            System.err.println("❌ Error durante el scraping: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
+        }
+    }
+
+
     @PostMapping("/scrape/team/{id}")
     public ResponseEntity<String> scrapeAndOverwriteTeamPlayers(@PathVariable Integer id) {
         try {
             TeamEnum teamEnum = TeamEnum.fromId(id);
             String teamName = teamEnum.getName();
+            String league = teamEnum.getLeague();
 
             long startTime = System.currentTimeMillis();
-            System.out.println("\n🔍 Iniciando scraping de plantilla para: " + teamName);
+            System.out.println("\n🔍 Iniciando scraping de plantilla para: " + teamName + " (" + league + ")");
 
-            List<PlayerDTO> players = scraperService.scrapeTeamPlayersByName(teamName);
-            PlayerOverwriteResult result = playerService.overwritePlayersByNameAndTeam(players);
+            // El método scrapeTeamPlayersByName ahora agrega nuevos y actualiza existentes
+            List<PlayerDTO> newPlayers = scraperService.scrapeTeamPlayersByName(teamName, league);
 
             long duration = System.currentTimeMillis() - startTime;
             long minutes = duration / 60000;
             long seconds = (duration % 60000) / 1000;
 
             String message = String.format(
-                "✓ Equipo %s procesado correctamente. Jugadores en plantilla: %d. Filas modificadas: %d. Filas insertadas: %d. Tiempo: %d min %d seg",
+                "✓ Scraping completado para %s. Jugadores procesados. Tiempo: %d min %d seg",
                 teamName,
-                result.getRosterPlayersFound(),
-                result.getModifiedRows(),
-                result.getInsertedRows(),
                 minutes,
                 seconds
             );

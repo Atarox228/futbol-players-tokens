@@ -9,5 +9,7 @@ public interface PlayerScraperService {
 
     List<PlayerDTO> scrapeAllPlayers(String url, String league, Consumer<List<PlayerDTO>> onPageComplete, boolean clearTable);
 
-    List<PlayerDTO> scrapeTeamPlayersByName(String teamName);
+    List<PlayerDTO> scrapeTeamPlayersByName(String teamName, String league);
+
+    List<PlayerDTO> scrapeNewPlayersOnly(String url, String league, Consumer<List<PlayerDTO>> onPageComplete);
 }

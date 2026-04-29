@@ -1,8 +1,10 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
+import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
+import com.desapp.futbolplayerstokens.service.PlayerService;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -14,6 +16,7 @@ import org.openqa.selenium.TimeoutException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.text.Normalizer;
@@ -23,9 +26,11 @@ import java.util.Locale;
 public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private final PlayerRepository playerRepository;
+    private final PlayerService playerService;
 
-    public PlayerScraperServiceImpl(PlayerRepository playerRepository) {
+    public PlayerScraperServiceImpl(PlayerRepository playerRepository, PlayerService playerService) {
         this.playerRepository = playerRepository;
+        this.playerService = playerService;
     }
 
     @Override
@@ -194,16 +199,20 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     }
 
     @Override
-    public List<PlayerDTO> scrapeTeamPlayersByName(String teamName) {
+    public List<PlayerDTO> scrapeTeamPlayersByName(String teamName, String league) {
+        String baseUrl = getBaseUrlByLeague(league);
+
         WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
         WebDriver driver = new ChromeDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
-        List<PlayerDTO> players = new ArrayList<>();
+        List<PlayerDTO> newPlayers = new ArrayList<>();
+        int addedCount = 0;
+        int updatedCount = 0;
 
         try {
-            driver.get("https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona");
+            driver.get(baseUrl);
             Thread.sleep(2000);
 
             closePopupIfPresent(driver, wait);
@@ -230,19 +239,236 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                     // Forzar nombre de equipo objetivo para upsert por nombre + equipo.
                     player.setTeam(teamName);
-                    players.add(player);
+                    player.setLeague(league);
+
+                    // Verificar si el jugador ya existe
+                    List<Player> existingPlayers = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
+                            player.getName().trim(),
+                            player.getTeam().trim());
+
+                    if (existingPlayers.isEmpty()) {
+                        // Jugador nuevo - agregarlo
+                        Player newPlayer = Player.builder()
+                            .name(player.getName())
+                            .rating(player.getRating())
+                            .team(player.getTeam())
+                            .league(player.getLeague())
+                            .position(player.getPosition())
+                            .appearances(player.getAppearances())
+                            .minutes(player.getMinutes())
+                            .goals(player.getGoals())
+                            .assists(player.getAssists())
+                            .yellowCards(player.getYellowCards())
+                            .redCards(player.getRedCards())
+                            .playerOfTheMatch(player.getPlayerOfTheMatch())
+                            .build();
+
+                        playerRepository.save(newPlayer);
+                        newPlayers.add(player);
+                        addedCount++;
+                        System.out.println("✅ NUEVO AGREGADO: " + player.getName());
+                    } else {
+                        // Jugador existe - actualizar estadísticas
+                        for (Player existingPlayer : existingPlayers) {
+                            existingPlayer.setRating(player.getRating());
+                            existingPlayer.setAppearances(player.getAppearances());
+                            existingPlayer.setMinutes(player.getMinutes());
+                            existingPlayer.setGoals(player.getGoals());
+                            existingPlayer.setAssists(player.getAssists());
+                            existingPlayer.setYellowCards(player.getYellowCards());
+                            existingPlayer.setRedCards(player.getRedCards());
+                            existingPlayer.setPlayerOfTheMatch(player.getPlayerOfTheMatch());
+                            existingPlayer.setLastModifiedAt(LocalDateTime.now());
+                        }
+                        playerRepository.saveAll(existingPlayers);
+                        updatedCount++;
+                        System.out.println("📝 ACTUALIZADO: " + player.getName());
+                    }
+
                 } catch (Exception e) {
                     System.err.println("Error extrayendo jugador de plantilla: " + e.getMessage());
                 }
             }
 
-            System.out.println("✓ Plantilla scrapeada para " + teamName + ": " + players.size() + " jugadores");
-            return players;
+            int totalScraped = addedCount + updatedCount;
+            System.out.println("\n📋 Plantilla scrapeada para " + teamName + ": " + totalScraped + " jugadores procesados");
+            System.out.println("✅ Nuevos agregados: " + addedCount);
+            System.out.println("📝 Actualizados: " + updatedCount);
+            return newPlayers;
         } catch (Exception e) {
             throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
         } finally {
             driver.quit();
         }
+    }
+
+    @Override
+    public List<PlayerDTO> scrapeNewPlayersOnly(String url, String league, java.util.function.Consumer<List<PlayerDTO>> onPageComplete) {
+        WebDriverManager.chromedriver().setup();
+
+        ChromeOptions options = new ChromeOptions();
+        // Sin headless para ver en tiempo real
+
+        WebDriver driver = new ChromeDriver(options);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+        List<PlayerDTO> allNewPlayers = new ArrayList<>();
+
+        try {
+            driver.get(url);
+
+            // Esperar a que cargue la página inicial
+            Thread.sleep(2000);
+
+            // Verificar si hay un error 502 o similar
+            try {
+                WebElement errorElement = driver.findElement(By.xpath("//*[contains(text(), '502') or contains(text(), 'Bad Gateway') or contains(text(), '503') or contains(text(), 'Service Unavailable')]"));
+                throw new RuntimeException("❌ Error HTTP detectado en la página: " + errorElement.getText());
+            } catch (NoSuchElementException e) {
+                // No hay error, continuar
+            }
+
+            // Detectar y cerrar popup de cookies/consentimiento
+            closePopupIfPresent(driver, wait);
+
+            // Seleccionar "Todos los jugadores" en la tabla de ligas
+            selectAllPlayersInLeague(driver, wait);
+
+            boolean hasNextButton = true;
+            int pageCount = 0;
+
+            while (hasNextButton) {
+                pageCount++;
+                System.out.println("========================================");
+                System.out.println("Scrapeando página " + pageCount);
+                System.out.println("========================================");
+
+                // Esperar a que cargue la tabla con timeout corto
+                try {
+                    wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
+                        By.cssSelector("tbody tr")));
+                } catch (TimeoutException e) {
+                    throw new RuntimeException("❌ La tabla no cargó. Posible error 502 o servidor caído.");
+                }
+
+                // Pequeño delay adicional para asegurar que los datos se renderizaron
+                Thread.sleep(1000);
+
+                // Extraer jugadores de la página actual
+                List<WebElement> rows = driver.findElements(By.cssSelector("tbody tr"));
+                int newPlayersInPage = 0;
+                List<PlayerDTO> newPlayersThisPage = new ArrayList<>();
+
+                for (WebElement row : rows) {
+                    try {
+                        // Omitir jugadores que ya no pertenecen a la liga
+                        String rowClass = row.getAttribute("class");
+                        if (rowClass != null) {
+                            // Normalizar espacios y verificar si contiene not-current-player
+                            String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
+                            if (normalizedClass.contains("not-current-player")) {
+                                System.out.println("⏭️ Omitiendo jugador que ya no pertenece a la liga");
+                                continue;
+                            }
+                        }
+
+                        PlayerDTO player = extractPlayerData(row);
+                        if (player != null && !player.getName().isEmpty()) {
+                            player.setLeague(league);
+
+                            // Verificar si el jugador ya existe
+                            if (!playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
+                                    player.getName().trim(),
+                                    player.getTeam().trim())
+                                    .isEmpty()) {
+                                System.out.println("⚠️ Jugador " + player.getName() + " (" + player.getTeam() + ") ya existe, omitiendo");
+                                continue;
+                            }
+
+                            allNewPlayers.add(player);
+                            newPlayersThisPage.add(player);
+                            newPlayersInPage++;
+                            System.out.println("✓ NUEVO - " + player.getName() + " (" + player.getTeam() + ") - Rating: " + player.getRating());
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error extrayendo jugador: " + e.getMessage());
+                    }
+                }
+
+                System.out.println("Jugadores nuevos en esta página: " + newPlayersInPage);
+
+                // Persistir solo los jugadores nuevos de esta página
+                if (newPlayersInPage > 0) {
+                    onPageComplete.accept(newPlayersThisPage);
+                }
+
+                // Buscar y hacer click en el botón "Siguiente"
+                try {
+                    WebElement nextButton = findNextButton(driver);
+
+                    if (nextButton != null) {
+                        // Verificar si está deshabilitado
+                        String disabledAttr = nextButton.getAttribute("disabled");
+                        String ariaDisabled = nextButton.getAttribute("aria-disabled");
+                        String classAttr = nextButton.getAttribute("class");
+
+                        boolean isDisabled = disabledAttr != null ||
+                                           "true".equals(ariaDisabled) ||
+                                           (classAttr != null && classAttr.contains("disabled"));
+
+                        if (!isDisabled && nextButton.isDisplayed()) {
+                            // Scroll hasta el botón y hacer click
+                            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", nextButton);
+                            Thread.sleep(500);
+
+                            System.out.println("Haciendo click en 'Siguiente'...");
+                            nextButton.click();
+
+                            // Esperar a que carguen completamente los nuevos datos
+                            Thread.sleep(1500);
+                        } else {
+                            System.out.println("Botón 'Siguiente' deshabilitado o no visible. Fin del scraping.");
+                            hasNextButton = false;
+                        }
+                    } else {
+                        System.out.println("No se encontró botón 'Siguiente'. Fin del scraping.");
+                        hasNextButton = false;
+                    }
+
+                } catch (NoSuchElementException e) {
+                    System.out.println("No se encontró botón 'Siguiente'. Fin del scraping.");
+                    hasNextButton = false;
+                } catch (Exception e) {
+                    System.err.println("Error al hacer click en siguiente: " + e.getMessage());
+                    e.printStackTrace();
+                    hasNextButton = false;
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error durante el scraping: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("❌ Error durante el scraping: " + e.getMessage(), e);
+        } finally {
+            System.out.println("\nCerrando navegador...");
+            driver.quit();
+        }
+
+        System.out.println("\n========================================");
+        System.out.println("TOTAL JUGADORES NUEVOS SCRAPEADOS: " + allNewPlayers.size());
+        System.out.println("========================================");
+        return allNewPlayers;
+    }
+
+    private String getBaseUrlByLeague(String league) {
+        return switch(league) {
+            case "LaLiga" -> "https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona";
+            case "Premier League" -> "https://es.whoscored.com/teams/167/show/inglaterra-manchester-city";
+            case "Ligue 1" -> "https://es.whoscored.com/teams/304/show/francia-paris-saint-germain";
+            case "Bundesliga" -> "https://es.whoscored.com/teams/796/show/alemania-union-berlin";
+            case "Serie A" -> "https://es.whoscored.com/teams/75/show/italia-inter";
+            default -> "https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona";
+        };
     }
 
     private int parseAppearances(String text) {
@@ -308,6 +534,18 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             PlayerDTO player = PlayerDTO.builder().build();
             player.setName(name);
+
+            // Extraer la posición del span player-meta-data
+            try {
+                List<WebElement> metaDataSpans = row.findElements(By.cssSelector("span.player-meta-data"));
+                if (metaDataSpans.size() >= 2) {
+                    // El segundo span contiene la posición (ej: ",  ME(C)  ")
+                    String position = metaDataSpans.get(1).getText().trim().replaceAll("^,\\s*", "");
+                    player.setPosition(position);
+                }
+            } catch (Exception e) {
+                // Si no se puede extraer la posición, continuar sin ella
+            }
 
             // Obtener datos de las columnas - Según los headers de la tabla
             List<WebElement> cells = row.findElements(By.tagName("td"));

@@ -67,6 +67,14 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
+    public boolean playerExists(String name, String team) {
+        return playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(name.trim(), team.trim())
+                .stream()
+                .findAny()
+                .isPresent();
+    }
+
+    @Override
     @Transactional
     public PlayerOverwriteResult overwritePlayersByNameAndTeam(List<PlayerDTO> playerDTOs) {
         int modifiedRows = 0;
