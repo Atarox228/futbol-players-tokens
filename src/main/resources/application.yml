@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/player_market
     username: postgres
-    password: postgres
+    password: root
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -16,4 +16,11 @@ spring:
 
   sql:
     init:
-      mode: always
+      mode: never
+
+# Football-Data.org API Configuration
+football-data:
+  api:
+    base-url: https://api.football-data.org/v4
+    token: c608aee5d3fd433592def43fcebb5daa
+    competition-id: 2014

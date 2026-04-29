@@ -3,6 +3,8 @@ package com.desapp.futbolplayerstokens.modelo;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -27,4 +29,13 @@ public class Player {
     private Integer yellowCards;
     private Integer redCards;
     private Integer playerOfTheMatch;
+    
+    @Column(name = "last_modified_at", nullable = false)
+    private LocalDateTime lastModifiedAt;
+
+    @PrePersist
+    @PreUpdate
+    public void updateTimestamp() {
+        this.lastModifiedAt = LocalDateTime.now();
+    }
 }

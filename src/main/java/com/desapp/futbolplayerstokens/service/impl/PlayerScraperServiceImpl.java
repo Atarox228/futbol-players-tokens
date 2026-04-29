@@ -1,11 +1,13 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
+import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.TimeoutException;
@@ -14,12 +16,35 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.text.Normalizer;
+import java.util.Locale;
 
 @Service
 public class PlayerScraperServiceImpl implements PlayerScraperService {
 
+    private final PlayerRepository playerRepository;
+
+    public PlayerScraperServiceImpl(PlayerRepository playerRepository) {
+        this.playerRepository = playerRepository;
+    }
+
     @Override
     public List<PlayerDTO> scrapeAllPlayers(String url, String league, java.util.function.Consumer<List<PlayerDTO>> onPageComplete) {
+        return scrapeAllPlayers(url, league, onPageComplete, true);
+    }
+
+    @Override
+    public List<PlayerDTO> scrapeAllPlayers(String url, String league, java.util.function.Consumer<List<PlayerDTO>> onPageComplete, boolean clearTable) {
+        // Limpiar tabla de players antes de scrapear (solo si clearTable es true)
+        if (clearTable) {
+            long count = playerRepository.count();
+            if (count > 0) {
+                System.out.println("\n🗑️ Limpiando tabla de players... Eliminando " + count + " jugadores");
+                playerRepository.deleteAll();
+                System.out.println("✓ Tabla limpiada\n");
+            }
+        }
+
         WebDriverManager.chromedriver().setup();
 
         ChromeOptions options = new ChromeOptions();
@@ -47,6 +72,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Detectar y cerrar popup de cookies/consentimiento
             closePopupIfPresent(driver, wait);
 
+            // Seleccionar "Todos los jugadores" en la tabla de ligas
+            selectAllPlayersInLeague(driver, wait);
+
             boolean hasNextButton = true;
             int pageCount = 0;
 
@@ -73,6 +101,17 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                 for (WebElement row : rows) {
                     try {
+                        // Omitir jugadores que ya no pertenecen a la liga
+                        String rowClass = row.getAttribute("class");
+                        if (rowClass != null) {
+                            // Normalizar espacios y verificar si contiene not-current-player
+                            String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
+                            if (normalizedClass.contains("not-current-player")) {
+                                System.out.println("⏭️ Omitiendo jugador que ya no pertenece a la liga");
+                                continue;
+                            }
+                        }
+
                         PlayerDTO player = extractPlayerData(row);
                         if (player != null && !player.getName().isEmpty()) {
                             player.setLeague(league);
@@ -154,6 +193,233 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         return allPlayers;
     }
 
+    @Override
+    public List<PlayerDTO> scrapeTeamPlayersByName(String teamName) {
+        WebDriverManager.chromedriver().setup();
+
+        ChromeOptions options = new ChromeOptions();
+        WebDriver driver = new ChromeDriver(options);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
+        List<PlayerDTO> players = new ArrayList<>();
+
+        try {
+            driver.get("https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona");
+            Thread.sleep(2000);
+
+            closePopupIfPresent(driver, wait);
+            selectTeamFromDropdown(driver, wait, teamName);
+
+            // Buscar la tabla específica con id="top-player-stats-summary-grid"
+            List<WebElement> rows = findSquadRowsFromTable(driver, wait);
+            for (WebElement row : rows) {
+                try {
+                    String rowClass = row.getAttribute("class");
+                    if (rowClass != null) {
+                        String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
+                        // Solo incluir jugadores activos (sin not-current-player)
+                        if (normalizedClass.contains("not-current-player")) {
+                            System.out.println("⏭️ Omitiendo jugador inactivo");
+                            continue;
+                        }
+                    }
+
+                    PlayerDTO player = extractPlayerDataFromRoster(row);
+                    if (player == null || player.getName() == null || player.getName().isBlank()) {
+                        continue;
+                    }
+
+                    // Forzar nombre de equipo objetivo para upsert por nombre + equipo.
+                    player.setTeam(teamName);
+                    players.add(player);
+                } catch (Exception e) {
+                    System.err.println("Error extrayendo jugador de plantilla: " + e.getMessage());
+                }
+            }
+
+            System.out.println("✓ Plantilla scrapeada para " + teamName + ": " + players.size() + " jugadores");
+            return players;
+        } catch (Exception e) {
+            throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
+        } finally {
+            driver.quit();
+        }
+    }
+
+    private int parseAppearances(String text) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+
+        text = text.trim();
+
+        // Detectar formato "15(11)" - suma de dos números
+        if (text.contains("(") && text.contains(")")) {
+            try {
+                String[] parts = text.split("[()]");
+                if (parts.length >= 2) {
+                    int first = Integer.parseInt(parts[0].replaceAll("[^0-9]", ""));
+                    int second = Integer.parseInt(parts[1].replaceAll("[^0-9]", ""));
+                    return first + second;
+                }
+            } catch (NumberFormatException e) {
+                // Fallback a extracción simple
+            }
+        }
+
+        // Extracción simple de números
+        String numericOnly = text.replaceAll("[^0-9]", "");
+        try {
+            return !numericOnly.isEmpty() ? Integer.parseInt(numericOnly) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private List<WebElement> findSquadRowsFromTable(WebDriver driver, WebDriverWait wait) {
+        try {
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("top-player-stats-summary-grid")));
+            Thread.sleep(500);
+            WebElement table = driver.findElement(By.id("top-player-stats-summary-grid"));
+            List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
+            if (rows.isEmpty()) {
+                throw new RuntimeException("La tabla de plantilla no contiene filas");
+            }
+            System.out.println("✓ Tabla de plantilla detectada. Filas encontradas: " + rows.size());
+            return rows;
+        } catch (TimeoutException e) {
+            throw new RuntimeException("No se encontró la tabla de plantilla (top-player-stats-summary-grid) en la página");
+        } catch (NoSuchElementException e) {
+            throw new RuntimeException("No se encontró la tabla de plantilla (top-player-stats-summary-grid) en la página");
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrumpido al esperar la tabla de plantilla", ie);
+        }
+    }
+
+    private PlayerDTO extractPlayerDataFromRoster(WebElement row) {
+        try {
+            // Buscar el nombre dentro del span dentro del a.player-link
+            WebElement playerLink = row.findElement(By.cssSelector("a.player-link span"));
+            String name = playerLink.getText().trim();
+
+            if (name.isEmpty() || name.length() < 2) {
+                return null;
+            }
+
+            PlayerDTO player = PlayerDTO.builder().build();
+            player.setName(name);
+
+            // Obtener datos de las columnas - Según los headers de la tabla
+            List<WebElement> cells = row.findElements(By.tagName("td"));
+
+            // Índice 4: Jgdos (Partidos Jugados)
+            if (cells.size() > 4) {
+                player.setAppearances(parseAppearances(cells.get(4).getText()));
+            }
+
+            // Índice 5: Mins (Minutos)
+            if (cells.size() > 5) {
+                try {
+                    String text = cells.get(5).getText().trim().replaceAll("[^0-9]", "");
+                    player.setMinutes(!text.isEmpty() ? Integer.parseInt(text) : 0);
+                } catch (NumberFormatException e) {
+                    player.setMinutes(0);
+                }
+            }
+
+            // Índice 6: Goles
+            if (cells.size() > 6) {
+                try {
+                    String text = cells.get(6).getText().trim().replaceAll("[^0-9]", "");
+                    player.setGoals(!text.isEmpty() ? Integer.parseInt(text) : 0);
+                } catch (NumberFormatException e) {
+                    player.setGoals(0);
+                }
+            }
+
+            // Índice 7: Asist (Asistencias)
+            if (cells.size() > 7) {
+                try {
+                    String text = cells.get(7).getText().trim().replaceAll("[^0-9]", "");
+                    player.setAssists(!text.isEmpty() ? Integer.parseInt(text) : 0);
+                } catch (NumberFormatException e) {
+                    player.setAssists(0);
+                }
+            }
+
+            // Índice 8: Amar (Tarjetas Amarillas)
+            if (cells.size() > 8) {
+                try {
+                    String text = cells.get(8).getText().trim().replaceAll("[^0-9]", "");
+                    player.setYellowCards(!text.isEmpty() ? Integer.parseInt(text) : 0);
+                } catch (NumberFormatException e) {
+                    player.setYellowCards(0);
+                }
+            }
+
+            // Índice 9: Roja (Tarjetas Rojas)
+            if (cells.size() > 9) {
+                try {
+                    String text = cells.get(9).getText().trim().replaceAll("[^0-9]", "");
+                    player.setRedCards(!text.isEmpty() ? Integer.parseInt(text) : 0);
+                } catch (NumberFormatException e) {
+                    player.setRedCards(0);
+                }
+            }
+
+            // Índice 13: JdelP (Jugador del Partido)
+            if (cells.size() > 13) {
+                try {
+                    String text = cells.get(13).getText().trim().replaceAll("[^0-9]", "");
+                    player.setPlayerOfTheMatch(!text.isEmpty() ? Integer.parseInt(text) : 0);
+                } catch (NumberFormatException e) {
+                    player.setPlayerOfTheMatch(0);
+                }
+            }
+
+            // Índice 14: Rating
+            if (cells.size() > 14) {
+                String ratingText = cells.get(14).getText().trim();
+                try {
+                    Double rating = Double.parseDouble(ratingText);
+                    player.setRating(rating);
+                } catch (NumberFormatException e) {
+                    player.setRating(0.0);
+                }
+            }
+
+            return player;
+        } catch (NoSuchElementException e) {
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+
+    private List<WebElement> findSquadRows(WebDriver driver, WebDriverWait wait) {
+        String squadRowsXPath = "(//*[self::h1 or self::h2 or self::h3 or self::h4 or self::span or self::div]" +
+            "[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúü'), 'plantilla')" +
+            " or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'squad')]" +
+            "/following::table[1]//tbody/tr)";
+
+        try {
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.xpath(squadRowsXPath)));
+            Thread.sleep(1000);
+            List<WebElement> rows = driver.findElements(By.xpath(squadRowsXPath));
+            if (rows.isEmpty()) {
+                throw new RuntimeException("La tabla de plantilla no contiene filas");
+            }
+            System.out.println("✓ Tabla de plantilla detectada. Filas encontradas: " + rows.size());
+            return rows;
+        } catch (TimeoutException e) {
+            throw new RuntimeException("No se encontró la tabla de plantilla (Plantilla/Squad) en la página");
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrumpido al esperar la tabla de plantilla", ie);
+        }
+    }
+
     private PlayerDTO extractPlayerData(WebElement row) {
         try {
             // Buscar el nombre dentro del span dentro del a.player-link
@@ -194,12 +460,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             // Columna 2: Partidos Jugados (Jgdos)
             if (cells.size() > 2) {
-                try {
-                    String text = cells.get(2).getText().trim().replaceAll("[^0-9]", "");
-                    player.setAppearances(!text.isEmpty() ? Integer.parseInt(text) : 0);
-                } catch (NumberFormatException e) {
-                    player.setAppearances(0);
-                }
+                player.setAppearances(parseAppearances(cells.get(2).getText()));
             }
 
             // Columna 3: Minutos (Mins)
@@ -262,9 +523,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 }
             }
 
-            // Última columna: Rating
-            if (cells.size() > 0) {
-                String ratingText = cells.get(cells.size() - 1).getText().trim();
+            // Columna 12: Rating
+            if (cells.size() > 12) {
+                String ratingText = cells.get(12).getText().trim();
                 try {
                     Double rating = Double.parseDouble(ratingText);
                     player.setRating(rating);
@@ -320,6 +581,85 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         } catch (Exception e) {
             System.out.println("⚠️ Error al intentar cerrar popup: " + e.getMessage());
         }
+    }
+
+    private void selectAllPlayersInLeague(WebDriver driver, WebDriverWait wait) {
+        try {
+            System.out.println("🔍 Buscando botón 'Todos los jugadores'...");
+
+            // Buscar el botón <a> con clase "option" que contenga "Todos los jugadores"
+            WebElement allPlayersButton = wait.until(ExpectedConditions.presenceOfElementLocated(
+                By.xpath("//a[@class='option' or contains(@class, 'option')][contains(text(), 'Todos los jugadores')]")
+            ));
+
+            // Hacer click en el botón
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", allPlayersButton);
+            System.out.println("✓ Botón 'Todos los jugadores' clickeado");
+
+            // Esperar a que se carguen los datos
+            Thread.sleep(1500);
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("tbody tr")));
+            System.out.println("✓ Datos cargados después de seleccionar 'Todos los jugadores'");
+
+        } catch (TimeoutException e) {
+            System.out.println("⚠️ No se encontró botón 'Todos los jugadores', continuando con lo que está seleccionado");
+        } catch (Exception e) {
+            System.out.println("⚠️ Error al intentar seleccionar 'Todos los jugadores': " + e.getMessage());
+        }
+    }
+
+    private void selectTeamFromDropdown(WebDriver driver, WebDriverWait wait, String teamName) {
+        String target = normalize(teamName);
+
+        try {
+            // Buscar todos los selects EXCEPTO el locale-select
+            List<WebElement> selects = wait.until(d -> d.findElements(By.tagName("select")));
+
+            for (WebElement selectElement : selects) {
+                try {
+                    // Saltar el select de idioma
+                    String selectId = selectElement.getAttribute("id");
+                    if ("locale-select".equals(selectId)) {
+                        System.out.println("⏭️ Saltando select de idioma (locale-select)");
+                        continue;
+                    }
+
+                    Select select = new Select(selectElement);
+                    List<WebElement> options = select.getOptions();
+                    for (WebElement option : options) {
+                        String optionText = option.getText().trim();
+                        String normalizedOption = normalize(optionText);
+                        if (normalizedOption.equals(target) || normalizedOption.contains(target) || target.contains(normalizedOption)) {
+                            String previousUrl = driver.getCurrentUrl();
+                            select.selectByVisibleText(optionText);
+
+                            // Esperar cambio de URL o recarga de datos tras cambiar equipo.
+                            wait.until(d -> !d.getCurrentUrl().equals(previousUrl) || d.findElements(By.cssSelector("tbody tr")).size() > 0);
+                            Thread.sleep(1200);
+                            System.out.println("✓ Equipo seleccionado en dropdown: " + optionText);
+                            return;
+                        }
+                    }
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrumpido al seleccionar equipo", ie);
+                } catch (Exception e) {
+                    // Probar siguiente select
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error al intentar seleccionar equipo: " + e.getMessage(), e);
+        }
+
+        throw new RuntimeException("No se encontró el equipo '" + teamName + "' en el selector de la página");
+    }
+
+    private String normalize(String text) {
+        String normalized = Normalizer.normalize(text == null ? "" : text, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "")
+            .toLowerCase(Locale.ROOT)
+            .trim();
+        return normalized;
     }
 
     private WebElement findNextButton(WebDriver driver) throws NoSuchElementException {

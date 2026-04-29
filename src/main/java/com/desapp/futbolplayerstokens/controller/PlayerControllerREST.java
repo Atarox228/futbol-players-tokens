@@ -1,14 +1,15 @@
 package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
+import com.desapp.futbolplayerstokens.modelo.TeamEnum;
+import com.desapp.futbolplayerstokens.service.PlayerOverwriteResult;
 import com.desapp.futbolplayerstokens.service.PlayerService;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -51,6 +52,7 @@ public class PlayerControllerREST {
 
             int totalJugadores = 0;
             int[] totalGuardados = {0}; // Array para poder modificar dentro del lambda
+            boolean isFirstLeague = true;
 
             for (Map.Entry<String, String> liga : ligas.entrySet()) {
                 System.out.println("\n" + "=".repeat(60));
@@ -66,12 +68,16 @@ public class PlayerControllerREST {
                         playerService.saveAllPlayers(playersPage);
                         totalGuardados[0] += playersPage.size();
                         System.out.println("📊 Total en BD: " + totalGuardados[0] + " jugadores\n");
-                    }
+                    },
+                    isFirstLeague  // Solo limpiar en la primera liga
                 );
 
                 totalJugadores += jugadores.size();
 
                 System.out.println("✓ Completado: " + liga.getKey() + " (" + jugadores.size() + " jugadores)\n");
+
+                // Después de la primera liga, no limpiar más
+                isFirstLeague = false;
             }
 
             long endTime = System.currentTimeMillis();
@@ -97,5 +103,40 @@ public class PlayerControllerREST {
             return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
         }
     }
+
+    @PostMapping("/scrape/team/{id}")
+    public ResponseEntity<String> scrapeAndOverwriteTeamPlayers(@PathVariable Integer id) {
+        try {
+            TeamEnum teamEnum = TeamEnum.fromId(id);
+            String teamName = teamEnum.getName();
+
+            long startTime = System.currentTimeMillis();
+            System.out.println("\n🔍 Iniciando scraping de plantilla para: " + teamName);
+
+            List<PlayerDTO> players = scraperService.scrapeTeamPlayersByName(teamName);
+            PlayerOverwriteResult result = playerService.overwritePlayersByNameAndTeam(players);
+
+            long duration = System.currentTimeMillis() - startTime;
+            long minutes = duration / 60000;
+            long seconds = (duration % 60000) / 1000;
+
+            String message = String.format(
+                "✓ Equipo %s procesado correctamente. Jugadores en plantilla: %d. Filas modificadas: %d. Filas insertadas: %d. Tiempo: %d min %d seg",
+                teamName,
+                result.getRosterPlayersFound(),
+                result.getModifiedRows(),
+                result.getInsertedRows(),
+                minutes,
+                seconds
+            );
+
+            return ResponseEntity.ok(message);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("❌ ID de equipo inválida: " + id);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("❌ Error al scrapear equipo: " + e.getMessage());
+        }
+    }
+
 }
 

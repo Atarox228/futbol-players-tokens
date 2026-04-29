@@ -3,9 +3,12 @@ package com.desapp.futbolplayerstokens.service.impl;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import com.desapp.futbolplayerstokens.service.PlayerOverwriteResult;
 import com.desapp.futbolplayerstokens.service.PlayerService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -61,6 +64,67 @@ public class PlayerServiceImpl implements PlayerService {
             }
         }
         System.out.println("\n✓ Se guardaron " + saved + " jugadores en la BD");
+    }
+
+    @Override
+    @Transactional
+    public PlayerOverwriteResult overwritePlayersByNameAndTeam(List<PlayerDTO> playerDTOs) {
+        int modifiedRows = 0;
+        int insertedRows = 0;
+
+        for (PlayerDTO dto : playerDTOs) {
+            if (dto.getName() == null || dto.getName().isBlank() || dto.getTeam() == null || dto.getTeam().isBlank()) {
+                continue;
+            }
+
+            List<Player> matches = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
+                dto.getName().trim(),
+                dto.getTeam().trim()
+            );
+
+            if (matches.isEmpty()) {
+                Player player = Player.builder()
+                    .name(dto.getName())
+                    .rating(dto.getRating())
+                    .team(dto.getTeam())
+                    .league(dto.getLeague())
+                    .position(dto.getPosition())
+                    .appearances(dto.getAppearances())
+                    .minutes(dto.getMinutes())
+                    .goals(dto.getGoals())
+                    .assists(dto.getAssists())
+                    .yellowCards(dto.getYellowCards())
+                    .redCards(dto.getRedCards())
+                    .playerOfTheMatch(dto.getPlayerOfTheMatch())
+                    .build();
+                playerRepository.save(player);
+                insertedRows++;
+                continue;
+            }
+
+            for (Player player : matches) {
+                // Solo actualizar campos de estadísticas, NO sobreescribir: name, team, league, position
+                player.setRating(dto.getRating());
+                player.setAppearances(dto.getAppearances());
+                player.setMinutes(dto.getMinutes());
+                player.setGoals(dto.getGoals());
+                player.setAssists(dto.getAssists());
+                player.setYellowCards(dto.getYellowCards());
+                player.setRedCards(dto.getRedCards());
+                player.setPlayerOfTheMatch(dto.getPlayerOfTheMatch());
+                // Actualizar explícitamente el timestamp
+                player.setLastModifiedAt(LocalDateTime.now());
+            }
+
+            playerRepository.saveAll(matches);
+            modifiedRows += matches.size();
+        }
+
+        int rosterFound = playerDTOs.size();
+        System.out.println("\n📋 Jugadores encontrados en plantilla: " + rosterFound);
+        System.out.println("✏️ Filas modificadas en BD: " + modifiedRows);
+        System.out.println("➕ Filas insertadas en BD: " + insertedRows);
+        return new PlayerOverwriteResult(rosterFound, modifiedRows, insertedRows);
     }
 }
 
