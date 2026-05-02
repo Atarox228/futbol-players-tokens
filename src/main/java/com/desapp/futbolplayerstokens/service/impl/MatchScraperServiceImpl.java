@@ -49,7 +49,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
             throw new RuntimeException("❌ FOOTBALL_DATA_TOKEN no configurado. Setea la variable de entorno FOOTBALL_DATA_TOKEN con tu token de football-data.org");
         }
 
-        LocalDate today = LocalDate.now().plusDays(3);
+        LocalDate today = LocalDate.now();
         String dateFrom = today.toString();
         String dateTo = today.toString();
 

@@ -22,7 +22,7 @@ public class MatchControllerREST {
         this.matchScraperService = matchScraperService;
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<MatchDTO>> getAllMatches() {
         List<Match> matches = matchService.getAllMatches();
         List<MatchDTO> matchDTOs = matches.stream()

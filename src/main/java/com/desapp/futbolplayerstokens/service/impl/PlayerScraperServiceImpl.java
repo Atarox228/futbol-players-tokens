@@ -9,6 +9,7 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -21,6 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.text.Normalizer;
 import java.util.Locale;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @Service
 public class PlayerScraperServiceImpl implements PlayerScraperService {
@@ -50,21 +54,32 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             }
         }
 
-        WebDriverManager.chromedriver().setup();
-
         ChromeOptions options = new ChromeOptions();
-        // Sin headless para ver en tiempo real
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--disable-blink-features=AutomationControlled");
+        options.addArguments("--disable-web-resources");
 
-        WebDriver driver = new ChromeDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebDriver driver;
+        try {
+            // Try to connect to remote Selenium server (for Docker)
+            driver = new RemoteWebDriver(new URL("http://localhost:4444"), options);
+        } catch (Exception e) {
+            // Fallback to local ChromeDriver
+            WebDriverManager.chromedriver().setup();
+            driver = new ChromeDriver(options);
+        }
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
         List<PlayerDTO> allPlayers = new ArrayList<>();
 
         try {
             driver.get(url);
 
-            // Esperar a que cargue la página inicial
-            Thread.sleep(2000);
+            // Esperar a que cargue la página inicial (más tiempo en headless)
+            Thread.sleep(4000);
 
             // Verificar si hay un error 502 o similar
             try {
@@ -202,10 +217,23 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     public List<PlayerDTO> scrapeTeamPlayersByName(String teamName, String league) {
         String baseUrl = getBaseUrlByLeague(league);
 
-        WebDriverManager.chromedriver().setup();
-
         ChromeOptions options = new ChromeOptions();
-        WebDriver driver = new ChromeDriver(options);
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--disable-blink-features=AutomationControlled");
+        options.addArguments("--disable-web-resources");
+
+        WebDriver driver;
+        try {
+            // Try to connect to remote Selenium server (for Docker)
+            driver = new RemoteWebDriver(new URL("http://localhost:4444"), options);
+        } catch (Exception e) {
+            // Fallback to local ChromeDriver
+            WebDriverManager.chromedriver().setup();
+            driver = new ChromeDriver(options);
+        }
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
         List<PlayerDTO> newPlayers = new ArrayList<>();
         int addedCount = 0;
@@ -304,21 +332,32 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     @Override
     public List<PlayerDTO> scrapeNewPlayersOnly(String url, String league, java.util.function.Consumer<List<PlayerDTO>> onPageComplete) {
-        WebDriverManager.chromedriver().setup();
-
         ChromeOptions options = new ChromeOptions();
-        // Sin headless para ver en tiempo real
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--disable-blink-features=AutomationControlled");
+        options.addArguments("--disable-web-resources");
 
-        WebDriver driver = new ChromeDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebDriver driver;
+        try {
+            // Try to connect to remote Selenium server (for Docker)
+            driver = new RemoteWebDriver(new URL("http://localhost:4444"), options);
+        } catch (Exception e) {
+            // Fallback to local ChromeDriver
+            WebDriverManager.chromedriver().setup();
+            driver = new ChromeDriver(options);
+        }
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
         List<PlayerDTO> allNewPlayers = new ArrayList<>();
 
         try {
             driver.get(url);
 
-            // Esperar a que cargue la página inicial
-            Thread.sleep(2000);
+            // Esperar a que cargue la página inicial (más tiempo en headless)
+            Thread.sleep(4000);
 
             // Verificar si hay un error 502 o similar
             try {
@@ -790,18 +829,23 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 WebElement acceptButton = null;
 
                 try {
-                    acceptButton = driver.findElement(By.xpath("//*[contains(text(), 'Aceptar todo')]"));
-                } catch (NoSuchElementException e1) {
+                    acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
+                        By.xpath("//*[contains(text(), 'Aceptar todo')]")));
+                } catch (TimeoutException e1) {
                     try {
-                        acceptButton = driver.findElement(By.xpath("//*[contains(text(), 'Accept all')]"));
-                    } catch (NoSuchElementException e2) {
+                        acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("//*[contains(text(), 'Accept all')]")));
+                    } catch (TimeoutException e2) {
                         try {
-                            acceptButton = driver.findElement(By.xpath("//*[contains(text(), 'Aceptar')]"));
-                        } catch (NoSuchElementException e3) {
+                            acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
+                                By.xpath("//*[contains(text(), 'Aceptar')]")));
+                        } catch (TimeoutException e3) {
                             try {
-                                acceptButton = driver.findElement(By.xpath("//*[contains(text(), 'Accept')]"));
-                            } catch (NoSuchElementException e4) {
-                                acceptButton = driver.findElement(By.cssSelector("[data-testid='cookie-accept-all']"));
+                                acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
+                                    By.xpath("//*[contains(text(), 'Accept')]")));
+                            } catch (TimeoutException e4) {
+                                acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
+                                    By.cssSelector("[data-testid='cookie-accept-all']")));
                             }
                         }
                     }
@@ -810,10 +854,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 if (acceptButton != null && acceptButton.isDisplayed()) {
                     System.out.println("✓ Popup encontrado. Haciendo click en 'Aceptar todo'...");
                     ((JavascriptExecutor) driver).executeScript("arguments[0].click();", acceptButton);
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                     System.out.println("✓ Popup cerrado");
                 }
-            } catch (NoSuchElementException e) {
+            } catch (TimeoutException e) {
                 System.out.println("ℹ️ No se encontró popup de consentimiento");
             }
         } catch (Exception e) {
@@ -825,22 +869,26 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         try {
             System.out.println("🔍 Buscando botón 'Todos los jugadores'...");
 
-            // Buscar el botón <a> con clase "option" que contenga "Todos los jugadores"
-            WebElement allPlayersButton = wait.until(ExpectedConditions.presenceOfElementLocated(
-                By.xpath("//a[@class='option' or contains(@class, 'option')][contains(text(), 'Todos los jugadores')]")
-            ));
+            try {
+                // Esperar y hacer click en el botón de todos los jugadores
+                WebElement allPlayersButton = wait.until(ExpectedConditions.elementToBeClickable(
+                    By.xpath("//a[@class='option' or contains(@class, 'option')][contains(text(), 'Todos los jugadores')]")
+                ));
 
-            // Hacer click en el botón
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", allPlayersButton);
-            System.out.println("✓ Botón 'Todos los jugadores' clickeado");
+                System.out.println("✓ Botón encontrado. Haciendo click...");
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", allPlayersButton);
+                System.out.println("✓ Botón 'Todos los jugadores' clickeado");
+            } catch (TimeoutException e) {
+                System.out.println("⚠️ No se encontró botón 'Todos los jugadores', continuando...");
+            }
 
             // Esperar a que se carguen los datos
-            Thread.sleep(1500);
+            Thread.sleep(2000);
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("tbody tr")));
             System.out.println("✓ Datos cargados después de seleccionar 'Todos los jugadores'");
 
         } catch (TimeoutException e) {
-            System.out.println("⚠️ No se encontró botón 'Todos los jugadores', continuando con lo que está seleccionado");
+            System.out.println("⚠️ Timeout esperando datos, continuando...");
         } catch (Exception e) {
             System.out.println("⚠️ Error al intentar seleccionar 'Todos los jugadores': " + e.getMessage());
         }
