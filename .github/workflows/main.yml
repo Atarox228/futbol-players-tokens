@@ -50,4 +50,4 @@ jobs:
 
     - name: Build Docker Image with Docker Compose
       # Aquí usamos tu config de docker-compose para el empaquetado final
-      run: docker-compose build
+      run: docker compose build
