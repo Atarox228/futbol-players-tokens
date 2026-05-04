@@ -4,6 +4,9 @@ import com.desapp.futbolplayerstokens.controller.dto.MatchDTO;
 import com.desapp.futbolplayerstokens.modelo.Match;
 import com.desapp.futbolplayerstokens.service.MatchScraperService;
 import com.desapp.futbolplayerstokens.service.MatchService;
+
+import jakarta.annotation.security.PermitAll;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -81,6 +84,7 @@ public class MatchControllerREST {
     }
 
     @PostMapping("/scrape/today")
+    @PermitAll
     public ResponseEntity<List<MatchDTO>> scrapeMatchesOfToday() {
         List<Match> matches = matchScraperService.scrapeMatchesOfToday();
         List<MatchDTO> matchDTOs = matches.stream()

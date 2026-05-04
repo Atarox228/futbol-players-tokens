@@ -4,6 +4,9 @@ import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.service.PlayerOverwriteResult;
 import com.desapp.futbolplayerstokens.service.PlayerService;
+
+import jakarta.annotation.security.PermitAll;
+
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,10 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/players")
@@ -46,6 +45,7 @@ public class PlayerControllerREST {
     }
 
     @PostMapping("/scrape")
+    @PermitAll
     public ResponseEntity<String> scrapeAndSavePlayers() {
         try {
             long startTime = System.currentTimeMillis();
@@ -99,6 +99,7 @@ public class PlayerControllerREST {
     }
 
     @PostMapping("/scrape/new-only")
+    @PermitAll
     public ResponseEntity<String> scrapeAndSaveNewPlayersOnly() {
         try {
             long startTime = System.currentTimeMillis();
@@ -148,6 +149,7 @@ public class PlayerControllerREST {
 
 
     @PostMapping("/scrape/team/{id}")
+    @PermitAll
     public ResponseEntity<String> scrapeAndOverwriteTeamPlayers(@PathVariable Integer id) {
         try {
             TeamEnum teamEnum = TeamEnum.fromId(id);
