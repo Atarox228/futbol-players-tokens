@@ -39,9 +39,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
         // Limpiar tabla de matches antes de scrapear
         long count = matchRepository.count();
         if (count > 0) {
-            System.out.println("\n🗑️ Limpiando tabla de matches... Eliminando " + count + " partidos");
             matchRepository.deleteAll();
-            System.out.println("✓ Tabla limpiada\n");
         }
 
         String apiToken = footballDataProperties.getToken();
@@ -60,8 +58,6 @@ public class MatchScraperServiceImpl implements MatchScraperService {
                 "%s/competitions/%s/matches?dateFrom=%s&dateTo=%s",
                 footballDataProperties.getBaseUrl(), competitionId, dateFrom, dateTo
             );
-
-            System.out.println("📡 Consultando API para competencia " + competitionId + ": " + url);
 
             try {
                 HttpHeaders headers = new HttpHeaders();
@@ -93,12 +89,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
 
                         Match savedMatch = matchService.createMatch(match);
                         savedMatches.add(savedMatch);
-                        String team1Name = matchApi.getHomeTeam() != null ? matchApi.getHomeTeam().getName() : "Equipo desconocido";
-                        String team2Name = matchApi.getAwayTeam() != null ? matchApi.getAwayTeam().getName() : "Equipo desconocido";
-                        System.out.println("✓ Partido guardado: " + team1Name + " vs " + team2Name + " - " + localMatchTime + " (hora local)");
                     }
-                } else {
-                    System.out.println("⚠️ No hay partidos hoy en la competencia " + competitionId);
                 }
 
             } catch (Exception e) {
@@ -106,7 +97,6 @@ public class MatchScraperServiceImpl implements MatchScraperService {
             }
         }
 
-        System.out.println("\n✓ Se guardaron " + savedMatches.size() + " partidos de hoy");
         return savedMatches;
     }
 }

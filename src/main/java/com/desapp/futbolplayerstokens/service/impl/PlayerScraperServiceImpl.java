@@ -48,9 +48,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         if (clearTable) {
             long count = playerRepository.count();
             if (count > 0) {
-                System.out.println("\n🗑️ Limpiando tabla de players... Eliminando " + count + " jugadores");
                 playerRepository.deleteAll();
-                System.out.println("✓ Tabla limpiada\n");
             }
         }
 
@@ -100,9 +98,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             while (hasNextButton) {
                 pageCount++;
-                System.out.println("========================================");
-                System.out.println("Scrapeando página " + pageCount);
-                System.out.println("========================================");
 
                 // Esperar a que cargue la tabla con timeout corto
                 try {
@@ -127,7 +122,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                             // Normalizar espacios y verificar si contiene not-current-player
                             String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
                             if (normalizedClass.contains("not-current-player")) {
-                                System.out.println("⏭️ Omitiendo jugador que ya no pertenece a la liga");
                                 continue;
                             }
                         }
@@ -137,14 +131,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                             player.setLeague(league);
                             allPlayers.add(player);
                             validPlayersInPage++;
-                            System.out.println("✓ " + player.getName() + " - Rating: " + player.getRating());
                         }
                     } catch (Exception e) {
-                        System.err.println("Error extrayendo jugador: " + e.getMessage());
+                        // Continuar con el siguiente jugador
                     }
                 }
-
-                System.out.println("Jugadores válidos en esta página: " + validPlayersInPage);
 
                 // Persistir los jugadores de esta página
                 if (validPlayersInPage > 0) {
@@ -174,40 +165,30 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                             ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", nextButton);
                             Thread.sleep(500);
 
-                            System.out.println("Haciendo click en 'Siguiente'...");
                             nextButton.click();
 
                             // Esperar a que carguen completamente los nuevos datos
                             Thread.sleep(1500);
                         } else {
-                            System.out.println("Botón 'Siguiente' deshabilitado o no visible. Fin del scraping.");
                             hasNextButton = false;
                         }
                     } else {
-                        System.out.println("No se encontró botón 'Siguiente'. Fin del scraping.");
                         hasNextButton = false;
                     }
 
                 } catch (NoSuchElementException e) {
-                    System.out.println("No se encontró botón 'Siguiente'. Fin del scraping.");
                     hasNextButton = false;
                 } catch (Exception e) {
-                    System.err.println("Error al hacer click en siguiente: " + e.getMessage());
                     hasNextButton = false;
                 }
             }
 
         } catch (Exception e) {
-            System.err.println("Error durante el scraping: " + e.getMessage());
             throw new RuntimeException("❌ Error durante el scraping: " + e.getMessage(), e);
         } finally {
-            System.out.println("\nCerrando navegador...");
             driver.quit();
         }
 
-        System.out.println("\n========================================");
-        System.out.println("TOTAL JUGADORES SCRAPEADOS: " + allPlayers.size());
-        System.out.println("========================================");
         return allPlayers;
     }
 
@@ -253,7 +234,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                         String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
                         // Solo incluir jugadores activos (sin not-current-player)
                         if (normalizedClass.contains("not-current-player")) {
-                            System.out.println("⏭️ Omitiendo jugador inactivo");
                             continue;
                         }
                     }
@@ -292,7 +272,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                         playerRepository.save(newPlayer);
                         newPlayers.add(player);
                         addedCount++;
-                        System.out.println("✅ NUEVO AGREGADO: " + player.getName());
                     } else {
                         // Jugador existe - actualizar estadísticas
                         for (Player existingPlayer : existingPlayers) {
@@ -308,18 +287,13 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                         }
                         playerRepository.saveAll(existingPlayers);
                         updatedCount++;
-                        System.out.println("📝 ACTUALIZADO: " + player.getName());
                     }
 
                 } catch (Exception e) {
-                    System.err.println("Error extrayendo jugador de plantilla: " + e.getMessage());
+                    // Continuar con el siguiente jugador
                 }
             }
 
-            int totalScraped = addedCount + updatedCount;
-            System.out.println("\n📋 Plantilla scrapeada para " + teamName + ": " + totalScraped + " jugadores procesados");
-            System.out.println("✅ Nuevos agregados: " + addedCount);
-            System.out.println("📝 Actualizados: " + updatedCount);
             return newPlayers;
         } catch (Exception e) {
             throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
@@ -376,9 +350,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             while (hasNextButton) {
                 pageCount++;
-                System.out.println("========================================");
-                System.out.println("Scrapeando página " + pageCount);
-                System.out.println("========================================");
 
                 // Esperar a que cargue la tabla con timeout corto
                 try {
@@ -404,7 +375,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                             // Normalizar espacios y verificar si contiene not-current-player
                             String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
                             if (normalizedClass.contains("not-current-player")) {
-                                System.out.println("⏭️ Omitiendo jugador que ya no pertenece a la liga");
                                 continue;
                             }
                         }
@@ -418,21 +388,17 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                                     player.getName().trim(),
                                     player.getTeam().trim())
                                     .isEmpty()) {
-                                System.out.println("⚠️ Jugador " + player.getName() + " (" + player.getTeam() + ") ya existe, omitiendo");
                                 continue;
                             }
 
                             allNewPlayers.add(player);
                             newPlayersThisPage.add(player);
                             newPlayersInPage++;
-                            System.out.println("✓ NUEVO - " + player.getName() + " (" + player.getTeam() + ") - Rating: " + player.getRating());
                         }
                     } catch (Exception e) {
-                        System.err.println("Error extrayendo jugador: " + e.getMessage());
+                        // Continuar con el siguiente jugador
                     }
                 }
-
-                System.out.println("Jugadores nuevos en esta página: " + newPlayersInPage);
 
                 // Persistir solo los jugadores nuevos de esta página
                 if (newPlayersInPage > 0) {
@@ -458,40 +424,30 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                             ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", nextButton);
                             Thread.sleep(500);
 
-                            System.out.println("Haciendo click en 'Siguiente'...");
                             nextButton.click();
 
                             // Esperar a que carguen completamente los nuevos datos
                             Thread.sleep(1500);
                         } else {
-                            System.out.println("Botón 'Siguiente' deshabilitado o no visible. Fin del scraping.");
                             hasNextButton = false;
                         }
                     } else {
-                        System.out.println("No se encontró botón 'Siguiente'. Fin del scraping.");
                         hasNextButton = false;
                     }
 
                 } catch (NoSuchElementException e) {
-                    System.out.println("No se encontró botón 'Siguiente'. Fin del scraping.");
                     hasNextButton = false;
                 } catch (Exception e) {
-                    System.err.println("Error al hacer click en siguiente: " + e.getMessage());
                     hasNextButton = false;
                 }
             }
 
         } catch (Exception e) {
-            System.err.println("Error durante el scraping: " + e.getMessage());
             throw new RuntimeException("❌ Error durante el scraping: " + e.getMessage(), e);
         } finally {
-            System.out.println("\nCerrando navegador...");
             driver.quit();
         }
 
-        System.out.println("\n========================================");
-        System.out.println("TOTAL JUGADORES NUEVOS SCRAPEADOS: " + allNewPlayers.size());
-        System.out.println("========================================");
         return allNewPlayers;
     }
 
@@ -545,7 +501,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             if (rows.isEmpty()) {
                 throw new RuntimeException("La tabla de plantilla no contiene filas");
             }
-            System.out.println("✓ Tabla de plantilla detectada. Filas encontradas: " + rows.size());
             return rows;
         } catch (TimeoutException e) {
             throw new RuntimeException("No se encontró la tabla de plantilla (top-player-stats-summary-grid) en la página");
@@ -683,7 +638,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             if (rows.isEmpty()) {
                 throw new RuntimeException("La tabla de plantilla no contiene filas");
             }
-            System.out.println("✓ Tabla de plantilla detectada. Filas encontradas: " + rows.size());
             return rows;
         } catch (TimeoutException e) {
             throw new RuntimeException("No se encontró la tabla de plantilla (Plantilla/Squad) en la página");
@@ -817,8 +771,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private void closePopupIfPresent(WebDriver driver, WebDriverWait wait) {
         try {
-            System.out.println("🔍 Buscando popup de consentimiento...");
-
             // Intenta encontrar y hacer click en botones comunes de aceptación
             try {
                 // Buscar botón "Aceptar todo", "Accept all", "Aceptar", etc.
@@ -848,45 +800,38 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 }
 
                 if (acceptButton != null && acceptButton.isDisplayed()) {
-                    System.out.println("✓ Popup encontrado. Haciendo click en 'Aceptar todo'...");
                     ((JavascriptExecutor) driver).executeScript("arguments[0].click();", acceptButton);
                     Thread.sleep(2000);
-                    System.out.println("✓ Popup cerrado");
                 }
             } catch (TimeoutException e) {
-                System.out.println("ℹ️ No se encontró popup de consentimiento");
+                // No hay popup, continuar
             }
         } catch (Exception e) {
-            System.out.println("⚠️ Error al intentar cerrar popup: " + e.getMessage());
+            // Ignorar errores con popup
         }
     }
 
     private void selectAllPlayersInLeague(WebDriver driver, WebDriverWait wait) {
         try {
-            System.out.println("🔍 Buscando botón 'Todos los jugadores'...");
-
             try {
                 // Esperar y hacer click en el botón de todos los jugadores
                 WebElement allPlayersButton = wait.until(ExpectedConditions.elementToBeClickable(
                     By.xpath("//a[@class='option' or contains(@class, 'option')][contains(text(), 'Todos los jugadores')]")
                 ));
 
-                System.out.println("✓ Botón encontrado. Haciendo click...");
                 ((JavascriptExecutor) driver).executeScript("arguments[0].click();", allPlayersButton);
-                System.out.println("✓ Botón 'Todos los jugadores' clickeado");
             } catch (TimeoutException e) {
-                System.out.println("⚠️ No se encontró botón 'Todos los jugadores', continuando...");
+                // Botón no encontrado, continuar
             }
 
             // Esperar a que se carguen los datos
             Thread.sleep(2000);
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("tbody tr")));
-            System.out.println("✓ Datos cargados después de seleccionar 'Todos los jugadores'");
 
         } catch (TimeoutException e) {
-            System.out.println("⚠️ Timeout esperando datos, continuando...");
+            // Timeout, continuar
         } catch (Exception e) {
-            System.out.println("⚠️ Error al intentar seleccionar 'Todos los jugadores': " + e.getMessage());
+            // Error, continuar
         }
     }
 
@@ -902,7 +847,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                     // Saltar el select de idioma
                     String selectId = selectElement.getAttribute("id");
                     if ("locale-select".equals(selectId)) {
-                        System.out.println("⏭️ Saltando select de idioma (locale-select)");
                         continue;
                     }
 
@@ -918,7 +862,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                             // Esperar cambio de URL o recarga de datos tras cambiar equipo.
                             wait.until(d -> !d.getCurrentUrl().equals(previousUrl) || d.findElements(By.cssSelector("tbody tr")).size() > 0);
                             Thread.sleep(1200);
-                            System.out.println("✓ Equipo seleccionado en dropdown: " + optionText);
                             return;
                         }
                     }
@@ -951,7 +894,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         // Primero intenta por ID (la forma más específica)
         try {
             nextButton = driver.findElement(By.id("next"));
-            System.out.println("✓ Botón 'Siguiente' encontrado (ID: next)");
             return nextButton;
         } catch (NoSuchElementException e1) {
         }
@@ -959,21 +901,18 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         // Intenta por clase y atributo
         try {
             nextButton = driver.findElement(By.xpath("//a[@class='option  clickable'][@id='next']"));
-            System.out.println("✓ Botón 'Siguiente' encontrado (XPath con clases)");
             return nextButton;
         } catch (NoSuchElementException e2) {
         }
 
         try {
             nextButton = driver.findElement(By.xpath("//a[contains(text(), 'siguiente')]"));
-            System.out.println("✓ Botón 'Siguiente' encontrado (XPath por texto)");
             return nextButton;
         } catch (NoSuchElementException e3) {
         }
 
         try {
             nextButton = driver.findElement(By.xpath("//button[contains(text(), 'Siguiente')]"));
-            System.out.println("✓ Botón 'Siguiente' encontrado (button)");
             return nextButton;
         } catch (NoSuchElementException e4) {
         }

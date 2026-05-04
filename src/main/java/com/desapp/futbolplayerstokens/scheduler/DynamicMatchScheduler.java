@@ -28,8 +28,6 @@ public class DynamicMatchScheduler {
      * Programa schedulers para cada partido del día
      */
     public void scheduleMatchesForToday() {
-        System.out.println("\n📅 Programando schedulers para partidos de hoy...");
-
         // Cancelar schedulers anteriores
         cancelAllSchedules();
 
@@ -47,8 +45,6 @@ public class DynamicMatchScheduler {
                 scheduled++;
             }
         }
-
-        System.out.println("✓ Se programaron " + scheduled + " partidos para hoy\n");
     }
 
     /**
@@ -64,18 +60,12 @@ public class DynamicMatchScheduler {
         );
 
         scheduledMatches.put(matchId, future);
-        System.out.println("  ⏱️ Partido ID " + matchId + " programado para " + matchTime);
     }
 
     /**
      * Tarea que se ejecuta cuando llega la hora del partido
      */
     private void executeMatchTask(Match match) {
-        String time = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
-        System.out.println("\n🎯 [" + time + "] ⚽ PARTIDO ID " + match.getId() + " - " + match.getMatchTime());
-        System.out.println("   Equipos: " + match.getTeam1Id() + " vs " + match.getTeam2Id());
-        System.out.println("   → Aquí puedes agregar lógica (notificaciones, estadísticas, etc.)\n");
-
         // Remover del mapa de activos
         scheduledMatches.remove(match.getId());
     }
@@ -88,7 +78,6 @@ public class DynamicMatchScheduler {
             future.cancel(false);
         }
         scheduledMatches.clear();
-        System.out.println("🧹 Schedulers anteriores cancelados");
     }
 
     /**

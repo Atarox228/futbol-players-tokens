@@ -22,14 +22,10 @@ public class MatchScraperScheduler {
      */
     @Scheduled(cron = "0 52 12 * * *")
     public void scrapeMatchesDaily() {
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-        System.out.println("⏰ [" + timestamp + "] 📡 Scrapeando partidos...");
-
         try {
             matchScraperService.scrapeMatchesOfToday();
-            System.out.println("✓ Scrape OK\n");
         } catch (Exception e) {
-            System.err.println("❌ Error: " + e.getMessage() + "\n");
+            System.err.println("❌ Error: " + e.getMessage());
         }
     }
 }

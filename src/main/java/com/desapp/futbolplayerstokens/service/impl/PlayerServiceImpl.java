@@ -38,7 +38,6 @@ public class PlayerServiceImpl implements PlayerService {
                         .anyMatch(p -> p.getName().equals(dto.getName()) &&
                                       p.getLeague().equals(dto.getLeague()) &&
                                       p.getTeam().equals(dto.getTeam()))) {
-                    System.out.println("⚠️  Jugador " + dto.getName() + " ya existe, saltando...");
                     continue;
                 }
 
@@ -63,7 +62,6 @@ public class PlayerServiceImpl implements PlayerService {
                 System.err.println("Error guardando jugador " + dto.getName() + ": " + e.getMessage());
             }
         }
-        System.out.println("\n✓ Se guardaron " + saved + " jugadores en la BD");
     }
 
     @Override
@@ -129,9 +127,6 @@ public class PlayerServiceImpl implements PlayerService {
         }
 
         int rosterFound = playerDTOs.size();
-        System.out.println("\n📋 Jugadores encontrados en plantilla: " + rosterFound);
-        System.out.println("✏️ Filas modificadas en BD: " + modifiedRows);
-        System.out.println("➕ Filas insertadas en BD: " + insertedRows);
         return new PlayerOverwriteResult(rosterFound, modifiedRows, insertedRows);
     }
 }

@@ -40,8 +40,6 @@ public class PlayerControllerREST {
         try {
             long startTime = System.currentTimeMillis();
 
-            System.out.println("\n🔍 Iniciando scraping de todas las ligas...\n");
-
             // Definir las ligas a scrapear - Map de nombre de liga + URL
             Map<String, String> ligas = new LinkedHashMap<>();
             ligas.put("LaLiga", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
@@ -55,26 +53,18 @@ public class PlayerControllerREST {
             boolean isFirstLeague = true;
 
             for (Map.Entry<String, String> liga : ligas.entrySet()) {
-                System.out.println("\n" + "=".repeat(60));
-                System.out.println("📍 Scrapeando: " + liga.getKey());
-                System.out.println("=".repeat(60) + "\n");
-
                 // Callback que guarda los jugadores de cada página inmediatamente
                 var jugadores = scraperService.scrapeAllPlayers(
                     liga.getValue(),
                     liga.getKey(),
                     playersPage -> {
-                        System.out.println("💾 Guardando " + playersPage.size() + " jugadores de esta página...");
                         playerService.saveAllPlayers(playersPage);
                         totalGuardados[0] += playersPage.size();
-                        System.out.println("📊 Total en BD: " + totalGuardados[0] + " jugadores\n");
                     },
                     isFirstLeague  // Solo limpiar en la primera liga
                 );
 
                 totalJugadores += jugadores.size();
-
-                System.out.println("✓ Completado: " + liga.getKey() + " (" + jugadores.size() + " jugadores)\n");
 
                 // Después de la primera liga, no limpiar más
                 isFirstLeague = false;
@@ -92,13 +82,8 @@ public class PlayerControllerREST {
                 seconds
             );
 
-            System.out.println("\n" + "=".repeat(60));
-            System.out.println(message);
-            System.out.println("=".repeat(60) + "\n");
-
             return ResponseEntity.ok(message);
         } catch (Exception e) {
-            System.err.println("❌ Error durante el scraping: " + e.getMessage());
             return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
         }
     }
@@ -107,8 +92,6 @@ public class PlayerControllerREST {
     public ResponseEntity<String> scrapeAndSaveNewPlayersOnly() {
         try {
             long startTime = System.currentTimeMillis();
-
-            System.out.println("\n🔍 Iniciando scraping de jugadores NUEVOS solamente...\n");
 
             // Definir las ligas a scrapear - Map de nombre de liga + URL
             Map<String, String> ligas = new LinkedHashMap<>();
@@ -122,25 +105,17 @@ public class PlayerControllerREST {
             int[] totalGuardados = {0};
 
             for (Map.Entry<String, String> liga : ligas.entrySet()) {
-                System.out.println("\n" + "=".repeat(60));
-                System.out.println("📍 Scrapeando NUEVOS: " + liga.getKey());
-                System.out.println("=".repeat(60) + "\n");
-
                 // Callback que guarda solo los jugadores nuevos de cada página
                 var jugadoresNuevos = scraperService.scrapeNewPlayersOnly(
                     liga.getValue(),
                     liga.getKey(),
                     playersPage -> {
-                        System.out.println("💾 Guardando " + playersPage.size() + " jugadores NUEVOS de esta página...");
                         playerService.saveAllPlayers(playersPage);
                         totalGuardados[0] += playersPage.size();
-                        System.out.println("📊 Total NUEVO en BD: " + totalGuardados[0] + " jugadores\n");
                     }
                 );
 
                 totalJugadoresNuevos += jugadoresNuevos.size();
-
-                System.out.println("✓ Completado: " + liga.getKey() + " (" + jugadoresNuevos.size() + " jugadores nuevos)\n");
             }
 
             long endTime = System.currentTimeMillis();
@@ -155,13 +130,8 @@ public class PlayerControllerREST {
                 seconds
             );
 
-            System.out.println("\n" + "=".repeat(60));
-            System.out.println(message);
-            System.out.println("=".repeat(60) + "\n");
-
             return ResponseEntity.ok(message);
         } catch (Exception e) {
-            System.err.println("❌ Error durante el scraping: " + e.getMessage());
             return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
         }
     }
@@ -175,7 +145,6 @@ public class PlayerControllerREST {
             String league = teamEnum.getLeague();
 
             long startTime = System.currentTimeMillis();
-            System.out.println("\n🔍 Iniciando scraping de plantilla para: " + teamName + " (" + league + ")");
 
             // El método scrapeTeamPlayersByName ahora agrega nuevos y actualiza existentes
             List<PlayerDTO> newPlayers = scraperService.scrapeTeamPlayersByName(teamName, league);
