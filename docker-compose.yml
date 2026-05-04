@@ -23,6 +23,7 @@ services:
   app:
     build: .
     container_name: futbol_app
+    env_file: .env.docker
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,8 +34,7 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_SHOW_SQL: "true"
       CHROMIUM_BIN: /usr/bin/chromium
-      CHROMEDRIVER_BIN: /usr/bin/chromedriver      
-      FOOTBALL_DATA_TOKEN: ${FOOTBALL_DATA_TOKEN}
+      CHROMEDRIVER_BIN: /usr/bin/chromedriver
     ports:
       - "8080:8080"
     volumes:

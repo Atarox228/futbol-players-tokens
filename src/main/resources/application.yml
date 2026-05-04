@@ -21,8 +21,8 @@ spring:
 # Football-Data.org API Configuration
 football-data:
   api:
-    base-url: ${FOOTBALL_DATA_BASE_URL:https://api.football-data.org/v4}
-    token: ${FOOTBALL_DATA_TOKEN}
+    base-url: https://api.football-data.org/v4
+    token: ${FOOTBALL_DATA_API_TOKEN:}  
     competition-ids:
       - 2014  # LaLiga
       - 2021  # Premier League
