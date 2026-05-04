@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: futbol_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: player_market
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - futbol-network
+
+  app:
+    build: .
+    container_name: futbol_app
+    env_file: .env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/player_market
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SHOW_SQL: "true"
+      CHROMIUM_BIN: /usr/bin/chromium
+      CHROMEDRIVER_BIN: /usr/bin/chromedriver
+    ports:
+      - "8080:8080"
+    volumes:
+      - /dev/shm:/dev/shm
+    restart: on-failure
+    networks:
+      - futbol-network
+    shm_size: '2gb'
+
+volumes:
+  postgres_data:
+
+networks:
+  futbol-network:
+    driver: bridge
