@@ -43,7 +43,6 @@ public class MatchScraperServiceImpl implements MatchScraperService {
         }
 
         String apiToken = System.getenv("FOOTBALL_DATA_API_TOKEN");
-        System.out.println("DEBUG: Token configurado: " + (apiToken != null ? "SÍ (" + apiToken.length() + " caracteres)" : "NO"));
 
         if (apiToken == null || apiToken.isEmpty()) {
             throw new RuntimeException("❌ FOOTBALL_DATA_API_TOKEN no configurado. Setea la variable de entorno FOOTBALL_DATA_API_TOKEN con tu token de football-data.org");
