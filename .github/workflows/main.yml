@@ -2,9 +2,9 @@ name: Java CI con Gradle, Postgres y Docker
 
 on:
   push:
-    branches: [ "scrap-jugadores" ]
+    branches: [ "develop" ]
   pull_request:
-    branches: [ "scrap-jugadores" ]
+    branches: [ "develop" ]
 
 jobs:
   build:
