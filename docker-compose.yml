@@ -33,7 +33,8 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_SHOW_SQL: "true"
       CHROMIUM_BIN: /usr/bin/chromium
-      CHROMEDRIVER_BIN: /usr/bin/chromedriver
+      CHROMEDRIVER_BIN: /usr/bin/chromedriver      
+      FOOTBALL_DATA_TOKEN: ${FOOTBALL_DATA_TOKEN}
     ports:
       - "8080:8080"
     volumes:

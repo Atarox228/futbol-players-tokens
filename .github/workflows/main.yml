@@ -47,6 +47,7 @@ jobs:
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/player_market
         SPRING_DATASOURCE_USERNAME: postgres
         SPRING_DATASOURCE_PASSWORD: root
+        FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
 
     - name: Build Docker Image with Docker Compose
       # Aquí usamos tu config de docker-compose para el empaquetado final
