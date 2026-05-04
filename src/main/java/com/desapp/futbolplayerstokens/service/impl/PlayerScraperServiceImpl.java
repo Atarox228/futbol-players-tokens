@@ -193,14 +193,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                     hasNextButton = false;
                 } catch (Exception e) {
                     System.err.println("Error al hacer click en siguiente: " + e.getMessage());
-                    e.printStackTrace();
                     hasNextButton = false;
                 }
             }
 
         } catch (Exception e) {
             System.err.println("Error durante el scraping: " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("❌ Error durante el scraping: " + e.getMessage(), e);
         } finally {
             System.out.println("\nCerrando navegador...");
@@ -479,14 +477,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                     hasNextButton = false;
                 } catch (Exception e) {
                     System.err.println("Error al hacer click en siguiente: " + e.getMessage());
-                    e.printStackTrace();
                     hasNextButton = false;
                 }
             }
 
         } catch (Exception e) {
             System.err.println("Error durante el scraping: " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("❌ Error durante el scraping: " + e.getMessage(), e);
         } finally {
             System.out.println("\nCerrando navegador...");

@@ -103,7 +103,6 @@ public class MatchScraperServiceImpl implements MatchScraperService {
 
             } catch (Exception e) {
                 System.err.println("❌ Error al consultar la API para competencia " + competitionId + ": " + e.getMessage());
-                e.printStackTrace();
             }
         }
 

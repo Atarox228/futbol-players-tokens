@@ -99,7 +99,6 @@ public class PlayerControllerREST {
             return ResponseEntity.ok(message);
         } catch (Exception e) {
             System.err.println("❌ Error durante el scraping: " + e.getMessage());
-            e.printStackTrace();
             return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
         }
     }
@@ -163,7 +162,6 @@ public class PlayerControllerREST {
             return ResponseEntity.ok(message);
         } catch (Exception e) {
             System.err.println("❌ Error durante el scraping: " + e.getMessage());
-            e.printStackTrace();
             return ResponseEntity.status(500).body("❌ Error: " + e.getMessage());
         }
     }
