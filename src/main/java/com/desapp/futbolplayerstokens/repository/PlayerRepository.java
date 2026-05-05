@@ -11,6 +11,7 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 
 public interface PlayerRepository extends JpaRepository<Player, Long> {
+	List<Player> findByTeamIgnoreCase(String team);
 
     @Query("SELECT p FROM Player p WHERE " +
            "(:league IS NULL OR p.league = :league) AND " +

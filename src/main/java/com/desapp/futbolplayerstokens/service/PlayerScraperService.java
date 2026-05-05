@@ -1,6 +1,5 @@
 package com.desapp.futbolplayerstokens.service;
 
-import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 
 import java.util.List;
@@ -14,4 +13,6 @@ public interface PlayerScraperService {
     List<PlayerDetailDTO> scrapeTeamPlayersByName(String teamName, String league);
 
     List<PlayerDetailDTO> scrapeNewPlayersOnly(String url, String league, Consumer<List<PlayerDetailDTO>> onPageComplete);
+
+    void scrapeAllPlayersIfDatabaseEmpty();
 }
