@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
+import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerOverwriteResult;
@@ -10,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class PlayerServiceImpl implements PlayerService {
@@ -21,17 +25,25 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
-    public PlayerDTO getPlayerById(Long id) {
+    public PlayerDetailDTO getPlayerById(Long id) {
         Player player = playerRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Player not found"));
 
-        return PlayerDTO.toDTO(player);
+        return PlayerDetailDTO.toDTO(player);
     }
 
     @Override
-    public void saveAllPlayers(List<PlayerDTO> playerDTOs) {
+    public List<PlayerDTO> getPlayersWithFilters(String league, String team, String position) {
+        List<Player> players = playerRepository.findByFilters(league, team, position);
+        return players.stream()
+                .map(PlayerDTO::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void saveAllPlayers(List<PlayerDetailDTO> playerDTOs) {
         int saved = 0;
-        for (PlayerDTO dto : playerDTOs) {
+        for (PlayerDetailDTO dto : playerDTOs) {
             try {
                 // Verificar si el jugador ya existe en la BD (por nombre + liga + equipo)
                 if (playerRepository.findAll().stream()
@@ -74,11 +86,11 @@ public class PlayerServiceImpl implements PlayerService {
 
     @Override
     @Transactional
-    public PlayerOverwriteResult overwritePlayersByNameAndTeam(List<PlayerDTO> playerDTOs) {
+    public PlayerOverwriteResult overwritePlayersByNameAndTeam(List<PlayerDetailDTO> playerDTOs) {
         int modifiedRows = 0;
         int insertedRows = 0;
 
-        for (PlayerDTO dto : playerDTOs) {
+        for (PlayerDetailDTO dto : playerDTOs) {
             if (dto.getName() == null || dto.getName().isBlank() || dto.getTeam() == null || dto.getTeam().isBlank()) {
                 continue;
             }
