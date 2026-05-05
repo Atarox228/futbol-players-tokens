@@ -1,0 +1,309 @@
+package com.desapp.futbolplayerstokens.controller.dto;
+
+import com.desapp.futbolplayerstokens.modelo.Player;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@DisplayName("PlayerDetailDTO Tests")
+class PlayerDetailDTOTest {
+
+    @Test
+    @DisplayName("Debería crear un PlayerDetailDTO con Builder")
+    void testCreatePlayerDetailDTOWithBuilder() {
+        PlayerDetailDTO dto = PlayerDetailDTO.builder()
+                .id(1L)
+                .name("Messi")
+                .team("Inter Miami")
+                .league("MLS")
+                .position("RW")
+                .rating(8.5)
+                .goals(5)
+                .assists(3)
+                .build();
+
+        assertNotNull(dto);
+        assertEquals(1L, dto.getId());
+        assertEquals("Messi", dto.getName());
+        assertEquals("Inter Miami", dto.getTeam());
+        assertEquals("MLS", dto.getLeague());
+        assertEquals("RW", dto.getPosition());
+        assertEquals(8.5, dto.getRating());
+        assertEquals(5, dto.getGoals());
+        assertEquals(3, dto.getAssists());
+    }
+
+    @Test
+    @DisplayName("Debería convertir un Player a PlayerDetailDTO")
+    void testToDTOFromPlayer() {
+        Player player = Player.builder()
+                .id(1L)
+                .name("Lionel Messi")
+                .team("Inter Miami")
+                .league("MLS")
+                .position("RW")
+                .rating(8.5)
+                .played(10)
+                .won(7)
+                .lost(3)
+                .appearances(10)
+                .minutes(900)
+                .goals(5)
+                .assists(3)
+                .shotsOnTarget(15)
+                .clears(2)
+                .goalsConceded(0)
+                .tackles(5)
+                .interceptions(3)
+                .blocks(1)
+                .ownGoals(0)
+                .keyPasses(10)
+                .passAccuracy(0.92)
+                .yellowCards(0)
+                .redCards(0)
+                .playerOfTheMatch(2)
+                .score(new BigDecimal("85.50"))
+                .lastModifiedAt(LocalDateTime.now())
+                .build();
+
+        PlayerDetailDTO dto = PlayerDetailDTO.toDTO(player);
+
+        assertNotNull(dto);
+        assertEquals(1L, dto.getId());
+        assertEquals("Lionel Messi", dto.getName());
+        assertEquals("Inter Miami", dto.getTeam());
+        assertEquals("MLS", dto.getLeague());
+        assertEquals("RW", dto.getPosition());
+        assertEquals(8.5, dto.getRating());
+        assertEquals(10, dto.getPlayed());
+        assertEquals(7, dto.getWon());
+        assertEquals(3, dto.getLost());
+        assertEquals(10, dto.getAppearances());
+        assertEquals(900, dto.getMinutes());
+        assertEquals(5, dto.getGoals());
+        assertEquals(3, dto.getAssists());
+        assertEquals(15, dto.getShotsOnTarget());
+        assertEquals(2, dto.getClears());
+        assertEquals(0, dto.getGoalsConceded());
+        assertEquals(5, dto.getTackles());
+        assertEquals(3, dto.getInterceptions());
+        assertEquals(1, dto.getBlocks());
+        assertEquals(0, dto.getOwnGoals());
+        assertEquals(10, dto.getKeyPasses());
+        assertEquals(0.92, dto.getPassAccuracy());
+        assertEquals(0, dto.getYellowCards());
+        assertEquals(0, dto.getRedCards());
+        assertEquals(2, dto.getPlayerOfTheMatch());
+        assertEquals(new BigDecimal("85.50"), dto.getScore());
+    }
+
+    @Test
+    @DisplayName("Debería manejar valores nulos al convertir Player a DTO")
+    void testToDTOWithNullValues() {
+        Player player = Player.builder()
+                .id(1L)
+                .name("Test Player")
+                .team("Test Team")
+                .build();
+
+        PlayerDetailDTO dto = PlayerDetailDTO.toDTO(player);
+
+        assertNotNull(dto);
+        assertEquals(1L, dto.getId());
+        assertEquals("Test Player", dto.getName());
+        assertEquals("Test Team", dto.getTeam());
+        assertNull(dto.getRating());
+        assertNull(dto.getGoals());
+        assertNull(dto.getAssists());
+    }
+
+    @Test
+    @DisplayName("Debería establecer y obtener todos los campos")
+    void testSettersAndGetters() {
+        PlayerDetailDTO dto = PlayerDetailDTO.builder()
+                .id(1L)
+                .name("Test Player")
+                .team("Test Team")
+                .league("Test League")
+                .position("ST")
+                .rating(7.5)
+                .played(5)
+                .won(3)
+                .lost(2)
+                .appearances(5)
+                .minutes(450)
+                .goals(3)
+                .assists(2)
+                .shotsOnTarget(10)
+                .clears(5)
+                .goalsConceded(1)
+                .tackles(8)
+                .interceptions(4)
+                .blocks(2)
+                .ownGoals(0)
+                .keyPasses(6)
+                .passAccuracy(0.88)
+                .yellowCards(1)
+                .redCards(0)
+                .playerOfTheMatch(1)
+                .score(new BigDecimal("72.50"))
+                .build();
+
+        assertEquals(1L, dto.getId());
+        assertEquals("Test Player", dto.getName());
+        assertEquals("Test Team", dto.getTeam());
+        assertEquals("Test League", dto.getLeague());
+        assertEquals("ST", dto.getPosition());
+        assertEquals(7.5, dto.getRating());
+        assertEquals(5, dto.getPlayed());
+        assertEquals(3, dto.getWon());
+        assertEquals(2, dto.getLost());
+        assertEquals(5, dto.getAppearances());
+        assertEquals(450, dto.getMinutes());
+        assertEquals(3, dto.getGoals());
+        assertEquals(2, dto.getAssists());
+        assertEquals(10, dto.getShotsOnTarget());
+        assertEquals(5, dto.getClears());
+        assertEquals(1, dto.getGoalsConceded());
+        assertEquals(8, dto.getTackles());
+        assertEquals(4, dto.getInterceptions());
+        assertEquals(2, dto.getBlocks());
+        assertEquals(0, dto.getOwnGoals());
+        assertEquals(6, dto.getKeyPasses());
+        assertEquals(0.88, dto.getPassAccuracy());
+        assertEquals(1, dto.getYellowCards());
+        assertEquals(0, dto.getRedCards());
+        assertEquals(1, dto.getPlayerOfTheMatch());
+        assertEquals(new BigDecimal("72.50"), dto.getScore());
+    }
+
+    @Test
+    @DisplayName("Debería manejar BigDecimal para score")
+    void testScoreBigDecimal() {
+        BigDecimal score = new BigDecimal("85.12345678");
+        PlayerDetailDTO dto = PlayerDetailDTO.builder()
+                .name("Score Test")
+                .team("Test Team")
+                .score(score)
+                .build();
+
+        assertEquals(score, dto.getScore());
+        assertEquals("85.12345678", dto.getScore().toPlainString());
+    }
+
+    @Test
+    @DisplayName("Debería comparar DTOs por contenido")
+    void testDTOEquality() {
+        PlayerDetailDTO dto1 = PlayerDetailDTO.builder()
+                .name("Messi")
+                .team("Inter Miami")
+                .league("MLS")
+                .rating(8.5)
+                .build();
+
+        PlayerDetailDTO dto2 = PlayerDetailDTO.builder()
+                .name("Messi")
+                .team("Inter Miami")
+                .league("MLS")
+                .rating(8.5)
+                .build();
+
+        assertEquals(dto1, dto2);
+    }
+
+    @Test
+    @DisplayName("Debería manejar nulos en comparación")
+    void testDTOWithNulls() {
+        PlayerDetailDTO dto = PlayerDetailDTO.builder()
+                .name("Test Player")
+                .build();
+
+        assertEquals("Test Player", dto.getName());
+        assertNull(dto.getId());
+        assertNull(dto.getTeam());
+        assertNull(dto.getRating());
+    }
+
+    @Test
+    @DisplayName("Debería generar hash code consistente")
+    void testHashCode() {
+        PlayerDetailDTO dto1 = PlayerDetailDTO.builder()
+                .name("Messi")
+                .team("Inter Miami")
+                .build();
+
+        PlayerDetailDTO dto2 = PlayerDetailDTO.builder()
+                .name("Messi")
+                .team("Inter Miami")
+                .build();
+
+        assertEquals(dto1.hashCode(), dto2.hashCode());
+    }
+
+    @Test
+    @DisplayName("Debería convertir Player con todos los campos a DTO completo")
+    void testCompletePlayerToDTOConversion() {
+        Player player = Player.builder()
+                .id(5L)
+                .name("Cristiano Ronaldo")
+                .team("Al Nassr")
+                .league("Saudi Arabia")
+                .position("ST")
+                .rating(7.8)
+                .played(15)
+                .won(10)
+                .lost(5)
+                .appearances(15)
+                .minutes(1350)
+                .goals(12)
+                .assists(4)
+                .shotsOnTarget(30)
+                .clears(5)
+                .goalsConceded(0)
+                .tackles(10)
+                .interceptions(5)
+                .blocks(3)
+                .ownGoals(0)
+                .keyPasses(15)
+                .passAccuracy(0.85)
+                .yellowCards(2)
+                .redCards(0)
+                .playerOfTheMatch(3)
+                .score(new BigDecimal("78.50"))
+                .lastModifiedAt(LocalDateTime.now())
+                .build();
+
+        PlayerDetailDTO dto = PlayerDetailDTO.toDTO(player);
+
+        assertEquals(player.getId(), dto.getId());
+        assertEquals(player.getName(), dto.getName());
+        assertEquals(player.getTeam(), dto.getTeam());
+        assertEquals(player.getLeague(), dto.getLeague());
+        assertEquals(player.getPosition(), dto.getPosition());
+        assertEquals(player.getRating(), dto.getRating());
+        assertEquals(player.getPlayed(), dto.getPlayed());
+        assertEquals(player.getWon(), dto.getWon());
+        assertEquals(player.getLost(), dto.getLost());
+        assertEquals(player.getAppearances(), dto.getAppearances());
+        assertEquals(player.getMinutes(), dto.getMinutes());
+        assertEquals(player.getGoals(), dto.getGoals());
+        assertEquals(player.getAssists(), dto.getAssists());
+        assertEquals(player.getShotsOnTarget(), dto.getShotsOnTarget());
+        assertEquals(player.getClears(), dto.getClears());
+        assertEquals(player.getGoalsConceded(), dto.getGoalsConceded());
+        assertEquals(player.getTackles(), dto.getTackles());
+        assertEquals(player.getInterceptions(), dto.getInterceptions());
+        assertEquals(player.getBlocks(), dto.getBlocks());
+        assertEquals(player.getOwnGoals(), dto.getOwnGoals());
+        assertEquals(player.getKeyPasses(), dto.getKeyPasses());
+        assertEquals(player.getPassAccuracy(), dto.getPassAccuracy());
+        assertEquals(player.getYellowCards(), dto.getYellowCards());
+        assertEquals(player.getRedCards(), dto.getRedCards());
+        assertEquals(player.getPlayerOfTheMatch(), dto.getPlayerOfTheMatch());
+        assertEquals(player.getScore(), dto.getScore());
+    }
+}
