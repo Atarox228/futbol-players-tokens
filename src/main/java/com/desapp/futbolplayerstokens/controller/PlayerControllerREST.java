@@ -130,7 +130,7 @@ public class PlayerControllerREST {
             long seconds = (duration % 60000) / 1000;
 
             String message = String.format(
-                "✓ Se scrapearon y guardaron %d jugadores de todas las ligas correctamente\n⏱️ Tiempo total: %d min %d seg",
+                "✓ Se scrapearon y guardaron %d jugadores de todas las ligas correctamente%n⏱️ Tiempo total: %d min %d seg",
                 totalJugadores,
                 minutes,
                 seconds
@@ -179,7 +179,7 @@ public class PlayerControllerREST {
             long seconds = (duration % 60000) / 1000;
 
             String message = String.format(
-                "✓ Se encontraron y guardaron %d jugadores NUEVOS de todas las ligas\n⏱️ Tiempo total: %d min %d seg",
+                "✓ Se encontraron y guardaron %d jugadores NUEVOS de todas las ligas%n⏱️ Tiempo total: %d min %d seg",
                 totalJugadoresNuevos,
                 minutes,
                 seconds
@@ -203,7 +203,7 @@ public class PlayerControllerREST {
             long startTime = System.currentTimeMillis();
 
             // El método scrapeTeamPlayersByName ahora agrega nuevos y actualiza existentes
-            List<PlayerDetailDTO> newPlayers = scraperService.scrapeTeamPlayersByName(teamName, league);
+            scraperService.scrapeTeamPlayersByName(teamName, league);
 
             long duration = System.currentTimeMillis() - startTime;
             long minutes = duration / 60000;

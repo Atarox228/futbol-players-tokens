@@ -1,6 +1,5 @@
 package com.desapp.futbolplayerstokens.service;
 
-import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 
 import java.util.List;

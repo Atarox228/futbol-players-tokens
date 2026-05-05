@@ -6,6 +6,7 @@ import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import com.desapp.futbolplayerstokens.service.PlayerService;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import org.jspecify.annotations.NonNull;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -69,7 +70,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private static final String SPACE = " ";
     private static final String REGEX_MULTIPLE_SPACES = "\\s+";
-    private static final String REGEX_NON_NUMERIC = "[^0-9]";
+    private static final String REGEX_NON_NUMERIC = "\\D";
     private static final String EMPTY = "";
 
     private static final String JS_SCROLL_INTO_VIEW = "arguments[0].scrollIntoView(true);";
@@ -109,24 +110,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         List<PlayerDetailDTO> allPlayers = new ArrayList<>();
 
         try {
-            driver.get(url);
-
-            // Esperar a que cargue la página inicial (más tiempo en headless)
-            Thread.sleep(4000);
-
-            // Verificar si hay un error 502 o similar
-            try {
-                WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
-                throw new RuntimeException(ERROR_HTTP_DETECTED + errorElement.getText());
-            } catch (NoSuchElementException e) {
-                // No hay error, continuar
-            }
-
-            // Detectar y cerrar popup de cookies/consentimiento
-            closePopupIfPresent(driver, wait);
-
-            // Seleccionar "Todos los jugadores" en la tabla de ligas
-            selectAllPlayersInLeague(driver, wait);
+            prepareLeaguePlayersPage(url, driver, wait);
 
             boolean hasNextButton = true;
             int pageCount = 0;
@@ -135,18 +119,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 pageCount++;
 
                 // Esperar a que cargue la tabla con timeout corto
-                try {
-                    wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
-                        By.cssSelector(CSS_TBODY_TR)));
-                } catch (TimeoutException e) {
-                    throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
-                }
-
-                // Pequeño delay adicional para asegurar que los datos se renderizaron
-                Thread.sleep(1000);
-
-                // Extraer jugadores de la página actual
-                List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
+                List<WebElement> rows = loadCurrentPageRows(wait, driver);
                 int validPlayersInPage = 0;
 
                 for (WebElement row : rows) {
@@ -182,42 +155,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 }
 
                 // Buscar y hacer click en el botón "Siguiente"
-                try {
-                    WebElement nextButton = findNextButton(driver);
-
-                    if (nextButton != null) {
-                        // Verificar si está deshabilitado
-                        String disabledAttr = nextButton.getAttribute(ATTR_DISABLED);
-                        String ariaDisabled = nextButton.getAttribute(ATTR_ARIA_DISABLED);
-                        String classAttr = nextButton.getAttribute(ATTR_CLASS);
-
-                        boolean isDisabled = disabledAttr != null ||
-                                           VALUE_TRUE.equals(ariaDisabled) ||
-                                           (classAttr != null && classAttr.contains(CLASS_DISABLED));
-
-                        if (!isDisabled && nextButton.isDisplayed()) {
-                            // Scroll hasta el botón y hacer click
-                            ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
-                            Thread.sleep(500);
-
-                            nextButton.click();
-
-                            // Esperar a que carguen completamente los nuevos datos
-                            Thread.sleep(1500);
-                        } else {
-                            hasNextButton = false;
-                        }
-                    } else {
-                        hasNextButton = false;
-                    }
-
-                } catch (NoSuchElementException e) {
-                    hasNextButton = false;
-                } catch (Exception e) {
-                    hasNextButton = false;
-                }
+                hasNextButton = isHasNextButton(driver, hasNextButton);
             }
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // 🔑 RESTAURA la interrupción
+            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } catch (Exception e) {
             throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } finally {
@@ -225,6 +168,66 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         return allPlayers;
+    }
+
+    private boolean isHasNextButton(WebDriver driver, boolean hasNextButton) {
+        try {
+            WebElement nextButton = findNextButton(driver);
+
+            if (nextButton != null) {
+                // Verificar si está deshabilitado
+                String disabledAttr = nextButton.getAttribute(ATTR_DISABLED);
+                String ariaDisabled = nextButton.getAttribute(ATTR_ARIA_DISABLED);
+                String classAttr = nextButton.getAttribute(ATTR_CLASS);
+
+                boolean isDisabled = disabledAttr != null ||
+                                   VALUE_TRUE.equals(ariaDisabled) ||
+                                   (classAttr != null && classAttr.contains(CLASS_DISABLED));
+
+                if (!isDisabled && nextButton.isDisplayed()) {
+                    // Scroll hasta el botón y hacer click
+                    ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
+                    Thread.sleep(500);
+
+                    nextButton.click();
+
+                    // Esperar a que carguen completamente los nuevos datos
+                    Thread.sleep(1500);
+                } else {
+                    hasNextButton = false;
+                }
+            } else {
+                hasNextButton = false;
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); // 🔑 preservar interrupción
+            hasNextButton = false;
+        } catch (Exception e) {
+            hasNextButton = false;
+        }
+        return hasNextButton;
+    }
+
+    private void prepareLeaguePlayersPage(String url, WebDriver driver, WebDriverWait wait) throws InterruptedException {
+        driver.get(url);
+
+        // Esperar a que cargue la página inicial (más tiempo en headless)
+        Thread.sleep(4000);
+
+        // Verificar si hay un error 502 o similar
+        try {
+            WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
+            throw new RuntimeException(ERROR_HTTP_DETECTED + errorElement.getText());
+        } catch (NoSuchElementException e) {
+            // No hay error, continuar
+        }
+
+        // Detectar y cerrar popup de cookies/consentimiento
+        closePopupIfPresent(driver, wait);
+
+        // Seleccionar "Todos los jugadores" en la tabla de ligas
+        selectAllPlayersInLeague(driver, wait);
     }
 
     @Override
@@ -274,38 +277,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                     if (existingPlayers.isEmpty()) {
                         // Jugador nuevo - agregarlo
-                        Player newPlayer = Player.builder()
-                            .name(player.getName())
-                            .rating(player.getRating())
-                            .team(player.getTeam())
-                            .league(player.getLeague())
-                            .position(player.getPosition())
-                            .appearances(player.getAppearances())
-                            .minutes(player.getMinutes())
-                            .goals(player.getGoals())
-                            .assists(player.getAssists())
-                            .yellowCards(player.getYellowCards())
-                            .redCards(player.getRedCards())
-                            .playerOfTheMatch(player.getPlayerOfTheMatch())
-                            .build();
-
-                        playerRepository.save(newPlayer);
+                        playerDesdeCero(player, playerRepository);
                         newPlayers.add(player);
                         addedCount++;
                     } else {
                         // Jugador existe - actualizar estadísticas
-                        for (Player existingPlayer : existingPlayers) {
-                            existingPlayer.setRating(player.getRating());
-                            existingPlayer.setAppearances(player.getAppearances());
-                            existingPlayer.setMinutes(player.getMinutes());
-                            existingPlayer.setGoals(player.getGoals());
-                            existingPlayer.setAssists(player.getAssists());
-                            existingPlayer.setYellowCards(player.getYellowCards());
-                            existingPlayer.setRedCards(player.getRedCards());
-                            existingPlayer.setPlayerOfTheMatch(player.getPlayerOfTheMatch());
-                            existingPlayer.setLastModifiedAt(LocalDateTime.now());
-                        }
-                        playerRepository.saveAll(existingPlayers);
+                        modificandoPlayer(player, existingPlayers, playerRepository);
                         updatedCount++;
                     }
 
@@ -315,11 +292,49 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             }
 
             return newPlayers;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
+
         } catch (Exception e) {
             throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
         } finally {
             driver.quit();
         }
+    }
+
+    static void modificandoPlayer(PlayerDetailDTO player, List<Player> existingPlayers, PlayerRepository playerRepository) {
+        for (Player existingPlayer : existingPlayers) {
+            existingPlayer.setRating(player.getRating());
+            existingPlayer.setAppearances(player.getAppearances());
+            existingPlayer.setMinutes(player.getMinutes());
+            existingPlayer.setGoals(player.getGoals());
+            existingPlayer.setAssists(player.getAssists());
+            existingPlayer.setYellowCards(player.getYellowCards());
+            existingPlayer.setRedCards(player.getRedCards());
+            existingPlayer.setPlayerOfTheMatch(player.getPlayerOfTheMatch());
+            existingPlayer.setLastModifiedAt(LocalDateTime.now());
+        }
+        playerRepository.saveAll(existingPlayers);
+    }
+
+    static void playerDesdeCero(PlayerDetailDTO player, PlayerRepository playerRepository) {
+        Player newPlayer = Player.builder()
+            .name(player.getName())
+            .rating(player.getRating())
+            .team(player.getTeam())
+            .league(player.getLeague())
+            .position(player.getPosition())
+            .appearances(player.getAppearances())
+            .minutes(player.getMinutes())
+            .goals(player.getGoals())
+            .assists(player.getAssists())
+            .yellowCards(player.getYellowCards())
+            .redCards(player.getRedCards())
+            .playerOfTheMatch(player.getPlayerOfTheMatch())
+            .build();
+
+        playerRepository.save(newPlayer);
     }
 
     @Override
@@ -331,24 +346,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         List<PlayerDetailDTO> allNewPlayers = new ArrayList<>();
 
         try {
-            driver.get(url);
-
-            // Esperar a que cargue la página inicial (más tiempo en headless)
-            Thread.sleep(4000);
-
-            // Verificar si hay un error 502 o similar
-            try {
-                WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
-                throw new RuntimeException(ERROR_HTTP_DETECTED + errorElement.getText());
-            } catch (NoSuchElementException e) {
-                // No hay error, continuar
-            }
-
-            // Detectar y cerrar popup de cookies/consentimiento
-            closePopupIfPresent(driver, wait);
-
-            // Seleccionar "Todos los jugadores" en la tabla de ligas
-            selectAllPlayersInLeague(driver, wait);
+            prepareLeaguePlayersPage(url, driver, wait);
 
             boolean hasNextButton = true;
             int pageCount = 0;
@@ -357,18 +355,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 pageCount++;
 
                 // Esperar a que cargue la tabla con timeout corto
-                try {
-                    wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
-                        By.cssSelector(CSS_TBODY_TR)));
-                } catch (TimeoutException e) {
-                    throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
-                }
-
-                // Pequeño delay adicional para asegurar que los datos se renderizaron
-                Thread.sleep(1000);
-
-                // Extraer jugadores de la página actual
-                List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
+                List<WebElement> rows = loadCurrentPageRows(wait, driver);
                 int newPlayersInPage = 0;
                 List<PlayerDetailDTO> newPlayersThisPage = new ArrayList<>();
 
@@ -411,41 +398,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 }
 
                 // Buscar y hacer click en el botón "Siguiente"
-                try {
-                    WebElement nextButton = findNextButton(driver);
-
-                    if (nextButton != null) {
-                        // Verificar si está deshabilitado
-                        String disabledAttr = nextButton.getAttribute(ATTR_DISABLED);
-                        String ariaDisabled = nextButton.getAttribute(ATTR_ARIA_DISABLED);
-                        String classAttr = nextButton.getAttribute(ATTR_CLASS);
-
-                        boolean isDisabled = disabledAttr != null ||
-                                           VALUE_TRUE.equals(ariaDisabled) ||
-                                           (classAttr != null && classAttr.contains(CLASS_DISABLED));
-
-                        if (!isDisabled && nextButton.isDisplayed()) {
-                            // Scroll hasta el botón y hacer click
-                            ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
-                            Thread.sleep(500);
-
-                            nextButton.click();
-
-                            // Esperar a que carguen completamente los nuevos datos
-                            Thread.sleep(1500);
-                        } else {
-                            hasNextButton = false;
-                        }
-                    } else {
-                        hasNextButton = false;
-                    }
-
-                } catch (NoSuchElementException e) {
-                    hasNextButton = false;
-                } catch (Exception e) {
-                    hasNextButton = false;
-                }
+                hasNextButton = isHasNextButton(driver, hasNextButton);
             }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
 
         } catch (Exception e) {
             throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
@@ -454,6 +412,22 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         return allNewPlayers;
+    }
+
+    private @NonNull List<WebElement> loadCurrentPageRows(WebDriverWait wait, WebDriver driver) throws InterruptedException {
+        try {
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
+                By.cssSelector(CSS_TBODY_TR)));
+        } catch (TimeoutException e) {
+            throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
+        }
+
+        // Pequeño delay adicional para asegurar que los datos se renderizaron
+        Thread.sleep(1000);
+
+        // Extraer jugadores de la página actual
+        List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
+        return rows;
     }
 
     private String getBaseUrlByLeague(String league) {
@@ -622,8 +596,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             }
 
             return player;
-        } catch (NoSuchElementException e) {
-            return null;
         } catch (Exception e) {
             return null;
         }
@@ -767,8 +739,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             }
 
             return player;
-        } catch (NoSuchElementException e) {
-            return null;
         } catch (Exception e) {
             return null;
         }
@@ -811,6 +781,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             } catch (TimeoutException e) {
                 // No hay popup, continuar
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+
         } catch (Exception e) {
             // Ignorar errores con popup
         }
@@ -835,6 +808,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         } catch (TimeoutException e) {
             // Timeout, continuar
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // Interrumpida, continuar
         } catch (Exception e) {
             // Error, continuar
         }
