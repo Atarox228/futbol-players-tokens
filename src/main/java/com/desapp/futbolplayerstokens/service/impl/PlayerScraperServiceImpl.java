@@ -1018,7 +1018,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             System.out.println("✅ Scraping automático completado. Total: " + totalJugadores + " jugadores guardados");
         } catch (Exception e) {
             System.err.println("❌ Error en scraping automático: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 }

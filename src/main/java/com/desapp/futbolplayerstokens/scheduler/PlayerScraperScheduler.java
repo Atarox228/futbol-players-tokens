@@ -22,7 +22,6 @@ public class PlayerScraperScheduler {
             playerScraperService.scrapeAllPlayersIfDatabaseEmpty();
         } catch (Exception e) {
             System.err.println("❌ Error en scraping inicial: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -37,7 +36,6 @@ public class PlayerScraperScheduler {
             playerScraperService.scrapeAllPlayersIfDatabaseEmpty();
         } catch (Exception e) {
             System.err.println("❌ Error: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 }

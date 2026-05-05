@@ -31,7 +31,6 @@ public class MatchScraperScheduler {
             System.out.println("✅ Schedulers programados. " + dynamicMatchScheduler.getScheduledMatchCount() + " partidos en la cola");
         } catch (Exception e) {
             System.err.println("❌ Error: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 }

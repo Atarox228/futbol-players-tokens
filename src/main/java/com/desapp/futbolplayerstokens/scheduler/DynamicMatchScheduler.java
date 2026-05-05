@@ -138,7 +138,6 @@ public class DynamicMatchScheduler {
             }
         } catch (Exception e) {
             System.err.println("❌ Error scrapeando jugadores del partido: " + e.getMessage());
-            e.printStackTrace();
         } finally {
             scheduledMatches.remove(match.getId());
         }
@@ -211,7 +210,6 @@ public class DynamicMatchScheduler {
             }
         } catch (Exception e) {
             System.err.println("❌ Error verificando estado del partido: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }
