@@ -100,7 +100,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     @Override
     public List<PlayerDetailDTO> scrapeAllPlayers(String url, String league, java.util.function.Consumer<List<PlayerDetailDTO>> onPageComplete, boolean clearTable) {
-        // Limpiar tabla de players antes de scrapear (solo si clearTable es true)
         if (clearTable) {
             long count = playerRepository.count();
             if (count > 0) {
@@ -111,136 +110,26 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-
         List<PlayerDetailDTO> allPlayers = new ArrayList<>();
 
         try {
             driver.get(url);
             logger.info("📄 Página cargada: {}", url);
 
-            // Esperar a que cargue la página inicial (más tiempo en headless)
             Thread.sleep(4000);
             logger.info("⏳ Esperado 4 segundos");
 
-            // Verificar si hay un error 502 o similar
-            try {
-                WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
-                String errorText = errorElement.getText().trim();
-                boolean isDisplayed = errorElement.isDisplayed();
-                logger.warn("⚠️ Elemento de error encontrado - Visible: {}, Texto: '{}'", isDisplayed, errorText);
+            checkForHttpErrors(driver);
 
-                // Solo lanzar excepción si el elemento es visible y tiene texto
-                if (isDisplayed && !errorText.isEmpty()) {
-                    throw new RuntimeException(ERROR_HTTP_DETECTED + errorText);
-                } else {
-                    logger.info("✓ Elemento encontrado pero no es un error real (invisible o vacío)");
-                }
-            } catch (NoSuchElementException e) {
-                logger.info("✓ No hay error HTTP detectado");
-            }
-
-            // Detectar y cerrar popup de cookies/consentimiento
             logger.info("🍪 Intentando cerrar popup de cookies...");
             closePopupIfPresent(driver, wait);
             logger.info("✓ Popup procesado");
 
-            // Seleccionar "Todos los jugadores" en la tabla de ligas
             logger.info("👥 Intentando seleccionar 'Todos los jugadores'...");
             selectAllPlayersInLeague(driver, wait);
             logger.info("✓ 'Todos los jugadores' seleccionado");
 
-            boolean hasNextButton = true;
-            int pageCount = 0;
-
-            while (hasNextButton) {
-                pageCount++;
-                logger.info("📖 Página {}", pageCount);
-
-                // Esperar a que cargue la tabla con timeout corto
-                try {
-                    wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
-                        By.cssSelector(CSS_TBODY_TR)));
-                } catch (TimeoutException e) {
-                    logger.error("❌ Timeout esperando tabla en página {}", pageCount);
-                    throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
-                }
-
-                // Pequeño delay adicional para asegurar que los datos se renderizaron
-                Thread.sleep(1000);
-
-                // Extraer jugadores de la página actual
-                List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
-                logger.info("🔍 Filas encontradas en página {}: {}", pageCount, rows.size());
-                int validPlayersInPage = 0;
-
-                for (WebElement row : rows) {
-                    try {
-                        // Omitir jugadores que ya no pertenecen a la liga
-                        String rowClass = row.getAttribute(ATTR_CLASS);
-                        if (rowClass != null) {
-                            // Normalizar espacios y verificar si contiene not-current-player
-                            String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
-                            if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
-                                continue;
-                            }
-                        }
-
-                        PlayerDetailDTO player = extractPlayerData(row);
-                        if (player != null && !player.getName().isEmpty()) {
-                            player.setLeague(league);
-                            allPlayers.add(player);
-                            validPlayersInPage++;
-                        }
-                    } catch (Exception e) {
-                        // Continuar con el siguiente jugador
-                    }
-                }
-
-                // Persistir los jugadores de esta página
-                if (validPlayersInPage > 0) {
-                    List<PlayerDetailDTO> playersThisPage = allPlayers.subList(
-                        Math.max(0, allPlayers.size() - validPlayersInPage),
-                        allPlayers.size()
-                    );
-                    onPageComplete.accept(new ArrayList<>(playersThisPage));
-                }
-
-                // Buscar y hacer click en el botón "Siguiente"
-                try {
-                    WebElement nextButton = findNextButton(driver);
-
-                    if (nextButton != null) {
-                        // Verificar si está deshabilitado
-                        String disabledAttr = nextButton.getAttribute(ATTR_DISABLED);
-                        String ariaDisabled = nextButton.getAttribute(ATTR_ARIA_DISABLED);
-                        String classAttr = nextButton.getAttribute(ATTR_CLASS);
-
-                        boolean isDisabled = disabledAttr != null ||
-                                           VALUE_TRUE.equals(ariaDisabled) ||
-                                           (classAttr != null && classAttr.contains(CLASS_DISABLED));
-
-                        if (!isDisabled && nextButton.isDisplayed()) {
-                            // Scroll hasta el botón y hacer click
-                            ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
-                            Thread.sleep(500);
-
-                            nextButton.click();
-
-                            // Esperar a que carguen completamente los nuevos datos
-                            Thread.sleep(1500);
-                        } else {
-                            hasNextButton = false;
-                        }
-                    } else {
-                        hasNextButton = false;
-                    }
-
-                } catch (NoSuchElementException e) {
-                    hasNextButton = false;
-                } catch (Exception e) {
-                    hasNextButton = false;
-                }
-            }
+            scrapeAllPages(driver, wait, league, allPlayers, onPageComplete);
 
         } catch (Exception e) {
             throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
@@ -250,6 +139,129 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         return allPlayers;
+    }
+
+    private void checkForHttpErrors(WebDriver driver) {
+        try {
+            WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
+            String errorText = errorElement.getText().trim();
+            boolean isDisplayed = errorElement.isDisplayed();
+            logger.warn("⚠️ Elemento de error encontrado - Visible: {}, Texto: '{}'", isDisplayed, errorText);
+
+            if (isDisplayed && !errorText.isEmpty()) {
+                throw new RuntimeException(ERROR_HTTP_DETECTED + errorText);
+            } else {
+                logger.info("✓ Elemento encontrado pero no es un error real (invisible o vacío)");
+            }
+        } catch (NoSuchElementException e) {
+            logger.info("✓ No hay error HTTP detectado");
+        }
+    }
+
+    private void scrapeAllPages(WebDriver driver, WebDriverWait wait, String league,
+                               List<PlayerDetailDTO> allPlayers,
+                               java.util.function.Consumer<List<PlayerDetailDTO>> onPageComplete) throws InterruptedException {
+        boolean hasNextButton = true;
+        int pageCount = 0;
+
+        while (hasNextButton) {
+            pageCount++;
+            logger.info("📖 Página {}", pageCount);
+
+            waitForTableToLoad(wait, pageCount);
+            Thread.sleep(1000);
+
+            List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
+            logger.info("🔍 Filas encontradas en página {}: {}", pageCount, rows.size());
+
+            int validPlayersInPage = processPageRows(rows, league, allPlayers);
+
+            if (validPlayersInPage > 0) {
+                List<PlayerDetailDTO> playersThisPage = allPlayers.subList(
+                    Math.max(0, allPlayers.size() - validPlayersInPage),
+                    allPlayers.size()
+                );
+                onPageComplete.accept(new ArrayList<>(playersThisPage));
+            }
+
+            hasNextButton = processNextButton(driver);
+        }
+    }
+
+    private void waitForTableToLoad(WebDriverWait wait, int pageCount) {
+        try {
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
+                By.cssSelector(CSS_TBODY_TR)));
+        } catch (TimeoutException e) {
+            logger.error("❌ Timeout esperando tabla en página {}", pageCount);
+            throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
+        }
+    }
+
+    private int processPageRows(List<WebElement> rows, String league, List<PlayerDetailDTO> allPlayers) {
+        int validPlayersInPage = 0;
+        for (WebElement row : rows) {
+            try {
+                if (shouldSkipRow(row)) {
+                    continue;
+                }
+                PlayerDetailDTO player = extractPlayerData(row);
+                if (player != null && !player.getName().isEmpty()) {
+                    player.setLeague(league);
+                    allPlayers.add(player);
+                    validPlayersInPage++;
+                }
+            } catch (Exception e) {
+                // Continuar con el siguiente jugador
+            }
+        }
+        return validPlayersInPage;
+    }
+
+    private boolean shouldSkipRow(WebElement row) {
+        String rowClass = row.getAttribute(ATTR_CLASS);
+        if (rowClass != null) {
+            String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
+            if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean processNextButton(WebDriver driver) throws InterruptedException {
+        try {
+            WebElement nextButton = findNextButton(driver);
+            if (nextButton == null) {
+                return false;
+            }
+
+            if (isButtonDisabled(nextButton)) {
+                return false;
+            }
+
+            ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
+            Thread.sleep(500);
+            nextButton.click();
+            Thread.sleep(1500);
+            return true;
+
+        } catch (NoSuchElementException e) {
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isButtonDisabled(WebElement nextButton) {
+        String disabledAttr = nextButton.getAttribute(ATTR_DISABLED);
+        String ariaDisabled = nextButton.getAttribute(ATTR_ARIA_DISABLED);
+        String classAttr = nextButton.getAttribute(ATTR_CLASS);
+
+        return disabledAttr != null ||
+               VALUE_TRUE.equals(ariaDisabled) ||
+               (classAttr != null && classAttr.contains(CLASS_DISABLED)) ||
+               !nextButton.isDisplayed();
     }
 
     @Override
