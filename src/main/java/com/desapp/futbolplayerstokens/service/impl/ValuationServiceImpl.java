@@ -7,6 +7,7 @@ import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.service.Strategy;
+import com.desapp.futbolplayerstokens.service.ValuationStrategyRouter;
 import com.desapp.futbolplayerstokens.service.ValuationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,19 +17,19 @@ public class ValuationServiceImpl implements ValuationService {
 
     private final PlayerRepository playerRepository;
     private final StrategyConfigRepository strategyConfigRepository;
-    private final Strategy strategy;
+    private final ValuationStrategyRouter valuationStrategyRouter;
 
     public ValuationServiceImpl(PlayerRepository playerRepository,
                                 StrategyConfigRepository strategyConfigRepository,
-                                Strategy strategy) {
+                                ValuationStrategyRouter valuationStrategyRouter) {
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
-        this.strategy = strategy;
+        this.valuationStrategyRouter = valuationStrategyRouter;
     }
 
     @Override
     @Transactional
-    public ValuationResult evaluatePlayer(Long playerId, Long strategyConfigId) {
+    public ValuationResult evaluatePlayer(Long playerId, Long strategyConfigId, String strategyKey) {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
 
@@ -40,6 +41,7 @@ public class ValuationServiceImpl implements ValuationService {
                 .strategyConfig(strategyConfig)
                 .build();
 
+        Strategy strategy = valuationStrategyRouter.resolve(strategyKey);
         ValuationResult valuationResult = strategy.evaluate(valuationContext);
         int updatedRows = playerRepository.updateScoreById(playerId, valuationResult.getPrice());
         if (updatedRows == 0) {

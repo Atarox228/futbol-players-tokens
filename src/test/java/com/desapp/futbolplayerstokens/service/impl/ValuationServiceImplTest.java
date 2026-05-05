@@ -7,6 +7,7 @@ import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.service.Strategy;
+import com.desapp.futbolplayerstokens.service.ValuationStrategyRouter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,14 +34,17 @@ class ValuationServiceImplTest {
     private StrategyConfigRepository strategyConfigRepository;
 
     @Mock
+    private ValuationStrategyRouter valuationStrategyRouter;
+
+    @Mock
     private Strategy strategy;
 
     @InjectMocks
     private ValuationServiceImpl valuationService;
 
     @Test
-    void shouldEvaluatePlayerAndPersistOnlyScore() {
-        Player player = Player.builder().id(10L).build();
+    void shouldEvaluatePlayerWithGeneralStrategyAndPersistOnlyScore() {
+        Player player = Player.builder().id(10L).position("UNKNOWN").build();
         StrategyConfig strategyConfig = StrategyConfig.builder()
                 .id(20L)
                 .valorBase(new BigDecimal("100.00"))
@@ -55,6 +59,7 @@ class ValuationServiceImplTest {
 
         when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
         when(strategyConfigRepository.findById(20L)).thenReturn(Optional.of(strategyConfig));
+        when(valuationStrategyRouter.resolve(null)).thenReturn(strategy);
         when(strategy.evaluate(any(ValuationContext.class))).thenReturn(expectedResult);
         when(playerRepository.updateScoreById(10L, expectedResult.getPrice())).thenReturn(1);
 
@@ -62,10 +67,40 @@ class ValuationServiceImplTest {
 
         assertEquals(expectedResult, result);
         ArgumentCaptor<ValuationContext> contextCaptor = ArgumentCaptor.forClass(ValuationContext.class);
+        verify(valuationStrategyRouter).resolve(null);
         verify(strategy).evaluate(contextCaptor.capture());
         assertSame(player, contextCaptor.getValue().getPlayer());
         assertSame(strategyConfig, contextCaptor.getValue().getStrategyConfig());
         verify(playerRepository).updateScoreById(10L, expectedResult.getPrice());
+    }
+
+    @Test
+    void shouldEvaluatePlayerWithExplicitStrategyKey() {
+        Player player = Player.builder().id(11L).position("FW").build();
+        StrategyConfig strategyConfig = StrategyConfig.builder()
+                .id(21L)
+                .valorBase(new BigDecimal("100.00"))
+                .factorEscala(new BigDecimal("50.00"))
+                .version(5)
+                .build();
+        ValuationResult expectedResult = ValuationResult.builder()
+                .price(new BigDecimal("222.00000000"))
+                .strategyId(21L)
+                .strategyVersion(5)
+                .build();
+
+        when(playerRepository.findById(11L)).thenReturn(Optional.of(player));
+        when(strategyConfigRepository.findById(21L)).thenReturn(Optional.of(strategyConfig));
+        when(valuationStrategyRouter.resolve("POSITION")).thenReturn(strategy);
+        when(strategy.evaluate(any(ValuationContext.class))).thenReturn(expectedResult);
+        when(playerRepository.updateScoreById(11L, expectedResult.getPrice())).thenReturn(1);
+
+        ValuationResult result = valuationService.evaluatePlayer(11L, 21L, "POSITION");
+
+        assertEquals(expectedResult, result);
+        verify(valuationStrategyRouter).resolve("POSITION");
+        verify(strategy).evaluate(any(ValuationContext.class));
+        verify(playerRepository).updateScoreById(11L, expectedResult.getPrice());
     }
 }
 

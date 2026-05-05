@@ -22,6 +22,15 @@ public class PlayerDetailDTO {
     private Integer minutes;
     private Integer goals;
     private Integer assists;
+    private Integer shotsOnTarget;
+    private Integer clears;
+    private Integer goalsConceded;
+    private Integer tackles;
+    private Integer interceptions;
+    private Integer blocks;
+    private Integer ownGoals;
+    private Integer keyPasses;
+    private Double passAccuracy;
     private Integer yellowCards;
     private Integer redCards;
     private Integer playerOfTheMatch;
@@ -42,6 +51,15 @@ public class PlayerDetailDTO {
                 .minutes(player.getMinutes())
                 .goals(player.getGoals())
                 .assists(player.getAssists())
+                .shotsOnTarget(player.getShotsOnTarget())
+                .clears(player.getClears())
+                .goalsConceded(player.getGoalsConceded())
+                .tackles(player.getTackles())
+                .interceptions(player.getInterceptions())
+                .blocks(player.getBlocks())
+                .ownGoals(player.getOwnGoals())
+                .keyPasses(player.getKeyPasses())
+                .passAccuracy(player.getPassAccuracy())
                 .yellowCards(player.getYellowCards())
                 .redCards(player.getRedCards())
                 .playerOfTheMatch(player.getPlayerOfTheMatch())
