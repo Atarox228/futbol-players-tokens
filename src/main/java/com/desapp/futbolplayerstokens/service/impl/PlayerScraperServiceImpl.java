@@ -27,6 +27,58 @@ import java.net.URL;
 @Service
 public class PlayerScraperServiceImpl implements PlayerScraperService {
 
+    private static final String SELENIUM_REMOTE_URL = "http://localhost:4444";
+
+    private static final String CHROME_ARG_NO_SANDBOX = "--no-sandbox";
+    private static final String CHROME_ARG_DISABLE_DEV_SHM = "--disable-dev-shm-usage";
+    private static final String CHROME_ARG_DISABLE_GPU = "--disable-gpu";
+    private static final String CHROME_ARG_WINDOW_SIZE = "--window-size=1920,1080";
+    private static final String CHROME_ARG_DISABLE_AUTOMATION = "--disable-blink-features=AutomationControlled";
+    private static final String CHROME_ARG_DISABLE_WEB_RESOURCES = "--disable-web-resources";
+
+    private static final String CSS_TBODY_TR = "tbody tr";
+    private static final String CSS_PLAYER_LINK_SPAN = "a.player-link span";
+    private static final String CSS_PLAYER_META_DATA = "span.player-meta-data";
+    private static final String CSS_PLAYER_META_TEAM_NAME = "a.player-meta-data span.team-name";
+    private static final String CSS_NESTED_PLAYER_META_DATA = "span > span.player-meta-data";
+    private static final String CSS_COOKIE_ACCEPT_ALL = "[data-testid='cookie-accept-all']";
+    private static final String CSS_SELECT_TAG = "select";
+
+    private static final String XPATH_HTTP_ERROR = "//*[contains(text(), '502') or contains(text(), 'Bad Gateway') or contains(text(), '503') or contains(text(), 'Service Unavailable')]";
+    private static final String XPATH_ACCEPTAR_TODO = "//*[contains(text(), 'Aceptar todo')]";
+    private static final String XPATH_ACCEPT_ALL = "//*[contains(text(), 'Accept all')]";
+    private static final String XPATH_ACCEPTAR = "//*[contains(text(), 'Aceptar')]";
+    private static final String XPATH_ACCEPT = "//*[contains(text(), 'Accept')]";
+    private static final String XPATH_ALL_PLAYERS = "//a[@class='option' or contains(@class, 'option')][contains(text(), 'Todos los jugadores')]";
+    private static final String XPATH_NEXT_OPTION = "//a[@class='option  clickable'][@id='next']";
+    private static final String XPATH_NEXT_LOWER = "//a[contains(text(), 'siguiente')]";
+    private static final String XPATH_NEXT_UPPER = "//button[contains(text(), 'Siguiente')]";
+
+    private static final String ID_TOP_PLAYER_STATS_SUMMARY_GRID = "top-player-stats-summary-grid";
+    private static final String ID_NEXT = "next";
+    private static final String ID_LOCALE_SELECT = "locale-select";
+
+    private static final String ATTR_CLASS = "class";
+    private static final String ATTR_DISABLED = "disabled";
+    private static final String ATTR_ARIA_DISABLED = "aria-disabled";
+    private static final String ATTR_ID = "id";
+
+    private static final String VALUE_TRUE = "true";
+    private static final String CLASS_NOT_CURRENT_PLAYER = "not-current-player";
+    private static final String CLASS_DISABLED = "disabled";
+
+    private static final String SPACE = " ";
+    private static final String REGEX_MULTIPLE_SPACES = "\\s+";
+    private static final String REGEX_NON_NUMERIC = "[^0-9]";
+    private static final String EMPTY = "";
+
+    private static final String JS_SCROLL_INTO_VIEW = "arguments[0].scrollIntoView(true);";
+    private static final String JS_CLICK_ELEMENT = "arguments[0].click();";
+
+    private static final String ERROR_HTTP_DETECTED = "❌ Error HTTP detectado en la página: ";
+    private static final String ERROR_TABLE_NOT_LOADED = "❌ La tabla no cargó. Posible error 502 o servidor caído.";
+    private static final String ERROR_DURING_SCRAPING = "❌ Error durante el scraping: ";
+
     private final PlayerRepository playerRepository;
     private final PlayerService playerService;
 
@@ -50,23 +102,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             }
         }
 
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--window-size=1920,1080");
-        options.addArguments("--disable-blink-features=AutomationControlled");
-        options.addArguments("--disable-web-resources");
-
-        WebDriver driver;
-        try {
-            // Try to connect to remote Selenium server (for Docker)
-            driver = new RemoteWebDriver(new URL("http://localhost:4444"), options);
-        } catch (Exception e) {
-            // Fallback to local ChromeDriver
-            WebDriverManager.chromedriver().setup();
-            driver = new ChromeDriver(options);
-        }
+        ChromeOptions options = createChromeOptions();
+        WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
         List<PlayerDetailDTO> allPlayers = new ArrayList<>();
@@ -79,8 +116,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             // Verificar si hay un error 502 o similar
             try {
-                WebElement errorElement = driver.findElement(By.xpath("//*[contains(text(), '502') or contains(text(), 'Bad Gateway') or contains(text(), '503') or contains(text(), 'Service Unavailable')]"));
-                throw new RuntimeException("❌ Error HTTP detectado en la página: " + errorElement.getText());
+                WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
+                throw new RuntimeException(ERROR_HTTP_DETECTED + errorElement.getText());
             } catch (NoSuchElementException e) {
                 // No hay error, continuar
             }
@@ -100,26 +137,26 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 // Esperar a que cargue la tabla con timeout corto
                 try {
                     wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
-                        By.cssSelector("tbody tr")));
+                        By.cssSelector(CSS_TBODY_TR)));
                 } catch (TimeoutException e) {
-                    throw new RuntimeException("❌ La tabla no cargó. Posible error 502 o servidor caído.");
+                    throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
                 }
 
                 // Pequeño delay adicional para asegurar que los datos se renderizaron
                 Thread.sleep(1000);
 
                 // Extraer jugadores de la página actual
-                List<WebElement> rows = driver.findElements(By.cssSelector("tbody tr"));
+                List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
                 int validPlayersInPage = 0;
 
                 for (WebElement row : rows) {
                     try {
                         // Omitir jugadores que ya no pertenecen a la liga
-                        String rowClass = row.getAttribute("class");
+                        String rowClass = row.getAttribute(ATTR_CLASS);
                         if (rowClass != null) {
                             // Normalizar espacios y verificar si contiene not-current-player
-                            String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
-                            if (normalizedClass.contains("not-current-player")) {
+                            String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
+                            if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
                                 continue;
                             }
                         }
@@ -150,17 +187,17 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                     if (nextButton != null) {
                         // Verificar si está deshabilitado
-                        String disabledAttr = nextButton.getAttribute("disabled");
-                        String ariaDisabled = nextButton.getAttribute("aria-disabled");
-                        String classAttr = nextButton.getAttribute("class");
+                        String disabledAttr = nextButton.getAttribute(ATTR_DISABLED);
+                        String ariaDisabled = nextButton.getAttribute(ATTR_ARIA_DISABLED);
+                        String classAttr = nextButton.getAttribute(ATTR_CLASS);
 
                         boolean isDisabled = disabledAttr != null ||
-                                           "true".equals(ariaDisabled) ||
-                                           (classAttr != null && classAttr.contains("disabled"));
+                                           VALUE_TRUE.equals(ariaDisabled) ||
+                                           (classAttr != null && classAttr.contains(CLASS_DISABLED));
 
                         if (!isDisabled && nextButton.isDisplayed()) {
                             // Scroll hasta el botón y hacer click
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", nextButton);
+                            ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
                             Thread.sleep(500);
 
                             nextButton.click();
@@ -182,7 +219,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("❌ Error durante el scraping: " + e.getMessage(), e);
+            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } finally {
             driver.quit();
         }
@@ -194,23 +231,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     public List<PlayerDetailDTO> scrapeTeamPlayersByName(String teamName, String league) {
         String baseUrl = getBaseUrlByLeague(league);
 
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--window-size=1920,1080");
-        options.addArguments("--disable-blink-features=AutomationControlled");
-        options.addArguments("--disable-web-resources");
-
-        WebDriver driver;
-        try {
-            // Try to connect to remote Selenium server (for Docker)
-            driver = new RemoteWebDriver(new URL("http://localhost:4444"), options);
-        } catch (Exception e) {
-            // Fallback to local ChromeDriver
-            WebDriverManager.chromedriver().setup();
-            driver = new ChromeDriver(options);
-        }
+        ChromeOptions options = createChromeOptions();
+        WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
         int addedCount = 0;
@@ -227,11 +249,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             List<WebElement> rows = findSquadRowsFromTable(driver, wait);
             for (WebElement row : rows) {
                 try {
-                    String rowClass = row.getAttribute("class");
+                    String rowClass = row.getAttribute(ATTR_CLASS);
                     if (rowClass != null) {
-                        String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
+                        String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
                         // Solo incluir jugadores activos (sin not-current-player)
-                        if (normalizedClass.contains("not-current-player")) {
+                        if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
                             continue;
                         }
                     }
@@ -302,23 +324,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     @Override
     public List<PlayerDetailDTO> scrapeNewPlayersOnly(String url, String league, java.util.function.Consumer<List<PlayerDetailDTO>> onPageComplete) {
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--window-size=1920,1080");
-        options.addArguments("--disable-blink-features=AutomationControlled");
-        options.addArguments("--disable-web-resources");
-
-        WebDriver driver;
-        try {
-            // Try to connect to remote Selenium server (for Docker)
-            driver = new RemoteWebDriver(new URL("http://localhost:4444"), options);
-        } catch (Exception e) {
-            // Fallback to local ChromeDriver
-            WebDriverManager.chromedriver().setup();
-            driver = new ChromeDriver(options);
-        }
+        ChromeOptions options = createChromeOptions();
+        WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
         List<PlayerDetailDTO> allNewPlayers = new ArrayList<>();
@@ -331,8 +338,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             // Verificar si hay un error 502 o similar
             try {
-                WebElement errorElement = driver.findElement(By.xpath("//*[contains(text(), '502') or contains(text(), 'Bad Gateway') or contains(text(), '503') or contains(text(), 'Service Unavailable')]"));
-                throw new RuntimeException("❌ Error HTTP detectado en la página: " + errorElement.getText());
+                WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
+                throw new RuntimeException(ERROR_HTTP_DETECTED + errorElement.getText());
             } catch (NoSuchElementException e) {
                 // No hay error, continuar
             }
@@ -352,27 +359,27 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 // Esperar a que cargue la tabla con timeout corto
                 try {
                     wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
-                        By.cssSelector("tbody tr")));
+                        By.cssSelector(CSS_TBODY_TR)));
                 } catch (TimeoutException e) {
-                    throw new RuntimeException("❌ La tabla no cargó. Posible error 502 o servidor caído.");
+                    throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
                 }
 
                 // Pequeño delay adicional para asegurar que los datos se renderizaron
                 Thread.sleep(1000);
 
                 // Extraer jugadores de la página actual
-                List<WebElement> rows = driver.findElements(By.cssSelector("tbody tr"));
+                List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
                 int newPlayersInPage = 0;
                 List<PlayerDetailDTO> newPlayersThisPage = new ArrayList<>();
 
                 for (WebElement row : rows) {
                     try {
                         // Omitir jugadores que ya no pertenecen a la liga
-                        String rowClass = row.getAttribute("class");
+                        String rowClass = row.getAttribute(ATTR_CLASS);
                         if (rowClass != null) {
                             // Normalizar espacios y verificar si contiene not-current-player
-                            String normalizedClass = rowClass.replaceAll("\\s+", " ").trim();
-                            if (normalizedClass.contains("not-current-player")) {
+                            String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
+                            if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
                                 continue;
                             }
                         }
@@ -409,17 +416,17 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                     if (nextButton != null) {
                         // Verificar si está deshabilitado
-                        String disabledAttr = nextButton.getAttribute("disabled");
-                        String ariaDisabled = nextButton.getAttribute("aria-disabled");
-                        String classAttr = nextButton.getAttribute("class");
+                        String disabledAttr = nextButton.getAttribute(ATTR_DISABLED);
+                        String ariaDisabled = nextButton.getAttribute(ATTR_ARIA_DISABLED);
+                        String classAttr = nextButton.getAttribute(ATTR_CLASS);
 
                         boolean isDisabled = disabledAttr != null ||
-                                           "true".equals(ariaDisabled) ||
-                                           (classAttr != null && classAttr.contains("disabled"));
+                                           VALUE_TRUE.equals(ariaDisabled) ||
+                                           (classAttr != null && classAttr.contains(CLASS_DISABLED));
 
                         if (!isDisabled && nextButton.isDisplayed()) {
                             // Scroll hasta el botón y hacer click
-                            ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", nextButton);
+                            ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
                             Thread.sleep(500);
 
                             nextButton.click();
@@ -441,7 +448,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("❌ Error durante el scraping: " + e.getMessage(), e);
+            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } finally {
             driver.quit();
         }
@@ -472,8 +479,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             try {
                 String[] parts = text.split("[()]");
                 if (parts.length >= 2) {
-                    int first = Integer.parseInt(parts[0].replaceAll("[^0-9]", ""));
-                    int second = Integer.parseInt(parts[1].replaceAll("[^0-9]", ""));
+                    int first = Integer.parseInt(parts[0].replaceAll(REGEX_NON_NUMERIC, EMPTY));
+                    int second = Integer.parseInt(parts[1].replaceAll(REGEX_NON_NUMERIC, EMPTY));
                     return first + second;
                 }
             } catch (NumberFormatException e) {
@@ -482,7 +489,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         // Extracción simple de números
-        String numericOnly = text.replaceAll("[^0-9]", "");
+        String numericOnly = text.replaceAll(REGEX_NON_NUMERIC, EMPTY);
         try {
             return !numericOnly.isEmpty() ? Integer.parseInt(numericOnly) : 0;
         } catch (NumberFormatException e) {
@@ -492,10 +499,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private List<WebElement> findSquadRowsFromTable(WebDriver driver, WebDriverWait wait) {
         try {
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("top-player-stats-summary-grid")));
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id(ID_TOP_PLAYER_STATS_SUMMARY_GRID)));
             Thread.sleep(500);
-            WebElement table = driver.findElement(By.id("top-player-stats-summary-grid"));
-            List<WebElement> rows = table.findElements(By.cssSelector("tbody tr"));
+            WebElement table = driver.findElement(By.id(ID_TOP_PLAYER_STATS_SUMMARY_GRID));
+            List<WebElement> rows = table.findElements(By.cssSelector(CSS_TBODY_TR));
             if (rows.isEmpty()) {
                 throw new RuntimeException("La tabla de plantilla no contiene filas");
             }
@@ -513,7 +520,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private PlayerDetailDTO extractPlayerDataFromRoster(WebElement row) {
         try {
             // Buscar el nombre dentro del span dentro del a.player-link
-            WebElement playerLink = row.findElement(By.cssSelector("a.player-link span"));
+            WebElement playerLink = row.findElement(By.cssSelector(CSS_PLAYER_LINK_SPAN));
             String name = playerLink.getText().trim();
 
             if (name.isEmpty() || name.length() < 2) {
@@ -525,7 +532,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             // Extraer la posición del span player-meta-data
             try {
-                List<WebElement> metaDataSpans = row.findElements(By.cssSelector("span.player-meta-data"));
+                List<WebElement> metaDataSpans = row.findElements(By.cssSelector(CSS_PLAYER_META_DATA));
                 if (metaDataSpans.size() >= 2) {
                     // El segundo span contiene la posición (ej: ",  ME(C)  ")
                     String position = metaDataSpans.get(1).getText().trim().replaceAll("^,\\s*", "");
@@ -546,7 +553,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Índice 5: Mins (Minutos)
             if (cells.size() > 5) {
                 try {
-                    String text = cells.get(5).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(5).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setMinutes(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setMinutes(0);
@@ -556,7 +563,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Índice 6: Goles
             if (cells.size() > 6) {
                 try {
-                    String text = cells.get(6).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(6).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setGoals(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setGoals(0);
@@ -566,7 +573,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Índice 7: Asist (Asistencias)
             if (cells.size() > 7) {
                 try {
-                    String text = cells.get(7).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(7).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setAssists(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setAssists(0);
@@ -576,7 +583,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Índice 8: Amar (Tarjetas Amarillas)
             if (cells.size() > 8) {
                 try {
-                    String text = cells.get(8).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(8).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setYellowCards(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setYellowCards(0);
@@ -586,7 +593,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Índice 9: Roja (Tarjetas Rojas)
             if (cells.size() > 9) {
                 try {
-                    String text = cells.get(9).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(9).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setRedCards(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setRedCards(0);
@@ -596,7 +603,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Índice 13: JdelP (Jugador del Partido)
             if (cells.size() > 13) {
                 try {
-                    String text = cells.get(13).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(13).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setPlayerOfTheMatch(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setPlayerOfTheMatch(0);
@@ -648,7 +655,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private PlayerDetailDTO extractPlayerData(WebElement row) {
         try {
             // Buscar el nombre dentro del span dentro del a.player-link
-            WebElement playerLink = row.findElement(By.cssSelector("a.player-link span"));
+            WebElement playerLink = row.findElement(By.cssSelector(CSS_PLAYER_LINK_SPAN));
             String name = playerLink.getText().trim();
 
             if (name.isEmpty() || name.length() < 2) {
@@ -660,24 +667,24 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             // Obtener equipo desde a.player-meta-data span.team-name
             try {
-                WebElement teamElement = row.findElement(By.cssSelector("a.player-meta-data span.team-name"));
-                player.setTeam(teamElement.getText().trim().replaceAll(",\\s*$", ""));
+                WebElement teamElement = row.findElement(By.cssSelector(CSS_PLAYER_META_TEAM_NAME));
+                player.setTeam(teamElement.getText().trim().replaceAll(",\\s*$", EMPTY));
             } catch (NoSuchElementException e) {
-                player.setTeam("");
+                player.setTeam(EMPTY);
             }
 
             // Obtener posición desde span.player-meta-data (el segundo dentro del span que sigue al <a>)
             try {
-                List<WebElement> positionSpans = row.findElements(By.cssSelector("span > span.player-meta-data"));
+                List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
                 if (positionSpans.size() >= 2) {
                     // El segundo span contiene las posiciones (ej: ",  MP(CID),DL  ")
                     String position = positionSpans.get(1).getText().trim().replaceAll("^,\\s*", "");
                     player.setPosition(position);
                 } else {
-                    player.setPosition("");
+                    player.setPosition(EMPTY);
                 }
             } catch (NoSuchElementException e) {
-                player.setPosition("");
+                player.setPosition(EMPTY);
             }
 
             // Obtener datos de las columnas
@@ -691,7 +698,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Columna 3: Minutos (Mins)
             if (cells.size() > 3) {
                 try {
-                    String text = cells.get(3).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(3).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setMinutes(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setMinutes(0);
@@ -701,7 +708,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Columna 4: Goles (Goles)
             if (cells.size() > 4) {
                 try {
-                    String text = cells.get(4).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(4).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setGoals(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setGoals(0);
@@ -711,7 +718,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Columna 5: Asistencias (Asist)
             if (cells.size() > 5) {
                 try {
-                    String text = cells.get(5).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(5).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setAssists(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setAssists(0);
@@ -721,7 +728,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Columna 6: Tarjetas Amarillas (Amar)
             if (cells.size() > 6) {
                 try {
-                    String text = cells.get(6).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(6).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setYellowCards(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setYellowCards(0);
@@ -731,7 +738,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Columna 7: Tarjetas Rojas (Roja)
             if (cells.size() > 7) {
                 try {
-                    String text = cells.get(7).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(7).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setRedCards(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setRedCards(0);
@@ -741,7 +748,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             // Columna 11: Jugador del Partido (JdelP)
             if (cells.size() > 11) {
                 try {
-                    String text = cells.get(11).getText().trim().replaceAll("[^0-9]", "");
+                    String text = cells.get(11).getText().trim().replaceAll(REGEX_NON_NUMERIC, EMPTY);
                     player.setPlayerOfTheMatch(!text.isEmpty() ? Integer.parseInt(text) : 0);
                 } catch (NumberFormatException e) {
                     player.setPlayerOfTheMatch(0);
@@ -776,29 +783,29 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                 try {
                     acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                        By.xpath("//*[contains(text(), 'Aceptar todo')]")));
+                        By.xpath(XPATH_ACCEPTAR_TODO)));
                 } catch (TimeoutException e1) {
                     try {
                         acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath("//*[contains(text(), 'Accept all')]")));
+                            By.xpath(XPATH_ACCEPT_ALL)));
                     } catch (TimeoutException e2) {
                         try {
                             acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath("//*[contains(text(), 'Aceptar')]")));
+                                By.xpath(XPATH_ACCEPTAR)));
                         } catch (TimeoutException e3) {
                             try {
                                 acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                                    By.xpath("//*[contains(text(), 'Accept')]")));
+                                    By.xpath(XPATH_ACCEPT)));
                             } catch (TimeoutException e4) {
                                 acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                                    By.cssSelector("[data-testid='cookie-accept-all']")));
+                                    By.cssSelector(CSS_COOKIE_ACCEPT_ALL)));
                             }
                         }
                     }
                 }
 
                 if (acceptButton != null && acceptButton.isDisplayed()) {
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", acceptButton);
+                    ((JavascriptExecutor) driver).executeScript(JS_CLICK_ELEMENT, acceptButton);
                     Thread.sleep(2000);
                 }
             } catch (TimeoutException e) {
@@ -814,17 +821,17 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             try {
                 // Esperar y hacer click en el botón de todos los jugadores
                 WebElement allPlayersButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.xpath("//a[@class='option' or contains(@class, 'option')][contains(text(), 'Todos los jugadores')]")
+                    By.xpath(XPATH_ALL_PLAYERS)
                 ));
 
-                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", allPlayersButton);
+                ((JavascriptExecutor) driver).executeScript(JS_CLICK_ELEMENT, allPlayersButton);
             } catch (TimeoutException e) {
                 // Botón no encontrado, continuar
             }
 
             // Esperar a que se carguen los datos
             Thread.sleep(2000);
-            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("tbody tr")));
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector(CSS_TBODY_TR)));
 
         } catch (TimeoutException e) {
             // Timeout, continuar
@@ -838,13 +845,13 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         try {
             // Buscar todos los selects EXCEPTO el locale-select
-            List<WebElement> selects = wait.until(d -> d.findElements(By.tagName("select")));
+            List<WebElement> selects = wait.until(d -> d.findElements(By.tagName(CSS_SELECT_TAG)));
 
             for (WebElement selectElement : selects) {
                 try {
                     // Saltar el select de idioma
-                    String selectId = selectElement.getAttribute("id");
-                    if ("locale-select".equals(selectId)) {
+                    String selectId = selectElement.getAttribute(ATTR_ID);
+                    if (ID_LOCALE_SELECT.equals(selectId)) {
                         continue;
                     }
 
@@ -858,7 +865,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                             select.selectByVisibleText(optionText);
 
                             // Esperar cambio de URL o recarga de datos tras cambiar equipo.
-                            wait.until(d -> !d.getCurrentUrl().equals(previousUrl) || d.findElements(By.cssSelector("tbody tr")).size() > 0);
+                            wait.until(d -> !d.getCurrentUrl().equals(previousUrl) || d.findElements(By.cssSelector(CSS_TBODY_TR)).size() > 0);
                             Thread.sleep(1200);
                             return;
                         }
@@ -885,32 +892,54 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         return normalized;
     }
 
+    private ChromeOptions createChromeOptions() {
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments(CHROME_ARG_NO_SANDBOX);
+        options.addArguments(CHROME_ARG_DISABLE_DEV_SHM);
+        options.addArguments(CHROME_ARG_DISABLE_GPU);
+        options.addArguments(CHROME_ARG_WINDOW_SIZE);
+        options.addArguments(CHROME_ARG_DISABLE_AUTOMATION);
+        options.addArguments(CHROME_ARG_DISABLE_WEB_RESOURCES);
+        return options;
+    }
+
+    private WebDriver createDriver(ChromeOptions options) {
+        try {
+            // Try to connect to remote Selenium server (for Docker)
+            return new RemoteWebDriver(new URL(SELENIUM_REMOTE_URL), options);
+        } catch (Exception e) {
+            // Fallback to local ChromeDriver
+            WebDriverManager.chromedriver().setup();
+            return new ChromeDriver(options);
+        }
+    }
+
     private WebElement findNextButton(WebDriver driver) throws NoSuchElementException {
         // Intenta encontrar el botón "siguiente" de varias formas
         WebElement nextButton = null;
 
         // Primero intenta por ID (la forma más específica)
         try {
-            nextButton = driver.findElement(By.id("next"));
+            nextButton = driver.findElement(By.id(ID_NEXT));
             return nextButton;
         } catch (NoSuchElementException e1) {
         }
 
         // Intenta por clase y atributo
         try {
-            nextButton = driver.findElement(By.xpath("//a[@class='option  clickable'][@id='next']"));
+            nextButton = driver.findElement(By.xpath(XPATH_NEXT_OPTION));
             return nextButton;
         } catch (NoSuchElementException e2) {
         }
 
         try {
-            nextButton = driver.findElement(By.xpath("//a[contains(text(), 'siguiente')]"));
+            nextButton = driver.findElement(By.xpath(XPATH_NEXT_LOWER));
             return nextButton;
         } catch (NoSuchElementException e3) {
         }
 
         try {
-            nextButton = driver.findElement(By.xpath("//button[contains(text(), 'Siguiente')]"));
+            nextButton = driver.findElement(By.xpath(XPATH_NEXT_UPPER));
             return nextButton;
         } catch (NoSuchElementException e4) {
         }
