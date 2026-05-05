@@ -1,7 +1,11 @@
 package com.desapp.futbolplayerstokens.service;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
+import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
+
+import java.util.List;
 
 public interface PlayerService {
-    PlayerDTO getPlayerById(Long id);
+    PlayerDetailDTO getPlayerById(Long id);
+    List<PlayerDTO> getPlayersWithFilters(String league, String team, String position);
 }

@@ -19,4 +19,12 @@ public class Player {
     private String team;
     private String league;
     private String position;
+    private Double rating;
+    private Integer appearances;
+    private Integer minutes;
+    private Integer goals;
+    private Integer assists;
+    private Integer yellowCards;
+    private Integer redCards;
+    private Integer playerOfTheMatch;
 }
