@@ -53,22 +53,7 @@ public class PlayerServiceImpl implements PlayerService {
                     continue;
                 }
 
-                Player player = Player.builder()
-                        .name(dto.getName())
-                        .rating(dto.getRating())
-                        .team(dto.getTeam())
-                        .league(dto.getLeague())
-                        .position(dto.getPosition())
-                        .appearances(dto.getAppearances())
-                        .minutes(dto.getMinutes())
-                        .goals(dto.getGoals())
-                        .assists(dto.getAssists())
-                        .yellowCards(dto.getYellowCards())
-                        .redCards(dto.getRedCards())
-                        .playerOfTheMatch(dto.getPlayerOfTheMatch())
-                        .build();
-
-                playerRepository.save(player);
+                PlayerScraperServiceImpl.PlayerDesdeCero(dto, playerRepository);
                 saved++;
             } catch (Exception e) {
                 System.err.println("Error guardando jugador " + dto.getName() + ": " + e.getMessage());
@@ -101,40 +86,12 @@ public class PlayerServiceImpl implements PlayerService {
             );
 
             if (matches.isEmpty()) {
-                Player player = Player.builder()
-                    .name(dto.getName())
-                    .rating(dto.getRating())
-                    .team(dto.getTeam())
-                    .league(dto.getLeague())
-                    .position(dto.getPosition())
-                    .appearances(dto.getAppearances())
-                    .minutes(dto.getMinutes())
-                    .goals(dto.getGoals())
-                    .assists(dto.getAssists())
-                    .yellowCards(dto.getYellowCards())
-                    .redCards(dto.getRedCards())
-                    .playerOfTheMatch(dto.getPlayerOfTheMatch())
-                    .build();
-                playerRepository.save(player);
+                PlayerScraperServiceImpl.PlayerDesdeCero(dto, playerRepository);
                 insertedRows++;
                 continue;
             }
 
-            for (Player player : matches) {
-                // Solo actualizar campos de estadísticas, NO sobreescribir: name, team, league, position
-                player.setRating(dto.getRating());
-                player.setAppearances(dto.getAppearances());
-                player.setMinutes(dto.getMinutes());
-                player.setGoals(dto.getGoals());
-                player.setAssists(dto.getAssists());
-                player.setYellowCards(dto.getYellowCards());
-                player.setRedCards(dto.getRedCards());
-                player.setPlayerOfTheMatch(dto.getPlayerOfTheMatch());
-                // Actualizar explícitamente el timestamp
-                player.setLastModifiedAt(LocalDateTime.now());
-            }
-
-            playerRepository.saveAll(matches);
+            PlayerScraperServiceImpl.modificandoPlayer(dto, matches, playerRepository);
             modifiedRows += matches.size();
         }
 
