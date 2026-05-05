@@ -3,7 +3,9 @@ package com.desapp.futbolplayerstokens.controller;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
+import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
 import com.desapp.futbolplayerstokens.service.PlayerService;
+import com.desapp.futbolplayerstokens.service.QuoteService;
 
 import jakarta.annotation.security.PermitAll;
 
@@ -22,11 +24,14 @@ public class PlayerControllerREST {
 
     private final PlayerService playerService;
     private final PlayerScraperService scraperService;
+    private final QuoteService quoteService;
 
     public PlayerControllerREST(PlayerService playerService,
-                                PlayerScraperService scraperService) {
+                                PlayerScraperService scraperService,
+                                QuoteService quoteService) {
         this.playerService = playerService;
         this.scraperService = scraperService;
+        this.quoteService = quoteService;
     }
 
     @GetMapping("/hello")
@@ -57,6 +62,15 @@ public class PlayerControllerREST {
         }
     }
 
+    @GetMapping("/{id}/quotes")
+    public ResponseEntity<List<QuoteDTO>> getQuotes(@PathVariable Long id) {
+        try {
+            List<QuoteDTO> quotes = quoteService.getQuotesByPlayerId(id);
+            return ResponseEntity.ok(quotes);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
     @PostMapping("/scrape")
     @PermitAll
     public ResponseEntity<String> scrapeAndSavePlayers() {
