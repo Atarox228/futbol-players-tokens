@@ -44,6 +44,23 @@ public class PlayerControllerREST {
         }
     }
 
+    @PostMapping("/team")
+    public ResponseEntity<List<PlayerDTO>> getPlayersByTeam(@RequestBody Map<String, String> request) {
+        try {
+            String teamName = request.get("teamName");
+            if (teamName == null || teamName.isBlank()) {
+                return ResponseEntity.badRequest().body(null);
+            }
+            List<PlayerDTO> players = playerService.getPlayersByTeam(teamName);
+            if (players.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(players);
+        } catch (Exception e) {
+            return ResponseEntity.status(400).body(null);
+        }
+    }
+
     @PostMapping("/scrape")
     @PermitAll
     public ResponseEntity<String> scrapeAndSavePlayers() {

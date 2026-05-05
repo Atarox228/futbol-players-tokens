@@ -29,6 +29,14 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
+    public List<PlayerDTO> getPlayersByTeam(String team) {
+        List<Player> players = playerRepository.findByTeamIgnoreCase(team.trim());
+        return players.stream()
+                .map(PlayerDTO::toDTO)
+                .toList();
+    }
+
+    @Override
     public void saveAllPlayers(List<PlayerDTO> playerDTOs) {
         int saved = 0;
         for (PlayerDTO dto : playerDTOs) {
