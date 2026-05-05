@@ -4,6 +4,8 @@ import com.desapp.futbolplayerstokens.modelo.Player;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 public class PlayerDTO {
@@ -12,6 +14,7 @@ public class PlayerDTO {
     private String team;
     private String league;
     private String position;
+    private BigDecimal score;
 
     public static PlayerDTO toDTO(Player player) {
         return PlayerDTO.builder()
@@ -20,6 +23,7 @@ public class PlayerDTO {
                 .team(player.getTeam())
                 .league(player.getLeague())
                 .position(player.getPosition())
+                .score(player.getScore())
                 .build();
     }
 }

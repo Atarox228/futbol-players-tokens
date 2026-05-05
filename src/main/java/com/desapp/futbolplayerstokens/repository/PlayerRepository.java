@@ -2,9 +2,11 @@ package com.desapp.futbolplayerstokens.repository;
 
 import com.desapp.futbolplayerstokens.modelo.Player;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface PlayerRepository extends JpaRepository<Player, Long> {
@@ -18,4 +20,8 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
             @Param("team") String team,
             @Param("position") String position
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Player p SET p.score = :score WHERE p.id = :id")
+    int updateScoreById(@Param("id") Long id, @Param("score") BigDecimal score);
 }
