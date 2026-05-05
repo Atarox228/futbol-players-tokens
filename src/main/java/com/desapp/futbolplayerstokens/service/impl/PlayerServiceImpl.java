@@ -11,8 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,7 +43,6 @@ public class PlayerServiceImpl implements PlayerService {
         int saved = 0;
         for (PlayerDetailDTO dto : playerDTOs) {
             try {
-                // Verificar si el jugador ya existe en la BD (por nombre + liga + equipo)
                 if (playerRepository.findAll().stream()
                         .anyMatch(p -> p.getName().equals(dto.getName()) &&
                                       p.getLeague().equals(dto.getLeague()) &&
@@ -53,7 +50,7 @@ public class PlayerServiceImpl implements PlayerService {
                     continue;
                 }
 
-                PlayerScraperServiceImpl.PlayerDesdeCero(dto, playerRepository);
+                saveNewPlayer(dto);
                 saved++;
             } catch (Exception e) {
                 System.err.println("Error guardando jugador " + dto.getName() + ": " + e.getMessage());
@@ -86,17 +83,50 @@ public class PlayerServiceImpl implements PlayerService {
             );
 
             if (matches.isEmpty()) {
-                PlayerScraperServiceImpl.PlayerDesdeCero(dto, playerRepository);
+                saveNewPlayer(dto);
                 insertedRows++;
                 continue;
             }
 
-            PlayerScraperServiceImpl.modificandoPlayer(dto, matches, playerRepository);
+            updateExistingPlayers(dto, matches);
             modifiedRows += matches.size();
         }
 
         int rosterFound = playerDTOs.size();
         return new PlayerOverwriteResult(rosterFound, modifiedRows, insertedRows);
+    }
+
+    private void saveNewPlayer(PlayerDetailDTO dto) {
+        Player player = Player.builder()
+            .name(dto.getName())
+            .rating(dto.getRating())
+            .team(dto.getTeam())
+            .league(dto.getLeague())
+            .position(dto.getPosition())
+            .appearances(dto.getAppearances())
+            .minutes(dto.getMinutes())
+            .goals(dto.getGoals())
+            .assists(dto.getAssists())
+            .yellowCards(dto.getYellowCards())
+            .redCards(dto.getRedCards())
+            .playerOfTheMatch(dto.getPlayerOfTheMatch())
+            .build();
+        playerRepository.save(player);
+    }
+
+    private void updateExistingPlayers(PlayerDetailDTO dto, List<Player> players) {
+        for (Player player : players) {
+            player.setRating(dto.getRating());
+            player.setAppearances(dto.getAppearances());
+            player.setMinutes(dto.getMinutes());
+            player.setGoals(dto.getGoals());
+            player.setAssists(dto.getAssists());
+            player.setYellowCards(dto.getYellowCards());
+            player.setRedCards(dto.getRedCards());
+            player.setPlayerOfTheMatch(dto.getPlayerOfTheMatch());
+            player.setLastModifiedAt(LocalDateTime.now());
+        }
+        playerRepository.saveAll(players);
     }
 }
 
