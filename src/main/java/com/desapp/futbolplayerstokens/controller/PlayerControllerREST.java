@@ -4,8 +4,10 @@ import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
+import com.desapp.futbolplayerstokens.controller.dto.PlayerRankingDTO;
 import com.desapp.futbolplayerstokens.service.PlayerService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
+import com.desapp.futbolplayerstokens.service.RankingService;
 
 import jakarta.annotation.security.PermitAll;
 
@@ -25,13 +27,16 @@ public class PlayerControllerREST {
     private final PlayerService playerService;
     private final PlayerScraperService scraperService;
     private final QuoteService quoteService;
+    private final RankingService rankingService;
 
     public PlayerControllerREST(PlayerService playerService,
                                 PlayerScraperService scraperService,
-                                QuoteService quoteService) {
+                                QuoteService quoteService,
+                                RankingService rankingService) {
         this.playerService = playerService;
         this.scraperService = scraperService;
         this.quoteService = quoteService;
+        this.rankingService = rankingService;
     }
 
     @GetMapping("/hello")
@@ -47,6 +52,18 @@ public class PlayerControllerREST {
         try {
             List<PlayerDTO> players = playerService.getPlayersWithFilters(league, team, position);
             return ResponseEntity.ok(players);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/ranking")
+    public ResponseEntity<List<PlayerRankingDTO>> getRanking(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        try {
+            List<PlayerRankingDTO> ranking = rankingService.getRanking(page, size);
+            return ResponseEntity.ok(ranking);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
         }

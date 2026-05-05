@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 
 public interface PlayerRepository extends JpaRepository<Player, Long> {
 
@@ -26,4 +27,12 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
     int updateScoreById(@Param("id") Long id, @Param("score") BigDecimal score);
 
     List<Player> findByNameIgnoreCaseAndTeamIgnoreCase(String trim, String trim1);
+
+    long countByScoreIsNotNull();
+
+    @Query("SELECT p FROM Player p WHERE p.score IS NOT NULL ORDER BY p.score DESC")
+    List<Player> findByScoreNotNullOrdered(Pageable pageable);
+
+    @Query("SELECT p FROM Player p WHERE p.score IS NULL ORDER BY p.id ASC")
+    List<Player> findByScoreNullOrdered(Pageable pageable);
 }
