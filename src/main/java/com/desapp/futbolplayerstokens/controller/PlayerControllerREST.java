@@ -2,8 +2,12 @@ package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
-import com.desapp.futbolplayerstokens.service.PlayerOverwriteResult;
+import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
+import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
+import com.desapp.futbolplayerstokens.controller.dto.PlayerRankingDTO;
 import com.desapp.futbolplayerstokens.service.PlayerService;
+import com.desapp.futbolplayerstokens.service.QuoteService;
+import com.desapp.futbolplayerstokens.service.RankingService;
 
 import jakarta.annotation.security.PermitAll;
 
@@ -14,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/players")
@@ -22,11 +26,17 @@ public class PlayerControllerREST {
 
     private final PlayerService playerService;
     private final PlayerScraperService scraperService;
+    private final QuoteService quoteService;
+    private final RankingService rankingService;
 
     public PlayerControllerREST(PlayerService playerService,
-                                PlayerScraperService scraperService) {
+                                PlayerScraperService scraperService,
+                                QuoteService quoteService,
+                                RankingService rankingService) {
         this.playerService = playerService;
         this.scraperService = scraperService;
+        this.quoteService = quoteService;
+        this.rankingService = rankingService;
     }
 
     @GetMapping("/hello")
@@ -34,10 +44,35 @@ public class PlayerControllerREST {
         return "Hello World";
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<PlayerDTO> getPlayer(@PathVariable Long id) {
+    @GetMapping
+    public ResponseEntity<List<PlayerDTO>> getPlayers(
+            @RequestParam(required = false) String league,
+            @RequestParam(required = false) String team,
+            @RequestParam(required = false) String position) {
         try {
-            PlayerDTO player = playerService.getPlayerById(id);
+            List<PlayerDTO> players = playerService.getPlayersWithFilters(league, team, position);
+            return ResponseEntity.ok(players);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/ranking")
+    public ResponseEntity<List<PlayerRankingDTO>> getRanking(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        try {
+            List<PlayerRankingDTO> ranking = rankingService.getRanking(page, size);
+            return ResponseEntity.ok(ranking);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PlayerDetailDTO> getPlayer(@PathVariable Long id) {
+        try {
+            PlayerDetailDTO player = playerService.getPlayerById(id);
             return ResponseEntity.ok(player);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -61,6 +96,15 @@ public class PlayerControllerREST {
         }
     }
 
+    @GetMapping("/{id}/quotes")
+    public ResponseEntity<List<QuoteDTO>> getQuotes(@PathVariable Long id) {
+        try {
+            List<QuoteDTO> quotes = quoteService.getQuotesByPlayerId(id);
+            return ResponseEntity.ok(quotes);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
     @PostMapping("/scrape")
     @PermitAll
     public ResponseEntity<String> scrapeAndSavePlayers() {
@@ -176,7 +220,7 @@ public class PlayerControllerREST {
             long startTime = System.currentTimeMillis();
 
             // El método scrapeTeamPlayersByName ahora agrega nuevos y actualiza existentes
-            List<PlayerDTO> newPlayers = scraperService.scrapeTeamPlayersByName(teamName, league);
+            List<PlayerDetailDTO> newPlayers = scraperService.scrapeTeamPlayersByName(teamName, league);
 
             long duration = System.currentTimeMillis() - startTime;
             long minutes = duration / 60000;
@@ -198,4 +242,3 @@ public class PlayerControllerREST {
     }
 
 }
-
