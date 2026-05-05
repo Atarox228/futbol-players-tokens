@@ -14,4 +14,6 @@ public interface PlayerScraperService {
     List<PlayerDetailDTO> scrapeTeamPlayersByName(String teamName, String league);
 
     List<PlayerDetailDTO> scrapeNewPlayersOnly(String url, String league, Consumer<List<PlayerDetailDTO>> onPageComplete);
+
+    void scrapeAllPlayersIfDatabaseEmpty();
 }

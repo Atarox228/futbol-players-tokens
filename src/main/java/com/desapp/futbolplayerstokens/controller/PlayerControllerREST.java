@@ -69,7 +69,7 @@ public class PlayerControllerREST {
         }
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     public ResponseEntity<PlayerDetailDTO> getPlayer(@PathVariable Long id) {
         try {
             PlayerDetailDTO player = playerService.getPlayerById(id);
@@ -79,24 +79,7 @@ public class PlayerControllerREST {
         }
     }
 
-    @PostMapping("/team")
-    public ResponseEntity<List<PlayerDTO>> getPlayersByTeam(@RequestBody Map<String, String> request) {
-        try {
-            String teamName = request.get("teamName");
-            if (teamName == null || teamName.isBlank()) {
-                return ResponseEntity.badRequest().body(null);
-            }
-            List<PlayerDTO> players = playerService.getPlayersByTeam(teamName);
-            if (players.isEmpty()) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(players);
-        } catch (Exception e) {
-            return ResponseEntity.status(400).body(null);
-        }
-    }
-
-    @GetMapping("/{id}/quotes")
+    @GetMapping("/{id:[0-9]+}/quotes")
     public ResponseEntity<List<QuoteDTO>> getQuotes(@PathVariable Long id) {
         try {
             List<QuoteDTO> quotes = quoteService.getQuotesByPlayerId(id);
@@ -240,5 +223,6 @@ public class PlayerControllerREST {
             return ResponseEntity.status(500).body("❌ Error al scrapear equipo: " + e.getMessage());
         }
     }
+
 
 }

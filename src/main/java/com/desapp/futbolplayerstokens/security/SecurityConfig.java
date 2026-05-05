@@ -29,7 +29,10 @@ public class SecurityConfig {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/auth/**", "/players/scrape/**", "/api/matches/scrape/**", "/api/scheduler/**").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/players/scrape/**").permitAll()
+                        .requestMatchers("/api/matches/scrape/**").permitAll()
+                        .requestMatchers("/api/scheduler/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

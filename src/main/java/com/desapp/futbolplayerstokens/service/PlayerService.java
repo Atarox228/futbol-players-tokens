@@ -11,5 +11,4 @@ public interface PlayerService {
     void saveAllPlayers(List<PlayerDetailDTO> playerDTOs);
     PlayerOverwriteResult overwritePlayersByNameAndTeam(List<PlayerDetailDTO> playerDTOs);
     boolean playerExists(String name, String team);
-    List<PlayerDTO> getPlayersByTeam(String team);
 }
