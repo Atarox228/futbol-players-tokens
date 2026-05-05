@@ -52,6 +52,8 @@ public class MatchScraperServiceImpl implements MatchScraperService {
         String dateFrom = today.toString();
         String dateTo = today.toString();
 
+        System.out.println("🔍 Scrapeando partidos para fecha: " + dateFrom + " (Timezone: " + ZoneId.systemDefault() + ")");
+
         List<Match> savedMatches = new ArrayList<>();
 
         for (String competitionId : footballDataProperties.getCompetitionIds()) {

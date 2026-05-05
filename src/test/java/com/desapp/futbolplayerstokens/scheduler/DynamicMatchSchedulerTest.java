@@ -1,13 +1,18 @@
 package com.desapp.futbolplayerstokens.scheduler;
 
+import com.desapp.futbolplayerstokens.controller.dto.MatchApiDTO;
 import com.desapp.futbolplayerstokens.modelo.Match;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.client.RestTemplate;
 
@@ -37,6 +42,9 @@ class DynamicMatchSchedulerTest {
 
     @Mock
     private ScheduledFuture<?> scheduledFuture;
+
+    @Captor
+    private ArgumentCaptor<Runnable> runnableCaptor;
 
     private DynamicMatchScheduler scheduler;
 
@@ -184,5 +192,40 @@ class DynamicMatchSchedulerTest {
 
         scheduler.cancelAllSchedules();
         assertEquals(0, scheduler.getAllScheduledMatches().size());
+    }
+
+    @Test
+    @DisplayName("Si partido NO está FINISHED, debe reprogramar 10 minutos después")
+    void testRescheduleWhenMatchNotFinished() {
+        Match match = Match.builder()
+            .id(1L)
+            .footballDataMatchId(100L)
+            .team1Id(81L)
+            .team2Id(86L)
+            .matchTime(LocalDateTime.now().minusHours(2))
+            .build();
+
+        // Mock API response con status NO FINISHED
+        MatchApiDTO.Match apiMatch = new MatchApiDTO.Match();
+        apiMatch.setStatus("IN_PLAY");
+        ResponseEntity<MatchApiDTO.Match> response = new ResponseEntity<>(apiMatch, HttpStatus.OK);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(MatchApiDTO.Match.class))).thenReturn(response);
+
+        when(matchRepository.findAll()).thenReturn(Arrays.asList(match));
+        scheduler.scheduleAllMatchesForTesting();
+
+        // Capturar y ejecutar el runnable para verificar que se reprograma
+        verify(taskScheduler, times(1)).schedule(runnableCaptor.capture(), any(Instant.class));
+        Runnable runnable = runnableCaptor.getValue();
+        runnable.run();
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // Debe haber llamado a schedule dos veces: una inicial y una para el reintento
+        verify(taskScheduler, atLeast(2)).schedule(any(Runnable.class), any(Instant.class));
     }
 }

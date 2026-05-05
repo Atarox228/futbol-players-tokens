@@ -14,7 +14,12 @@ USER root
 RUN apt-get update && apt-get install -y \
     openjdk-21-jre-headless \
     ca-certificates \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# Set timezone to Buenos Aires (UTC-3)
+ENV TZ=America/Argentina/Buenos_Aires
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar

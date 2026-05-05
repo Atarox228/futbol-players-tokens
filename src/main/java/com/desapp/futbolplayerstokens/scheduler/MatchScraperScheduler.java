@@ -17,24 +17,11 @@ public class MatchScraperScheduler {
         this.dynamicMatchScheduler = dynamicMatchScheduler;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        new Thread(() -> {
-            try {
-                Thread.sleep(60000);
-                System.out.println("⚡ Ejecutando scraping de prueba 1 minuto después del startup...");
-                scrapeMatchesDaily();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }).start();
-    }
-
     /**
      * TESTING: Cada minuto (cron = "0 * * * * *")
      * PRODUCCIÓN: Cambiar a "0 0 0 * * *" (cada día a las 00:00)
      */
-    @Scheduled(cron = "0 49 19 * * *")
+    @Scheduled(cron = "1 0 0 * * *")
     public void scrapeMatchesDaily() {
         try {
             System.out.println("🔄 Iniciando scraping de partidos...");
