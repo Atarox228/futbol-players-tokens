@@ -24,4 +24,6 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Player p SET p.score = :score WHERE p.id = :id")
     int updateScoreById(@Param("id") Long id, @Param("score") BigDecimal score);
+
+    List<Player> findByNameIgnoreCaseAndTeamIgnoreCase(String trim, String trim1);
 }

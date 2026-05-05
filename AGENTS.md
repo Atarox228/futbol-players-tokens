@@ -34,6 +34,13 @@ destructivos sin indicación explícita.
 - **Siempre generar interface + impl** para servicios nuevos. No poner lógica de negocio en controllers o repositorios.
 - **No hardcodear valores sensibles** (como claves secretas) en el código; usar properties o variables de entorno.
 
+## Generacion de codigo
+A la hora de generar codigo nuevo, el agente debe:
+1. Verificar si la funcionalidad ya existe o si es un caso de uso nuevo.
+2. Si es nuevo, seguir la estructura de paquetes y convenciones de código.
+3. En caso de que el pedido este incompleto o sea ambiguo, solicitar aclaraciones antes de generar código.
+4. Hacer todas las preguntas necesarias para que el agente pueda comprender el contexto y el objetivo del codigo.
+5. Generar pruebas unitarias para el nuevo codigo.
 
 ## Workflows de desarrollo
 - Build y tests (verificado):

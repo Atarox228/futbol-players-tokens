@@ -26,4 +26,5 @@ public class PlayerDTO {
                 .score(player.getScore())
                 .build();
     }
+    
 }

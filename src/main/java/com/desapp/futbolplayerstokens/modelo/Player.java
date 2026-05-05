@@ -3,6 +3,8 @@ package com.desapp.futbolplayerstokens.modelo;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -12,6 +14,9 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class Player {
+
+    private static final int DEFAULT_COUNT = 1;
+    private static final double DEFAULT_PASS_ACCURACY = 1.0;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,45 +60,33 @@ public class Player {
     private Integer playerOfTheMatch;
     @Column(precision = 19, scale = 8)
     private BigDecimal score;
+    @Column(name = "last_modified_at", nullable = false)
+    private LocalDateTime lastModifiedAt;
+
 
     @PrePersist
     @PreUpdate
-    public void applyDefaults() {
-        if (played == null) {
-            played = 1;
-        }
-        if (won == null) {
-            won = 1;
-        }
-        if (lost == null) {
-            lost = 1;
-        }
-        if (shotsOnTarget == null) {
-            shotsOnTarget = 1;
-        }
-        if (clears == null) {
-            clears = 1;
-        }
-        if (goalsConceded == null) {
-            goalsConceded = 1;
-        }
-        if (tackles == null) {
-            tackles = 1;
-        }
-        if (interceptions == null) {
-            interceptions = 1;
-        }
-        if (blocks == null) {
-            blocks = 1;
-        }
-        if (ownGoals == null) {
-            ownGoals = 1;
-        }
-        if (keyPasses == null) {
-            keyPasses = 1;
-        }
-        if (passAccuracy == null) {
-            passAccuracy = 1.0;
-        }
+    public void applyPersistenceDefaults() {
+        played = defaultIfNull(played, DEFAULT_COUNT);
+        won = defaultIfNull(won, DEFAULT_COUNT);
+        lost = defaultIfNull(lost, DEFAULT_COUNT);
+        shotsOnTarget = defaultIfNull(shotsOnTarget, DEFAULT_COUNT);
+        clears = defaultIfNull(clears, DEFAULT_COUNT);
+        goalsConceded = defaultIfNull(goalsConceded, DEFAULT_COUNT);
+        tackles = defaultIfNull(tackles, DEFAULT_COUNT);
+        interceptions = defaultIfNull(interceptions, DEFAULT_COUNT);
+        blocks = defaultIfNull(blocks, DEFAULT_COUNT);
+        ownGoals = defaultIfNull(ownGoals, DEFAULT_COUNT);
+        keyPasses = defaultIfNull(keyPasses, DEFAULT_COUNT);
+        passAccuracy = defaultIfNull(passAccuracy, DEFAULT_PASS_ACCURACY);
+        lastModifiedAt = LocalDateTime.now();
+    }
+
+    private Integer defaultIfNull(Integer value, Integer defaultValue) {
+        return value == null ? defaultValue : value;
+    }
+
+    private Double defaultIfNull(Double value, Double defaultValue) {
+        return value == null ? defaultValue : value;
     }
 }
