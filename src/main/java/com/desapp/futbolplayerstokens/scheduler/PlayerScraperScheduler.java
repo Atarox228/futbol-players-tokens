@@ -1,6 +1,8 @@
 package com.desapp.futbolplayerstokens.scheduler;
 
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -8,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class PlayerScraperScheduler {
+
+    private static final Logger logger = LoggerFactory.getLogger(PlayerScraperScheduler.class);
 
     private final PlayerScraperService playerScraperService;
 
@@ -18,10 +22,10 @@ public class PlayerScraperScheduler {
     @EventListener(ApplicationReadyEvent.class)
     public void scrapePlayersOnStartupIfDatabaseEmpty() {
         try {
-            System.out.println("⏳ Verificando si se necesita scraping inicial de jugadores...");
+            logger.info("⏳ Verificando si se necesita scraping inicial de jugadores...");
             playerScraperService.scrapeAllPlayersIfDatabaseEmpty();
         } catch (Exception e) {
-            System.err.println("❌ Error en scraping inicial: " + e.getMessage());
+            logger.error("❌ Error en scraping inicial: {}", e.getMessage());
         }
     }
 
@@ -32,10 +36,10 @@ public class PlayerScraperScheduler {
     @Scheduled(cron = "0 0 2 * * *")
     public void scrapePlayersDaily() {
         try {
-            System.out.println("🔄 Ejecutando scraping diario de jugadores...");
+            logger.info("🔄 Ejecutando scraping diario de jugadores...");
             playerScraperService.scrapeAllPlayersIfDatabaseEmpty();
         } catch (Exception e) {
-            System.err.println("❌ Error: " + e.getMessage());
+            logger.error("❌ Error: {}", e.getMessage());
         }
     }
 }

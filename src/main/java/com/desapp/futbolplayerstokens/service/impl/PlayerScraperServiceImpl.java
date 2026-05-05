@@ -7,6 +7,8 @@ import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import com.desapp.futbolplayerstokens.service.PlayerService;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -28,6 +30,8 @@ import java.net.URL;
 
 @Service
 public class PlayerScraperServiceImpl implements PlayerScraperService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PlayerScraperServiceImpl.class);
 
     private static final String SELENIUM_REMOTE_URL = "http://localhost:4444";
 
@@ -112,52 +116,52 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         try {
             driver.get(url);
-            System.out.println("📄 Página cargada: " + url);
+            logger.info("📄 Página cargada: {}", url);
 
             // Esperar a que cargue la página inicial (más tiempo en headless)
             Thread.sleep(4000);
-            System.out.println("⏳ Esperado 4 segundos");
+            logger.info("⏳ Esperado 4 segundos");
 
             // Verificar si hay un error 502 o similar
             try {
                 WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
                 String errorText = errorElement.getText().trim();
                 boolean isDisplayed = errorElement.isDisplayed();
-                System.out.println("⚠️ Elemento de error encontrado - Visible: " + isDisplayed + ", Texto: '" + errorText + "'");
+                logger.warn("⚠️ Elemento de error encontrado - Visible: {}, Texto: '{}'", isDisplayed, errorText);
 
                 // Solo lanzar excepción si el elemento es visible y tiene texto
                 if (isDisplayed && !errorText.isEmpty()) {
                     throw new RuntimeException(ERROR_HTTP_DETECTED + errorText);
                 } else {
-                    System.out.println("✓ Elemento encontrado pero no es un error real (invisible o vacío)");
+                    logger.info("✓ Elemento encontrado pero no es un error real (invisible o vacío)");
                 }
             } catch (NoSuchElementException e) {
-                System.out.println("✓ No hay error HTTP detectado");
+                logger.info("✓ No hay error HTTP detectado");
             }
 
             // Detectar y cerrar popup de cookies/consentimiento
-            System.out.println("🍪 Intentando cerrar popup de cookies...");
+            logger.info("🍪 Intentando cerrar popup de cookies...");
             closePopupIfPresent(driver, wait);
-            System.out.println("✓ Popup procesado");
+            logger.info("✓ Popup procesado");
 
             // Seleccionar "Todos los jugadores" en la tabla de ligas
-            System.out.println("👥 Intentando seleccionar 'Todos los jugadores'...");
+            logger.info("👥 Intentando seleccionar 'Todos los jugadores'...");
             selectAllPlayersInLeague(driver, wait);
-            System.out.println("✓ 'Todos los jugadores' seleccionado");
+            logger.info("✓ 'Todos los jugadores' seleccionado");
 
             boolean hasNextButton = true;
             int pageCount = 0;
 
             while (hasNextButton) {
                 pageCount++;
-                System.out.println("📖 Página " + pageCount);
+                logger.info("📖 Página {}", pageCount);
 
                 // Esperar a que cargue la tabla con timeout corto
                 try {
                     wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
                         By.cssSelector(CSS_TBODY_TR)));
                 } catch (TimeoutException e) {
-                    System.out.println("❌ Timeout esperando tabla en página " + pageCount);
+                    logger.error("❌ Timeout esperando tabla en página {}", pageCount);
                     throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
                 }
 
@@ -166,7 +170,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                 // Extraer jugadores de la página actual
                 List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
-                System.out.println("🔍 Filas encontradas en página " + pageCount + ": " + rows.size());
+                logger.info("🔍 Filas encontradas en página {}: {}", pageCount, rows.size());
                 int validPlayersInPage = 0;
 
                 for (WebElement row : rows) {
@@ -242,7 +246,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } finally {
             driver.quit();
-            System.out.println("✓ Scraping finalizado. Total jugadores: " + allPlayers.size());
+            logger.info("✓ Scraping finalizado. Total jugadores: {}", allPlayers.size());
         }
 
         return allPlayers;
@@ -362,16 +366,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
                 String errorText = errorElement.getText().trim();
                 boolean isDisplayed = errorElement.isDisplayed();
-                System.out.println("⚠️ Elemento de error encontrado - Visible: " + isDisplayed + ", Texto: '" + errorText + "'");
+                logger.warn("⚠️ Elemento de error encontrado - Visible: {}, Texto: '{}'", isDisplayed, errorText);
 
                 // Solo lanzar excepción si el elemento es visible y tiene texto
                 if (isDisplayed && !errorText.isEmpty()) {
                     throw new RuntimeException(ERROR_HTTP_DETECTED + errorText);
                 } else {
-                    System.out.println("✓ Elemento encontrado pero no es un error real (invisible o vacío)");
+                    logger.info("✓ Elemento encontrado pero no es un error real (invisible o vacío)");
                 }
             } catch (NoSuchElementException e) {
-                System.out.println("✓ No hay error HTTP detectado");
+                logger.info("✓ No hay error HTTP detectado");
             }
 
             // Detectar y cerrar popup de cookies/consentimiento
@@ -982,11 +986,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         long playerCount = playerRepository.count();
 
         if (playerCount > 0) {
-            System.out.println("⏭️ BD no está vacía. Saltando scraping automático. Jugadores en BD: " + playerCount);
+            logger.info("⏭️ BD no está vacía. Saltando scraping automático. Jugadores en BD: {}", playerCount);
             return;
         }
 
-        System.out.println("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
+        logger.info("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
 
         Map<String, String> ligas = new LinkedHashMap<>();
         ligas.put("LaLiga", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
@@ -1001,7 +1005,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         try {
             for (Map.Entry<String, String> liga : ligas.entrySet()) {
-                System.out.println("📊 Scrapeando " + liga.getKey() + "...");
+                logger.info("📊 Scrapeando {}...", liga.getKey());
                 var jugadores = scrapeAllPlayers(
                     liga.getValue(),
                     liga.getKey(),
@@ -1015,9 +1019,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 isFirstLeague = false;
             }
 
-            System.out.println("✅ Scraping automático completado. Total: " + totalJugadores + " jugadores guardados");
+            logger.info("✅ Scraping automático completado. Total: {} jugadores guardados", totalJugadores);
         } catch (Exception e) {
-            System.err.println("❌ Error en scraping automático: " + e.getMessage());
+            logger.error("❌ Error en scraping automático: {}", e.getMessage());
         }
     }
 }

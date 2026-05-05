@@ -1,6 +1,8 @@
 package com.desapp.futbolplayerstokens.scheduler;
 
 import com.desapp.futbolplayerstokens.service.MatchScraperService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -8,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class MatchScraperScheduler {
+
+    private static final Logger logger = LoggerFactory.getLogger(MatchScraperScheduler.class);
 
     private final MatchScraperService matchScraperService;
     private final DynamicMatchScheduler dynamicMatchScheduler;
@@ -24,13 +28,13 @@ public class MatchScraperScheduler {
     @Scheduled(cron = "1 0 0 * * *")
     public void scrapeMatchesDaily() {
         try {
-            System.out.println("🔄 Iniciando scraping de partidos...");
+            logger.info("🔄 Iniciando scraping de partidos...");
             matchScraperService.scrapeMatchesOfToday();
-            System.out.println("✅ Scraping completado. Programando schedulers...");
+            logger.info("✅ Scraping completado. Programando schedulers...");
             dynamicMatchScheduler.scheduleMatchesForToday();
-            System.out.println("✅ Schedulers programados. " + dynamicMatchScheduler.getScheduledMatchCount() + " partidos en la cola");
+            logger.info("✅ Schedulers programados. {} partidos en la cola", dynamicMatchScheduler.getScheduledMatchCount());
         } catch (Exception e) {
-            System.err.println("❌ Error: " + e.getMessage());
+            logger.error("❌ Error: {}", e.getMessage());
         }
     }
 }

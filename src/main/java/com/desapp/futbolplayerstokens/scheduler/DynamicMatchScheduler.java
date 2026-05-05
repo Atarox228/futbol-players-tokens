@@ -5,6 +5,8 @@ import com.desapp.futbolplayerstokens.modelo.Match;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -27,6 +29,8 @@ import java.util.List;
 
 @Service
 public class DynamicMatchScheduler {
+
+    private static final Logger logger = LoggerFactory.getLogger(DynamicMatchScheduler.class);
 
     private final TaskScheduler taskScheduler;
     private final MatchRepository matchRepository;
@@ -93,7 +97,7 @@ public class DynamicMatchScheduler {
 
         ScheduledFuture<?> future = taskScheduler.schedule(
             () -> {
-                System.out.println("⏰ Ejecutando matcher task para partido: " + matchId + " a las " + LocalDateTime.now());
+                logger.info("⏰ Ejecutando matcher task para partido: {} a las {}", matchId, LocalDateTime.now());
                 sequentialExecutor.submit(() -> executeMatchTask(match));
             },
             executionInstant
@@ -102,7 +106,7 @@ public class DynamicMatchScheduler {
         scheduledMatches.put(matchId, future);
         scheduleInfo.put(matchId, new MatchScheduleInfo(matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime));
 
-        System.out.println("📅 Scheduler programado - Partido: " + matchId + " | Equipos: " + match.getTeam1Id() + " vs " + match.getTeam2Id() + " | Ejecución programada para: " + executionTime + " | Instant: " + executionInstant);
+        logger.info("📅 Scheduler programado - Partido: {} | Equipos: {} vs {} | Ejecución programada para: {} | Instant: {}", matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime, executionInstant);
     }
 
     /**
@@ -110,34 +114,34 @@ public class DynamicMatchScheduler {
      */
     private void executeMatchTask(Match match) {
         try {
-            System.out.println("🔍 Verificando estado del partido: " + match.getId());
+            logger.info("🔍 Verificando estado del partido: {}", match.getId());
             if (!isMatchFinished(match)) {
-                System.out.println("⏸️ Partido " + match.getId() + " aún no terminado. Reprogramando para 10 minutos después...");
+                logger.info("⏸️ Partido {} aún no terminado. Reprogramando para 10 minutos después...", match.getId());
                 rescheduleMatchIn10Minutes(match);
                 return;
             }
 
-            System.out.println("✅ Partido " + match.getId() + " está FINISHED");
+            logger.info("✅ Partido {} está FINISHED", match.getId());
 
             String team1Name = getTeamName(match.getTeam1Id());
             String team2Name = getTeamName(match.getTeam2Id());
             String league = getTeamLeague(match.getTeam1Id());
 
-            System.out.println("📋 Team1: " + team1Name + " | Team2: " + team2Name + " | League: " + league);
+            logger.info("📋 Team1: {} | Team2: {} | League: {}", team1Name, team2Name, league);
 
             if (team1Name != null && team2Name != null && league != null) {
-                System.out.println("🎯 Scrapeando Team1: " + team1Name);
+                logger.info("🎯 Scrapeando Team1: {}", team1Name);
                 playerScraperService.scrapeTeamPlayersByName(team1Name, league);
-                System.out.println("✅ Team1 scraped");
+                logger.info("✅ Team1 scraped");
 
-                System.out.println("🎯 Scrapeando Team2: " + team2Name);
+                logger.info("🎯 Scrapeando Team2: {}", team2Name);
                 playerScraperService.scrapeTeamPlayersByName(team2Name, league);
-                System.out.println("✅ Team2 scraped");
+                logger.info("✅ Team2 scraped");
             } else {
-                System.err.println("❌ No se pudieron obtener nombres/liga para el partido " + match.getId());
+                logger.error("❌ No se pudieron obtener nombres/liga para el partido {}", match.getId());
             }
         } catch (Exception e) {
-            System.err.println("❌ Error scrapeando jugadores del partido: " + e.getMessage());
+            logger.error("❌ Error scrapeando jugadores del partido: {}", e.getMessage());
         } finally {
             scheduledMatches.remove(match.getId());
         }
@@ -161,7 +165,7 @@ public class DynamicMatchScheduler {
 
         ScheduledFuture<?> future = taskScheduler.schedule(
             () -> {
-                System.out.println("⏰ Reintentando match task para partido: " + matchId + " a las " + LocalDateTime.now());
+                logger.info("⏰ Reintentando match task para partido: {} a las {}", matchId, LocalDateTime.now());
                 sequentialExecutor.submit(() -> executeMatchTask(match));
             },
             executionInstant
@@ -170,7 +174,7 @@ public class DynamicMatchScheduler {
         scheduledMatches.put(matchId, future);
         scheduleInfo.put(matchId, new MatchScheduleInfo(matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime));
 
-        System.out.println("🔄 Partido " + matchId + " reprogramado para: " + executionTime);
+        logger.info("🔄 Partido {} reprogramado para: {}", matchId, executionTime);
     }
 
     /**
@@ -180,12 +184,12 @@ public class DynamicMatchScheduler {
         try {
             String apiToken = System.getenv("FOOTBALL_DATA_API_TOKEN");
             if (apiToken == null || apiToken.isEmpty()) {
-                System.err.println("❌ FOOTBALL_DATA_API_TOKEN no configurado");
+                logger.error("❌ FOOTBALL_DATA_API_TOKEN no configurado");
                 return false;
             }
 
             String url = String.format("https://api.football-data.org/v4/matches/%d", match.getFootballDataMatchId());
-            System.out.println("🔗 Llamando a API: " + url);
+            logger.info("🔗 Llamando a API: {}", url);
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Auth-Token", apiToken);
@@ -200,16 +204,16 @@ public class DynamicMatchScheduler {
 
             if (response.getBody() != null) {
                 String status = response.getBody().getStatus();
-                System.out.println("📊 Status de API para partido " + match.getId() + ": " + status);
+                logger.info("📊 Status de API para partido {}: {}", match.getId(), status);
                 boolean isFinished = "FINISHED".equals(status);
-                System.out.println("   ➜ ¿Terminado? " + isFinished);
+                logger.info("   ➜ ¿Terminado? {}", isFinished);
                 return isFinished;
             } else {
-                System.err.println("❌ Response vacío de API");
+                logger.error("❌ Response vacío de API");
                 return false;
             }
         } catch (Exception e) {
-            System.err.println("❌ Error verificando estado del partido: " + e.getMessage());
+            logger.error("❌ Error verificando estado del partido: {}", e.getMessage());
             return false;
         }
     }

@@ -6,6 +6,8 @@ import com.desapp.futbolplayerstokens.modelo.Match;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
 import com.desapp.futbolplayerstokens.service.MatchScraperService;
 import com.desapp.futbolplayerstokens.service.MatchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -21,6 +23,8 @@ import java.util.List;
 
 @Service
 public class MatchScraperServiceImpl implements MatchScraperService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MatchScraperServiceImpl.class);
 
     private final RestTemplate restTemplate;
     private final MatchService matchService;
@@ -52,7 +56,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
         String dateFrom = today.toString();
         String dateTo = today.toString();
 
-        System.out.println("🔍 Scrapeando partidos para fecha: " + dateFrom + " (Timezone: " + ZoneId.systemDefault() + ")");
+        logger.info("🔍 Scrapeando partidos para fecha: {} (Timezone: {})", dateFrom, ZoneId.systemDefault());
 
         List<Match> savedMatches = new ArrayList<>();
 
@@ -96,7 +100,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
                 }
 
             } catch (Exception e) {
-                System.err.println("❌ Error al consultar la API para competencia " + competitionId + ": " + e.getMessage());
+                logger.error("❌ Error al consultar la API para competencia {}: {}", competitionId, e.getMessage());
             }
         }
 
