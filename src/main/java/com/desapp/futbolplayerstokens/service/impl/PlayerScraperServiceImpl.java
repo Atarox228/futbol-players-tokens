@@ -99,14 +99,75 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         return scrapeAllPlayers(url, league, onPageComplete, true);
     }
 
-    @Override
-    public List<PlayerDetailDTO> scrapeAllPlayers(String url, String league, java.util.function.Consumer<List<PlayerDetailDTO>> onPageComplete, boolean clearTable) {
+    private void clearDatabaseIfRequested(boolean clearTable) {
         if (clearTable) {
             long count = playerRepository.count();
             if (count > 0) {
                 playerRepository.deleteAll();
             }
         }
+    }
+
+    private void scrapePaginatedPages(WebDriver driver, WebDriverWait wait, String league,
+                                      List<PlayerDetailDTO> allPlayers,
+                                      java.util.function.Consumer<List<PlayerDetailDTO>> onPageComplete) throws InterruptedException {
+        boolean hasNextButton = true;
+
+        while (hasNextButton) {
+            List<WebElement> rows = loadCurrentPageRows(wait, driver);
+            List<PlayerDetailDTO> playersThisPage = processPageRows(rows, league, allPlayers);
+
+            if (!playersThisPage.isEmpty()) {
+                onPageComplete.accept(playersThisPage);
+            }
+
+            hasNextButton = isHasNextButton(driver, hasNextButton);
+        }
+    }
+
+    private List<PlayerDetailDTO> processPageRows(List<WebElement> rows, String league, List<PlayerDetailDTO> allPlayers) {
+        List<PlayerDetailDTO> playersThisPage = new ArrayList<>();
+
+        for (WebElement row : rows) {
+            PlayerDetailDTO player = processPlayerRow(row, league);
+            if (player != null) {
+                allPlayers.add(player);
+                playersThisPage.add(player);
+            }
+        }
+
+        return playersThisPage;
+    }
+
+    private PlayerDetailDTO processPlayerRow(WebElement row, String league) {
+        try {
+            if (shouldSkipRow(row)) {
+                return null;
+            }
+
+            PlayerDetailDTO player = extractPlayerData(row);
+            if (player != null && !player.getName().isEmpty()) {
+                player.setLeague(league);
+                return player;
+            }
+        } catch (Exception e) {
+            // Continuar con el siguiente jugador
+        }
+        return null;
+    }
+
+    private boolean shouldSkipRow(WebElement row) {
+        String rowClass = row.getAttribute(ATTR_CLASS);
+        if (rowClass != null) {
+            String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
+            return normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER);
+        }
+        return false;
+    }
+
+    @Override
+    public List<PlayerDetailDTO> scrapeAllPlayers(String url, String league, java.util.function.Consumer<List<PlayerDetailDTO>> onPageComplete, boolean clearTable) {
+        clearDatabaseIfRequested(clearTable);
 
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
@@ -115,55 +176,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         try {
             prepareLeaguePlayersPage(url, driver, wait);
-
-            boolean hasNextButton = true;
-            int pageCount = 0;
-
-            while (hasNextButton) {
-                pageCount++;
-
-                // Esperar a que cargue la tabla con timeout corto
-                List<WebElement> rows = loadCurrentPageRows(wait, driver);
-                int validPlayersInPage = 0;
-
-                for (WebElement row : rows) {
-                    try {
-                        // Omitir jugadores que ya no pertenecen a la liga
-                        String rowClass = row.getAttribute(ATTR_CLASS);
-                        if (rowClass != null) {
-                            // Normalizar espacios y verificar si contiene not-current-player
-                            String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
-                            if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
-                                continue;
-                            }
-                        }
-
-                        PlayerDetailDTO player = extractPlayerData(row);
-                        if (player != null && !player.getName().isEmpty()) {
-                            player.setLeague(league);
-                            allPlayers.add(player);
-                            validPlayersInPage++;
-                        }
-                    } catch (Exception e) {
-                        // Continuar con el siguiente jugador
-                    }
-                }
-
-                // Persistir los jugadores de esta página
-                if (validPlayersInPage > 0) {
-                    List<PlayerDetailDTO> playersThisPage = allPlayers.subList(
-                        Math.max(0, allPlayers.size() - validPlayersInPage),
-                        allPlayers.size()
-                    );
-                    onPageComplete.accept(new ArrayList<>(playersThisPage));
-                }
-
-                // Buscar y hacer click en el botón "Siguiente"
-                hasNextButton = isHasNextButton(driver, hasNextButton);
-            }
-
+            scrapePaginatedPages(driver, wait, league, allPlayers, onPageComplete);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // 🔑 RESTAURA la interrupción
+            Thread.currentThread().interrupt();
             throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } catch (Exception e) {
             throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
@@ -243,8 +258,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
-        int addedCount = 0;
-        int updatedCount = 0;
 
         try {
             driver.get(baseUrl);
@@ -253,47 +266,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             closePopupIfPresent(driver, wait);
             selectTeamFromDropdown(driver, wait, teamName);
 
-            // Buscar la tabla específica con id="top-player-stats-summary-grid"
             List<WebElement> rows = findSquadRowsFromTable(driver, wait);
             for (WebElement row : rows) {
-                try {
-                    String rowClass = row.getAttribute(ATTR_CLASS);
-                    if (rowClass != null) {
-                        String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
-                        // Solo incluir jugadores activos (sin not-current-player)
-                        if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
-                            continue;
-                        }
-                    }
-
-                    PlayerDetailDTO player = extractPlayerDataFromRoster(row);
-                    if (player == null || player.getName() == null || player.getName().isBlank()) {
-                        continue;
-                    }
-
-                    // Forzar nombre de equipo objetivo para upsert por nombre + equipo.
-                    player.setTeam(teamName);
-                    player.setLeague(league);
-
-                    // Verificar si el jugador ya existe
-                    List<Player> existingPlayers = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
-                            player.getName().trim(),
-                            player.getTeam().trim());
-
-                    if (existingPlayers.isEmpty()) {
-                        // Jugador nuevo - agregarlo
-                        playerDesdeCero(player, playerRepository);
-                        newPlayers.add(player);
-                        addedCount++;
-                    } else {
-                        // Jugador existe - actualizar estadísticas
-                        modificandoPlayer(player, existingPlayers, playerRepository);
-                        updatedCount++;
-                    }
-
-                } catch (Exception e) {
-                    // Continuar con el siguiente jugador
-                }
+                processTeamPlayerRow(row, teamName, league, newPlayers);
             }
 
             return newPlayers;
@@ -305,6 +280,35 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
         } finally {
             driver.quit();
+        }
+    }
+
+    private void processTeamPlayerRow(WebElement row, String teamName, String league, List<PlayerDetailDTO> newPlayers) {
+        try {
+            if (shouldSkipRow(row)) {
+                return;
+            }
+
+            PlayerDetailDTO player = extractPlayerDataFromRoster(row);
+            if (player == null || player.getName() == null || player.getName().isBlank()) {
+                return;
+            }
+
+            player.setTeam(teamName);
+            player.setLeague(league);
+
+            List<Player> existingPlayers = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
+                    player.getName().trim(),
+                    player.getTeam().trim());
+
+            if (existingPlayers.isEmpty()) {
+                playerDesdeCero(player, playerRepository);
+                newPlayers.add(player);
+            } else {
+                modificandoPlayer(player, existingPlayers, playerRepository);
+            }
+        } catch (Exception e) {
+            // Continuar con el siguiente jugador
         }
     }
 
@@ -354,55 +358,15 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             prepareLeaguePlayersPage(url, driver, wait);
 
             boolean hasNextButton = true;
-            int pageCount = 0;
 
             while (hasNextButton) {
-                pageCount++;
-
-                // Esperar a que cargue la tabla con timeout corto
                 List<WebElement> rows = loadCurrentPageRows(wait, driver);
-                int newPlayersInPage = 0;
-                List<PlayerDetailDTO> newPlayersThisPage = new ArrayList<>();
+                List<PlayerDetailDTO> newPlayersThisPage = processNewPlayerRows(rows, league, allNewPlayers);
 
-                for (WebElement row : rows) {
-                    try {
-                        // Omitir jugadores que ya no pertenecen a la liga
-                        String rowClass = row.getAttribute(ATTR_CLASS);
-                        if (rowClass != null) {
-                            // Normalizar espacios y verificar si contiene not-current-player
-                            String normalizedClass = rowClass.replaceAll(REGEX_MULTIPLE_SPACES, SPACE).trim();
-                            if (normalizedClass.contains(CLASS_NOT_CURRENT_PLAYER)) {
-                                continue;
-                            }
-                        }
-
-                        PlayerDetailDTO player = extractPlayerData(row);
-                        if (player != null && !player.getName().isEmpty()) {
-                            player.setLeague(league);
-
-                            // Verificar si el jugador ya existe
-                            if (!playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
-                                    player.getName().trim(),
-                                    player.getTeam().trim())
-                                    .isEmpty()) {
-                                continue;
-                            }
-
-                            allNewPlayers.add(player);
-                            newPlayersThisPage.add(player);
-                            newPlayersInPage++;
-                        }
-                    } catch (Exception e) {
-                        // Continuar con el siguiente jugador
-                    }
-                }
-
-                // Persistir solo los jugadores nuevos de esta página
-                if (newPlayersInPage > 0) {
+                if (!newPlayersThisPage.isEmpty()) {
                     onPageComplete.accept(newPlayersThisPage);
                 }
 
-                // Buscar y hacer click en el botón "Siguiente"
                 hasNextButton = isHasNextButton(driver, hasNextButton);
             }
 
@@ -417,6 +381,39 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         return allNewPlayers;
+    }
+
+    private List<PlayerDetailDTO> processNewPlayerRows(List<WebElement> rows, String league, List<PlayerDetailDTO> allNewPlayers) {
+        List<PlayerDetailDTO> newPlayersThisPage = new ArrayList<>();
+
+        for (WebElement row : rows) {
+            try {
+                if (shouldSkipRow(row)) {
+                    continue;
+                }
+
+                PlayerDetailDTO player = extractPlayerData(row);
+                if (player == null || player.getName().isEmpty()) {
+                    continue;
+                }
+
+                player.setLeague(league);
+
+                if (!playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
+                        player.getName().trim(),
+                        player.getTeam().trim())
+                        .isEmpty()) {
+                    continue;
+                }
+
+                allNewPlayers.add(player);
+                newPlayersThisPage.add(player);
+            } catch (Exception e) {
+                // Continuar con el siguiente jugador
+            }
+        }
+
+        return newPlayersThisPage;
     }
 
     private @NonNull List<WebElement> loadCurrentPageRows(WebDriverWait wait, WebDriver driver) throws InterruptedException {
