@@ -16,7 +16,6 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.openqa.selenium.TimeoutException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -235,19 +234,56 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         // Esperar a que cargue la página inicial (más tiempo en headless)
         Thread.sleep(4000);
 
-        // Verificar si hay un error 502 o similar
-        try {
-            WebElement errorElement = driver.findElement(By.xpath(XPATH_HTTP_ERROR));
-            throw new RuntimeException(ERROR_HTTP_DETECTED + errorElement.getText());
-        } catch (NoSuchElementException e) {
-            // No hay error, continuar
-        }
-
         // Detectar y cerrar popup de cookies/consentimiento
         closePopupIfPresent(driver, wait);
 
         // Seleccionar "Todos los jugadores" en la tabla de ligas
         selectAllPlayersInLeague(driver, wait);
+
+        ensurePlayersTableLoaded(driver, wait);
+    }
+
+    private void ensurePlayersTableLoaded(WebDriver driver, WebDriverWait wait) throws InterruptedException {
+        try {
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector(CSS_TBODY_TR)));
+            Thread.sleep(1000);
+        } catch (TimeoutException e) {
+            if (isLikelyHttpErrorPage(driver.getTitle(), driver.getPageSource())) {
+                throw new RuntimeException(ERROR_HTTP_DETECTED + extractHttpErrorDetails(driver));
+            }
+
+            throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
+        }
+    }
+
+    static boolean isLikelyHttpErrorPage(String pageTitle, String pageSource) {
+        String normalizedTitle = pageTitle == null ? EMPTY : pageTitle.toLowerCase(Locale.ROOT);
+        String normalizedSource = pageSource == null ? EMPTY : pageSource.toLowerCase(Locale.ROOT);
+
+        return normalizedTitle.contains("bad gateway")
+            || normalizedTitle.contains("service unavailable")
+            || normalizedTitle.contains("502")
+            || normalizedTitle.contains("503")
+            || normalizedSource.contains("bad gateway")
+            || normalizedSource.contains("service unavailable");
+    }
+
+    private String extractHttpErrorDetails(WebDriver driver) {
+        String title = driver.getTitle();
+        if (title != null && !title.isBlank()) {
+            return title.trim();
+        }
+
+        try {
+            String bodyText = driver.findElement(By.tagName("body")).getText().trim();
+            if (!bodyText.isBlank()) {
+                return bodyText.lines().findFirst().orElse(bodyText);
+            }
+        } catch (Exception e) {
+            // Ignorar y devolver detalle genérico
+        }
+
+        return "sin detalle";
     }
 
     @Override
@@ -937,11 +973,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         logger.info("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
 
         Map<String, String> ligas = new LinkedHashMap<>();
+        ligas.put("Ligue 1", "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
         ligas.put("LaLiga", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
         ligas.put("Premier League", "https://es.whoscored.com/regions/252/tournaments/2/seasons/10743/stages/24533/playerstatistics/inglaterra-premier-league-2025-2026");
         ligas.put("Bundesliga", "https://es.whoscored.com/regions/81/tournaments/3/seasons/10720/stages/24478/playerstatistics/alemania-bundesliga-2025-2026");
         ligas.put("Serie A", "https://es.whoscored.com/regions/108/tournaments/5/seasons/10732/stages/24500/playerstatistics/italia-serie-a-2025-2026");
-        ligas.put("Ligue 1", "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
 
         int totalJugadores = 0;
         int[] totalGuardados = {0};
