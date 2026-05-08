@@ -27,32 +27,43 @@ public class Player {
     private String league;
     private String position;
     private Double rating;
-    @Builder.Default
-    private Integer played = 1;
-    @Builder.Default
-    private Integer won = 1;
-    @Builder.Default
-    private Integer lost = 1;
     private Integer appearances;
     private Integer minutes;
     private Integer goals;
     private Integer assists;
     @Builder.Default
-    private Integer shotsOnTarget = 1;
+    private Double shotsOnTarget = 0.0;
+    
     @Builder.Default
-    private Integer clears = 1;
+    private Double aerialWon = 0.0;
     @Builder.Default
-    private Integer goalsConceded = 1;
+    private Double faults = 0.0;
     @Builder.Default
-    private Integer tackles = 1;
+    private Double offsidesGiven = 0.0;
     @Builder.Default
-    private Integer interceptions = 1;
+    private Double clears = 0.0;
     @Builder.Default
-    private Integer blocks = 1;
+    private Double dribbled = 0.0;
+    @Builder.Default
+    private Double tackles = 0.0;
+    @Builder.Default
+    private Double interceptions = 0.0;
+    @Builder.Default
+    private Double blocks = 0.0;
     @Builder.Default
     private Integer ownGoals = 1;
     @Builder.Default
-    private Integer keyPasses = 1;
+    private Double keyPasses = 0.0;
+    @Builder.Default
+    private Double dribbles = 0.0;
+    @Builder.Default
+    private Double faulted = 0.0;
+    @Builder.Default
+    private Double offsides = 0.0;
+    @Builder.Default
+    private Double dispossesed = 0.0;
+    @Builder.Default
+    private Double turnover = 0.0;
     @Builder.Default
     private Double passAccuracy = 1.0;
     private Integer yellowCards;
@@ -67,26 +78,32 @@ public class Player {
     @PrePersist
     @PreUpdate
     public void applyPersistenceDefaults() {
-        played = defaultIfNull(played, DEFAULT_COUNT);
-        won = defaultIfNull(won, DEFAULT_COUNT);
-        lost = defaultIfNull(lost, DEFAULT_COUNT);
-        shotsOnTarget = defaultIfNull(shotsOnTarget, DEFAULT_COUNT);
-        clears = defaultIfNull(clears, DEFAULT_COUNT);
-        goalsConceded = defaultIfNull(goalsConceded, DEFAULT_COUNT);
-        tackles = defaultIfNull(tackles, DEFAULT_COUNT);
-        interceptions = defaultIfNull(interceptions, DEFAULT_COUNT);
-        blocks = defaultIfNull(blocks, DEFAULT_COUNT);
+        shotsOnTarget = defaultIfNull(shotsOnTarget, 0.0);
+        
+        aerialWon = defaultIfNull(aerialWon, 0.0);
+        faults = defaultIfNull(faults, 0.0);
+        offsidesGiven = defaultIfNull(offsidesGiven, 0.0);
+        clears = defaultIfNull(clears, 0.0);
+        dribbled = defaultIfNull(dribbled, 0.0);
+        tackles = defaultIfNull(tackles, 0.0);
+        interceptions = defaultIfNull(interceptions, 0.0);
+        blocks = defaultIfNull(blocks, 0.0);
         ownGoals = defaultIfNull(ownGoals, DEFAULT_COUNT);
-        keyPasses = defaultIfNull(keyPasses, DEFAULT_COUNT);
-        passAccuracy = defaultIfNull(passAccuracy, DEFAULT_PASS_ACCURACY);
+        keyPasses = defaultIfNull(keyPasses, 0.0);
+        dribbles = defaultIfNull(dribbles, 0.0);
+        faulted = defaultIfNull(faulted, 0.0);
+        offsides = defaultIfNull(offsides, 0.0);
+        dispossesed = defaultIfNull(dispossesed, 0.0);
+        turnover = defaultIfNull(turnover, 0.0);
+        passAccuracy = (passAccuracy == null || passAccuracy.doubleValue() == 0.0) ? DEFAULT_PASS_ACCURACY : passAccuracy;
         lastModifiedAt = LocalDateTime.now();
     }
 
-    private Integer defaultIfNull(Integer value, Integer defaultValue) {
+    private Double defaultIfNull(Double value, Double defaultValue) {
         return value == null ? defaultValue : value;
     }
 
-    private Double defaultIfNull(Double value, Double defaultValue) {
+    private Integer defaultIfNull(Integer value, Integer defaultValue) {
         return value == null ? defaultValue : value;
     }
 }

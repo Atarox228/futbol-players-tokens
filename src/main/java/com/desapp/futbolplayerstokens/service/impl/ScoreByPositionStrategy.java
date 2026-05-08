@@ -52,26 +52,25 @@ public class ScoreByPositionStrategy implements Strategy {
     }
 
     private BigDecimal scoreForward(Player player, Map<String, BigDecimal> weights) {
-        return weighted(weights, "goals", new BigDecimal("0.60"), integerValue(player.getGoals()))
-                .add(weighted(weights, "shotsOnTarget", new BigDecimal("0.40"), integerValue(player.getShotsOnTarget())));
+        return weighted(weights, "goals", new BigDecimal("0.60"), numberValue(player.getGoals()))
+            .add(weighted(weights, "shotsOnTarget", new BigDecimal("0.40"), numberValue(player.getShotsOnTarget())));
     }
 
     private BigDecimal scoreGoalkeeper(Player player, Map<String, BigDecimal> weights) {
-        return weighted(weights, "clears", new BigDecimal("0.40"), integerValue(player.getClears()))
-                .subtract(weighted(weights, "goalsConceded", new BigDecimal("0.60"), integerValue(player.getGoalsConceded())));
+        return weighted(weights, "clears", new BigDecimal("0.40"), numberValue(player.getClears()));
     }
 
     private BigDecimal scoreDefender(Player player, Map<String, BigDecimal> weights) {
-        return weighted(weights, "tackles", new BigDecimal("0.25"), integerValue(player.getTackles()))
-                .add(weighted(weights, "interceptions", new BigDecimal("0.25"), integerValue(player.getInterceptions())))
-                .add(weighted(weights, "clears", new BigDecimal("0.20"), integerValue(player.getClears())))
-                .add(weighted(weights, "blocks", new BigDecimal("0.20"), integerValue(player.getBlocks())))
-                .subtract(weighted(weights, "ownGoals", new BigDecimal("0.50"), integerValue(player.getOwnGoals())));
+        return weighted(weights, "tackles", new BigDecimal("0.25"), numberValue(player.getTackles()))
+            .add(weighted(weights, "interceptions", new BigDecimal("0.25"), numberValue(player.getInterceptions())))
+            .add(weighted(weights, "clears", new BigDecimal("0.20"), numberValue(player.getClears())))
+            .add(weighted(weights, "blocks", new BigDecimal("0.20"), numberValue(player.getBlocks())))
+            .subtract(weighted(weights, "ownGoals", new BigDecimal("0.50"), numberValue(player.getOwnGoals())));
     }
 
     private BigDecimal scoreMidfielder(Player player, Map<String, BigDecimal> weights) {
-        return weighted(weights, "assists", new BigDecimal("0.40"), integerValue(player.getAssists()))
-                .add(weighted(weights, "keyPasses", new BigDecimal("0.35"), integerValue(player.getKeyPasses())))
+        return weighted(weights, "assists", new BigDecimal("0.40"), numberValue(player.getAssists()))
+            .add(weighted(weights, "keyPasses", new BigDecimal("0.35"), numberValue(player.getKeyPasses())))
                 .add(weighted(weights, "passAccuracy", new BigDecimal("0.25"), passAccuracyValue(player)));
     }
 
@@ -86,8 +85,8 @@ public class ScoreByPositionStrategy implements Strategy {
         return weights.getOrDefault(key, defaultWeight);
     }
 
-    private BigDecimal integerValue(Integer value) {
-        return BigDecimal.valueOf(value == null ? 1L : value.longValue());
+    private BigDecimal numberValue(Number value) {
+        return BigDecimal.valueOf(value == null ? 1.0 : value.doubleValue());
     }
 
     private BigDecimal passAccuracyValue(Player player) {

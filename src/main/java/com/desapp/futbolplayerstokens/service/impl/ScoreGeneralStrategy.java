@@ -15,9 +15,7 @@ import java.util.Map;
 public class ScoreGeneralStrategy implements Strategy {
 
     private static final int SCALE = 8;
-    private static final BigDecimal DEFAULT_WEIGHT_PLAYED = new BigDecimal("0.20");
-    private static final BigDecimal DEFAULT_WEIGHT_WON = new BigDecimal("0.25");
-    private static final BigDecimal DEFAULT_WEIGHT_LOST = new BigDecimal("0.20");
+    private static final BigDecimal DEFAULT_WEIGHT_APPEARANCES = new BigDecimal("0.20");
     private static final BigDecimal DEFAULT_WEIGHT_MINUTES = new BigDecimal("0.15");
     private static final BigDecimal DEFAULT_WEIGHT_RATING = new BigDecimal("0.20");
     private static final BigDecimal DEFAULT_WEIGHT_YELLOW = new BigDecimal("0.10");
@@ -39,13 +37,11 @@ public class ScoreGeneralStrategy implements Strategy {
         Map<String, BigDecimal> weights = strategyConfig.getWeights();
 
         BigDecimal scoreTotal = ZERO
-                .add(weighted(weight(weights, "played", DEFAULT_WEIGHT_PLAYED), integerValue(player.getPlayed())))
-                .add(weighted(weight(weights, "won", DEFAULT_WEIGHT_WON), integerValue(player.getWon())))
-                .subtract(weighted(weight(weights, "lost", DEFAULT_WEIGHT_LOST), integerValue(player.getLost())))
+            .add(weighted(weight(weights, "appearances", DEFAULT_WEIGHT_APPEARANCES), numberValue(player.getAppearances())))
                 .add(weighted(weight(weights, "minutes", DEFAULT_WEIGHT_MINUTES), minutesComponent(player)))
                 .add(weighted(weight(weights, "rating", DEFAULT_WEIGHT_RATING), ratingComponent(player)))
-                .subtract(weighted(weight(weights, "yellowCards", DEFAULT_WEIGHT_YELLOW), integerValue(player.getYellowCards())))
-                .subtract(weighted(weight(weights, "redCards", DEFAULT_WEIGHT_RED), integerValue(player.getRedCards())));
+            .subtract(weighted(weight(weights, "yellowCards", DEFAULT_WEIGHT_YELLOW), numberValue(player.getYellowCards())))
+            .subtract(weighted(weight(weights, "redCards", DEFAULT_WEIGHT_RED), numberValue(player.getRedCards())));
 
         BigDecimal price = nullToZero(strategyConfig.getValorBase())
                 .add(scoreTotal.multiply(nullToOne(strategyConfig.getFactorEscala())))
@@ -63,7 +59,7 @@ public class ScoreGeneralStrategy implements Strategy {
     }
 
     private BigDecimal minutesComponent(Player player) {
-        return integerValue(player.getMinutes()).divide(NINETY, SCALE, RoundingMode.HALF_UP);
+        return numberValue(player.getMinutes()).divide(NINETY, SCALE, RoundingMode.HALF_UP);
     }
 
     private BigDecimal ratingComponent(Player player) {
@@ -72,8 +68,8 @@ public class ScoreGeneralStrategy implements Strategy {
         return normalized.compareTo(ZERO) > 0 ? normalized : ZERO;
     }
 
-    private BigDecimal integerValue(Integer value) {
-        return BigDecimal.valueOf(value == null ? 1L : value.longValue());
+    private BigDecimal numberValue(Number value) {
+        return BigDecimal.valueOf(value == null ? 1.0 : value.doubleValue());
     }
 
     private BigDecimal weight(Map<String, BigDecimal> weights, String key, BigDecimal defaultWeight) {

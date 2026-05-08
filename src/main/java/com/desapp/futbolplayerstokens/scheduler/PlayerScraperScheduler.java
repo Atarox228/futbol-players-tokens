@@ -19,6 +19,7 @@ public class PlayerScraperScheduler {
         this.playerScraperService = playerScraperService;
     }
 
+    
     @EventListener(ApplicationReadyEvent.class)
     public void scrapePlayersOnStartupIfDatabaseEmpty() {
         try {
@@ -29,10 +30,7 @@ public class PlayerScraperScheduler {
         }
     }
 
-    /**
-     * TESTING: Cada minuto (cron = "0 * * * * *")
-     * PRODUCCIÓN: Cambiar a "0 0 0 * * *" (cada día a las 00:00)
-     */
+
     @Scheduled(cron = "0 0 2 * * *")
     public void scrapePlayersDaily() {
         try {
@@ -42,4 +40,5 @@ public class PlayerScraperScheduler {
             logger.error("❌ Error: {}", e.getMessage());
         }
     }
+
 }

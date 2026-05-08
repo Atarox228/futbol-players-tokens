@@ -63,6 +63,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String ID_TOP_PLAYER_STATS_SUMMARY_GRID = "top-player-stats-summary-grid";
     private static final String ID_NEXT = "next";
     private static final String ID_LOCALE_SELECT = "locale-select";
+    private static final String TEAM_SQUAD_SUMMARY_SECTION = "team-squad-stats-summary";
+    private static final String TEAM_SQUAD_DEFENSIVE_SECTION = "team-squad-stats-defensive";
+    private static final String TEAM_SQUAD_OFFENSIVE_SECTION = "team-squad-stats-offensive";
 
     private static final String ATTR_CLASS = "class";
     private static final String ATTR_DISABLED = "disabled";
@@ -302,10 +305,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             closePopupIfPresent(driver, wait);
             selectTeamFromDropdown(driver, wait, teamName);
 
-            List<WebElement> rows = findSquadRowsFromTable(driver, wait);
-            for (WebElement row : rows) {
-                processTeamPlayerRow(row, teamName, league, newPlayers);
-            }
+            newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, teamName, league));
 
             return newPlayers;
         } catch (InterruptedException e) {
@@ -316,6 +316,272 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
         } finally {
             driver.quit();
+        }
+    }
+
+    @Override
+    public List<PlayerDetailDTO> scrapeLeaguePlayersByStarterTeam(String starterTeam, String league) {
+        String baseUrl = getBaseUrlByLeague(league);
+
+        ChromeOptions options = createChromeOptions();
+        WebDriver driver = createDriver(options);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
+        List<PlayerDetailDTO> newPlayers = new ArrayList<>();
+
+        try {
+            driver.get(baseUrl);
+            Thread.sleep(2000);
+
+            closePopupIfPresent(driver, wait);
+            selectTeamFromDropdown(driver, wait, starterTeam);
+
+            List<String> teamNames = getTeamNamesFromDropdown(driver, wait);
+            List<String> orderedTeamNames = orderTeamsStartingWith(teamNames, starterTeam);
+
+            for (String currentTeamName : orderedTeamNames) {
+                selectTeamFromDropdown(driver, wait, currentTeamName);
+                newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, currentTeamName, league));
+            }
+
+            return newPlayers;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("❌ Error scrapeando liga " + league + ": " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("❌ Error scrapeando liga " + league + ": " + e.getMessage(), e);
+        } finally {
+            driver.quit();
+        }
+    }
+
+    private List<String> getTeamNamesFromDropdown(WebDriver driver, WebDriverWait wait) {
+        try {
+            List<WebElement> selects = wait.until(d -> d.findElements(By.tagName(CSS_SELECT_TAG)));
+
+            for (WebElement selectElement : selects) {
+                String selectId = selectElement.getAttribute(ATTR_ID);
+                if (ID_LOCALE_SELECT.equals(selectId)) {
+                    continue;
+                }
+
+                Select select = new Select(selectElement);
+                List<String> teamNames = new ArrayList<>();
+                for (WebElement option : select.getOptions()) {
+                    String optionText = option.getText() == null ? EMPTY : option.getText().trim();
+                    if (!optionText.isBlank()) {
+                        teamNames.add(optionText);
+                    }
+                }
+
+                if (!teamNames.isEmpty()) {
+                    return teamNames;
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("No se pudo leer el selector de equipos: " + e.getMessage(), e);
+        }
+
+        throw new RuntimeException("No se encontraron equipos en el selector de la página");
+    }
+
+    private List<String> orderTeamsStartingWith(List<String> teamNames, String teamName) {
+        List<String> orderedTeamNames = new ArrayList<>();
+        if (teamNames == null || teamNames.isEmpty()) {
+            return orderedTeamNames;
+        }
+
+        String target = normalize(teamName);
+
+        for (String currentName : teamNames) {
+            if (normalize(currentName).equals(target)) {
+                orderedTeamNames.add(currentName);
+                break;
+            }
+        }
+
+        for (String currentName : teamNames) {
+            if (orderedTeamNames.stream().noneMatch(existing -> normalize(existing).equals(normalize(currentName)))) {
+                orderedTeamNames.add(currentName);
+            }
+        }
+
+        return orderedTeamNames;
+    }
+
+    private List<PlayerDetailDTO> scrapeCurrentTeamRoster(WebDriver driver, WebDriverWait wait, String teamName, String league)
+            throws InterruptedException {
+        Map<String, PlayerDetailDTO> playersByName = extractSectionPlayers(driver, wait, TEAM_SQUAD_SUMMARY_SECTION, this::extractSummaryPlayerFromRow);
+        mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_DEFENSIVE_SECTION, this::extractDefensivePlayerFromRow));
+        mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_OFFENSIVE_SECTION, this::extractOffensivePlayerFromRow));
+
+        List<PlayerDetailDTO> newPlayers = new ArrayList<>();
+        for (PlayerDetailDTO player : playersByName.values()) {
+            player.setTeam(teamName);
+            player.setLeague(league);
+            persistScrapedPlayer(player, newPlayers);
+        }
+
+        return newPlayers;
+    }
+
+    private Map<String, PlayerDetailDTO> extractSectionPlayers(WebDriver driver,
+                                                               WebDriverWait wait,
+                                                               String sectionId,
+                                                               java.util.function.Function<WebElement, PlayerDetailDTO> rowExtractor)
+            throws InterruptedException {
+        activateTeamStatsSection(driver, wait, sectionId);
+
+        try {
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id(sectionId)));
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("#" + sectionId + " tbody tr")));
+            Thread.sleep(500);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("No se encontró la sección de plantilla: " + sectionId);
+        }
+
+        List<WebElement> rows = driver.findElements(By.cssSelector("#" + sectionId + " tbody tr"));
+        Map<String, PlayerDetailDTO> playersByName = new LinkedHashMap<>();
+
+        for (WebElement row : rows) {
+            try {
+                if (shouldSkipRow(row)) {
+                    continue;
+                }
+
+                PlayerDetailDTO player = rowExtractor.apply(row);
+                if (player == null || player.getName() == null || player.getName().isBlank()) {
+                    continue;
+                }
+
+                playersByName.put(normalize(player.getName()), player);
+            } catch (Exception e) {
+                // Continuar con el siguiente jugador
+            }
+        }
+
+        return playersByName;
+    }
+
+    private void mergeSectionPlayers(Map<String, PlayerDetailDTO> basePlayers, Map<String, PlayerDetailDTO> extraPlayers) {
+        for (Map.Entry<String, PlayerDetailDTO> entry : extraPlayers.entrySet()) {
+            PlayerDetailDTO basePlayer = basePlayers.get(entry.getKey());
+            if (basePlayer == null) {
+                basePlayers.put(entry.getKey(), entry.getValue());
+                continue;
+            }
+
+            mergePlayerStats(basePlayer, entry.getValue());
+        }
+    }
+
+    private void mergePlayerStats(PlayerDetailDTO target, PlayerDetailDTO source) {
+        if (source == null) {
+            return;
+        }
+
+        if (source.getPosition() != null && !source.getPosition().isBlank()) {
+            target.setPosition(source.getPosition());
+        }
+        if (source.getRating() != null) {
+            target.setRating(source.getRating());
+        }
+        
+        if (source.getAppearances() != null) {
+            target.setAppearances(source.getAppearances());
+        }
+        if (source.getMinutes() != null) {
+            target.setMinutes(source.getMinutes());
+        }
+        if (source.getGoals() != null) {
+            target.setGoals(source.getGoals());
+        }
+        if (source.getAssists() != null) {
+            target.setAssists(source.getAssists());
+        }
+        if (source.getShotsOnTarget() != null) {
+            target.setShotsOnTarget(source.getShotsOnTarget());
+        }
+        // passPrecision removed; passAccuracy handled below
+        if (source.getAerialWon() != null) {
+            target.setAerialWon(source.getAerialWon());
+        }
+        if (source.getFaults() != null) {
+            target.setFaults(source.getFaults());
+        }
+        if (source.getOffsidesGiven() != null) {
+            target.setOffsidesGiven(source.getOffsidesGiven());
+        }
+        if (source.getYellowCards() != null) {
+            target.setYellowCards(source.getYellowCards());
+        }
+        if (source.getRedCards() != null) {
+            target.setRedCards(source.getRedCards());
+        }
+        if (source.getPlayerOfTheMatch() != null) {
+            target.setPlayerOfTheMatch(source.getPlayerOfTheMatch());
+        }
+        if (source.getClears() != null) {
+            target.setClears(source.getClears());
+        }
+        if (source.getDribbled() != null) {
+            target.setDribbled(source.getDribbled());
+        }
+        if (source.getTackles() != null) {
+            target.setTackles(source.getTackles());
+        }
+        if (source.getInterceptions() != null) {
+            target.setInterceptions(source.getInterceptions());
+        }
+        if (source.getBlocks() != null) {
+            target.setBlocks(source.getBlocks());
+        }
+        if (source.getOwnGoals() != null) {
+            target.setOwnGoals(source.getOwnGoals());
+        }
+        if (source.getKeyPasses() != null) {
+            target.setKeyPasses(source.getKeyPasses());
+        }
+        if (source.getDribbles() != null) {
+            target.setDribbles(source.getDribbles());
+        }
+        if (source.getFaulted() != null) {
+            target.setFaulted(source.getFaulted());
+        }
+        if (source.getOffsides() != null) {
+            target.setOffsides(source.getOffsides());
+        }
+        if (source.getDispossesed() != null) {
+            target.setDispossesed(source.getDispossesed());
+        }
+        if (source.getTurnover() != null) {
+            target.setTurnover(source.getTurnover());
+        }
+        if (source.getPassAccuracy() != null) {
+            target.setPassAccuracy(source.getPassAccuracy());
+        }
+    }
+
+    private void persistScrapedPlayer(PlayerDetailDTO player, List<PlayerDetailDTO> newPlayers) {
+        List<Player> existingPlayers = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
+                player.getName().trim(),
+                player.getTeam().trim());
+
+        if (existingPlayers.isEmpty()) {
+            playerDesdeCero(player, playerRepository);
+            newPlayers.add(player);
+        } else {
+            modificandoPlayer(player, existingPlayers, playerRepository);
+        }
+    }
+
+    private void activateTeamStatsSection(WebDriver driver, WebDriverWait wait, String sectionId) throws InterruptedException {
+        String sectionHref = "a[href='#" + sectionId + "']";
+        try {
+            WebElement sectionLink = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector(sectionHref)));
+            ((JavascriptExecutor) driver).executeScript(JS_CLICK_ELEMENT, sectionLink);
+            Thread.sleep(500);
+        } catch (TimeoutException e) {
+            // Si la pestaña ya está activa o no necesita click, continuar
         }
     }
 
@@ -355,6 +621,24 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             existingPlayer.setMinutes(player.getMinutes());
             existingPlayer.setGoals(player.getGoals());
             existingPlayer.setAssists(player.getAssists());
+            existingPlayer.setShotsOnTarget(player.getShotsOnTarget());
+            // passPrecision removed; passAccuracy is used instead
+            existingPlayer.setAerialWon(player.getAerialWon());
+            existingPlayer.setFaults(player.getFaults());
+            existingPlayer.setOffsidesGiven(player.getOffsidesGiven());
+            existingPlayer.setClears(player.getClears());
+            existingPlayer.setDribbled(player.getDribbled());
+            existingPlayer.setTackles(player.getTackles());
+            existingPlayer.setInterceptions(player.getInterceptions());
+            existingPlayer.setBlocks(player.getBlocks());
+            existingPlayer.setOwnGoals(player.getOwnGoals());
+            existingPlayer.setKeyPasses(player.getKeyPasses());
+            existingPlayer.setDribbles(player.getDribbles());
+            existingPlayer.setFaulted(player.getFaulted());
+            existingPlayer.setOffsides(player.getOffsides());
+            existingPlayer.setDispossesed(player.getDispossesed());
+            existingPlayer.setTurnover(player.getTurnover());
+            existingPlayer.setPassAccuracy(player.getPassAccuracy());
             existingPlayer.setYellowCards(player.getYellowCards());
             existingPlayer.setRedCards(player.getRedCards());
             existingPlayer.setPlayerOfTheMatch(player.getPlayerOfTheMatch());
@@ -374,6 +658,24 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             .minutes(player.getMinutes())
             .goals(player.getGoals())
             .assists(player.getAssists())
+            .shotsOnTarget(player.getShotsOnTarget())
+            .passAccuracy(player.getPassAccuracy())
+            .aerialWon(player.getAerialWon())
+            .faults(player.getFaults())
+            .offsidesGiven(player.getOffsidesGiven())
+            .clears(player.getClears())
+            .dribbled(player.getDribbled())
+            .tackles(player.getTackles())
+            .interceptions(player.getInterceptions())
+            .blocks(player.getBlocks())
+            .ownGoals(player.getOwnGoals())
+            .keyPasses(player.getKeyPasses())
+            .dribbles(player.getDribbles())
+            .faulted(player.getFaulted())
+            .offsides(player.getOffsides())
+            .dispossesed(player.getDispossesed())
+            .turnover(player.getTurnover())
+            .passAccuracy(player.getPassAccuracy())
             .yellowCards(player.getYellowCards())
             .redCards(player.getRedCards())
             .playerOfTheMatch(player.getPlayerOfTheMatch())
@@ -470,11 +772,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private String getBaseUrlByLeague(String league) {
         return switch(league) {
-            case "LaLiga" -> "https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona";
-            case "Premier League" -> "https://es.whoscored.com/teams/167/show/inglaterra-manchester-city";
-            case "Ligue 1" -> "https://es.whoscored.com/teams/304/show/francia-paris-saint-germain";
-            case "Bundesliga" -> "https://es.whoscored.com/teams/796/show/alemania-union-berlin";
-            case "Serie A" -> "https://es.whoscored.com/teams/75/show/italia-inter";
+            case "LaLiga" -> "https://es.whoscored.com/teams/53/show/espa%C3%B1a-athletic-club";
+            case "Premier League" -> "https://es.whoscored.com/teams/13/show/inglaterra-arsenal";
+            case "Ligue 1" -> "https://es.whoscored.com/teams/614/show/francia-angers";
+            case "Bundesliga" -> "https://es.whoscored.com/teams/1730/show/alemania-augsburg";
+            case "Serie A" -> "https://es.whoscored.com/teams/80/show/italia-ac-milan";
             default -> "https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona";
         };
     }
@@ -526,6 +828,230 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Interrumpido al esperar la tabla de plantilla", ie);
+        }
+    }
+
+    private PlayerDetailDTO extractSummaryPlayerFromRow(WebElement row) {
+        try {
+            PlayerDetailDTO player = createPlayerFromRow(row);
+            if (player == null) {
+                return null;
+            }
+
+            List<WebElement> cells = row.findElements(By.tagName("td"));
+            if (cells.size() > 4) {
+                player.setAppearances(parseAppearances(cells.get(4).getText()));
+            }
+            if (cells.size() > 5) {
+                player.setMinutes(parseIntegerStat(cells.get(5).getText()));
+            }
+            if (cells.size() > 6) {
+                player.setGoals(parseIntegerStat(cells.get(6).getText()));
+            }
+            if (cells.size() > 7) {
+                player.setAssists(parseIntegerStat(cells.get(7).getText()));
+            }
+            if (cells.size() > 8) {
+                player.setYellowCards(parseIntegerStat(cells.get(8).getText()));
+            }
+            if (cells.size() > 9) {
+                player.setRedCards(parseIntegerStat(cells.get(9).getText()));
+            }
+            if (cells.size() > 10) {
+                player.setShotsOnTarget(parseDecimalStat(cells.get(10).getText()));
+            }
+            if (cells.size() > 11) {
+                Double passAcc = parseDecimalStat(cells.get(11).getText());
+                player.setPassAccuracy(passAcc);
+            }
+            if (cells.size() > 12) {
+                player.setAerialWon(parseDecimalStat(cells.get(12).getText()));
+            }
+            if (cells.size() > 13) {
+                player.setPlayerOfTheMatch(parseIntegerStat(cells.get(13).getText()));
+            }
+            if (cells.size() > 14) {
+                player.setRating(parseDecimalStat(cells.get(14).getText()));
+            }
+
+            return player;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private PlayerDetailDTO extractDefensivePlayerFromRow(WebElement row) {
+        try {
+            PlayerDetailDTO player = createPlayerFromRow(row);
+            if (player == null) {
+                return null;
+            }
+
+            List<WebElement> cells = row.findElements(By.tagName("td"));
+            if (cells.size() > 4) {
+                player.setAppearances(parseAppearances(cells.get(4).getText()));
+            }
+            if (cells.size() > 5) {
+                player.setMinutes(parseIntegerStat(cells.get(5).getText()));
+            }
+            if (cells.size() > 6) {
+                player.setTackles(parseDecimalStat(cells.get(6).getText()));
+            }
+            if (cells.size() > 7) {
+                player.setInterceptions(parseDecimalStat(cells.get(7).getText()));
+            }
+            if (cells.size() > 8) {
+                player.setFaults(parseDecimalStat(cells.get(8).getText()));
+            }
+            if (cells.size() > 9) {
+                player.setOffsidesGiven(parseDecimalStat(cells.get(9).getText()));
+            }
+            if (cells.size() > 10) {
+                player.setClears(parseDecimalStat(cells.get(10).getText()));
+            }
+            if (cells.size() > 11) {
+                player.setDribbled(parseDecimalStat(cells.get(11).getText()));
+            }
+            if (cells.size() > 12) {
+                player.setBlocks(parseDecimalStat(cells.get(12).getText()));
+            }
+            if (cells.size() > 13) {
+                player.setOwnGoals(parseIntegerStat(cells.get(13).getText()));
+            }
+            if (cells.size() > 14) {
+                player.setRating(parseDecimalStat(cells.get(14).getText()));
+            }
+
+            return player;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private PlayerDetailDTO extractOffensivePlayerFromRow(WebElement row) {
+        try {
+            PlayerDetailDTO player = createPlayerFromRow(row);
+            if (player == null) {
+                return null;
+            }
+
+            List<WebElement> cells = row.findElements(By.tagName("td"));
+            if (cells.size() > 4) {
+                player.setAppearances(parseAppearances(cells.get(4).getText()));
+            }
+            if (cells.size() > 5) {
+                player.setMinutes(parseIntegerStat(cells.get(5).getText()));
+            }
+            if (cells.size() > 6) {
+                player.setGoals(parseIntegerStat(cells.get(6).getText()));
+            }
+            if (cells.size() > 7) {
+                player.setAssists(parseIntegerStat(cells.get(7).getText()));
+            }
+            if (cells.size() > 8) {
+                player.setShotsOnTarget(parseDecimalStat(cells.get(8).getText()));
+            }
+            if (cells.size() > 9) {
+                player.setKeyPasses(parseDecimalStat(cells.get(9).getText()));
+            }
+            if (cells.size() > 10) {
+                player.setDribbles(parseDecimalStat(cells.get(10).getText()));
+            }
+            if (cells.size() > 11) {
+                player.setFaulted(parseDecimalStat(cells.get(11).getText()));
+            }
+            if (cells.size() > 12) {
+                player.setOffsides(parseDecimalStat(cells.get(12).getText()));
+            }
+            if (cells.size() > 13) {
+                player.setDispossesed(parseDecimalStat(cells.get(13).getText()));
+            }
+            if (cells.size() > 14) {
+                player.setTurnover(parseDecimalStat(cells.get(14).getText()));
+            }
+            if (cells.size() > 15) {
+                player.setRating(parseDecimalStat(cells.get(15).getText()));
+            }
+
+            return player;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private PlayerDetailDTO createPlayerFromRow(WebElement row) {
+        try {
+            WebElement playerLink = row.findElement(By.cssSelector(CSS_PLAYER_LINK_SPAN));
+            String name = playerLink.getText().trim();
+
+            if (name.isEmpty() || name.length() < 2) {
+                return null;
+            }
+
+            PlayerDetailDTO player = PlayerDetailDTO.builder().build();
+            player.setName(name);
+
+            try {
+                List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
+                if (positionSpans.size() >= 2) {
+                    String position = positionSpans.get(1).getText().trim().replaceAll("^,\\s*", EMPTY);
+                    player.setPosition(position);
+                }
+            } catch (NoSuchElementException e) {
+                player.setPosition(EMPTY);
+            }
+
+            return player;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    static Integer parseIntegerStat(String text) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+
+        String trimmed = text.trim();
+        if (trimmed.contains("(") && trimmed.contains(")")) {
+            try {
+                String[] parts = trimmed.split("[()]");
+                if (parts.length >= 2) {
+                    int first = Integer.parseInt(parts[0].replaceAll(REGEX_NON_NUMERIC, EMPTY));
+                    int second = Integer.parseInt(parts[1].replaceAll(REGEX_NON_NUMERIC, EMPTY));
+                    return first + second;
+                }
+            } catch (NumberFormatException e) {
+                // Fallback a extracción simple
+            }
+        }
+
+        String numericOnly = trimmed.replaceAll(REGEX_NON_NUMERIC, EMPTY);
+        if (numericOnly.isBlank()) {
+            return 0;
+        }
+
+        try {
+            return Integer.parseInt(numericOnly);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    static Double parseDecimalStat(String text) {
+        if (text == null || text.isBlank()) {
+            return 0.0;
+        }
+
+        String normalized = text.trim().replace("%", EMPTY).replace(",", ".").replaceAll("[^0-9.\\-]", EMPTY);
+        if (normalized.isBlank() || ".".equals(normalized) || "-".equals(normalized)) {
+            return 0.0;
+        }
+
+        try {
+            return Double.parseDouble(normalized);
+        } catch (NumberFormatException e) {
+            return 0.0;
         }
     }
 
@@ -973,35 +1499,57 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         logger.info("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put("Ligue 1", "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
-        ligas.put("LaLiga", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
-        ligas.put("Premier League", "https://es.whoscored.com/regions/252/tournaments/2/seasons/10743/stages/24533/playerstatistics/inglaterra-premier-league-2025-2026");
-        ligas.put("Bundesliga", "https://es.whoscored.com/regions/81/tournaments/3/seasons/10720/stages/24478/playerstatistics/alemania-bundesliga-2025-2026");
-        ligas.put("Serie A", "https://es.whoscored.com/regions/108/tournaments/5/seasons/10732/stages/24500/playerstatistics/italia-serie-a-2025-2026");
+        ligas.put("Ligue 1", "Angers");
+        ligas.put("LaLiga", "Athletic Club");
+        ligas.put("Premier League", "Arsenal");
+        ligas.put("Bundesliga", "Augsburg");
+        ligas.put("Serie A", "AC Milan");
 
         int totalJugadores = 0;
-        int[] totalGuardados = {0};
-        boolean isFirstLeague = true;
 
         try {
             for (Map.Entry<String, String> liga : ligas.entrySet()) {
                 logger.info("📊 Scrapeando {}...", liga.getKey());
-                var jugadores = scrapeAllPlayers(
-                    liga.getValue(),
-                    liga.getKey(),
-                    playersPage -> {
-                        playerService.saveAllPlayers(playersPage);
-                        totalGuardados[0] += playersPage.size();
-                    },
-                    isFirstLeague
-                );
+                var jugadores = scrapeLeaguePlayersByStarterTeam(liga.getValue(), liga.getKey());
                 totalJugadores += jugadores.size();
-                isFirstLeague = false;
             }
 
             logger.info("✅ Scraping automático completado. Total: {} jugadores guardados", totalJugadores);
         } catch (Exception e) {
             logger.error("❌ Error en scraping automático: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void scrapeAllPlayersForce() {
+        logger.info("🚀 Forzando scraping completo: limpiando BD y scrapeando todas las ligas...");
+
+        // Limpiar la tabla de players antes de iniciar
+        long count = playerRepository.count();
+        if (count > 0) {
+            playerRepository.deleteAll();
+            logger.info("🧹 BD limpiada. Registros eliminados: {}", count);
+        }
+
+        Map<String, String> ligas = new LinkedHashMap<>();
+        ligas.put("Ligue 1", "Angers");
+        ligas.put("LaLiga", "Athletic Club");
+        ligas.put("Premier League", "Arsenal");
+        ligas.put("Bundesliga", "Augsburg");
+        ligas.put("Serie A", "AC Milan");
+
+        int totalJugadores = 0;
+
+        try {
+            for (Map.Entry<String, String> liga : ligas.entrySet()) {
+                logger.info("📊 Scrapeando {}...", liga.getKey());
+                var jugadores = scrapeLeaguePlayersByStarterTeam(liga.getValue(), liga.getKey());
+                totalJugadores += jugadores.size();
+            }
+
+            logger.info("✅ Scraping forzado completado. Total: {} jugadores guardados", totalJugadores);
+        } catch (Exception e) {
+            logger.error("❌ Error en scraping forzado: {}", e.getMessage());
         }
     }
 }

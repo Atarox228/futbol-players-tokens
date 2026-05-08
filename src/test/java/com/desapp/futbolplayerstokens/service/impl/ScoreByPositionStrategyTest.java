@@ -24,7 +24,7 @@ class ScoreByPositionStrategyTest {
                 .id(1L)
                 .position("FW")
                 .goals(10)
-                .shotsOnTarget(5)
+                .shotsOnTarget(5.0)
                 .build();
 
         StrategyConfig strategyConfig = StrategyConfig.builder()
@@ -50,8 +50,7 @@ class ScoreByPositionStrategyTest {
         Player player = Player.builder()
                 .id(2L)
                 .position("GK")
-                .clears(4)
-                .goalsConceded(2)
+                .clears(4.0)
                 .build();
 
         StrategyConfig strategyConfig = StrategyConfig.builder()
@@ -66,7 +65,7 @@ class ScoreByPositionStrategyTest {
                 .strategyConfig(strategyConfig)
                 .build());
 
-        assertEquals(new BigDecimal("104.00000000"), result.getPrice());
+                assertEquals(new BigDecimal("116.00000000"), result.getPrice());
     }
 
     @Test

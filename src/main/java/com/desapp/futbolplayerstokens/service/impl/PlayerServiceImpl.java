@@ -107,6 +107,24 @@ public class PlayerServiceImpl implements PlayerService {
             .minutes(dto.getMinutes())
             .goals(dto.getGoals())
             .assists(dto.getAssists())
+            .shotsOnTarget(dto.getShotsOnTarget())
+            .passAccuracy(dto.getPassAccuracy())
+            .aerialWon(dto.getAerialWon())
+            .faults(dto.getFaults())
+            .offsidesGiven(dto.getOffsidesGiven())
+            .clears(dto.getClears())
+            .dribbled(dto.getDribbled())
+            .tackles(dto.getTackles())
+            .interceptions(dto.getInterceptions())
+            .blocks(dto.getBlocks())
+            .ownGoals(dto.getOwnGoals())
+            .keyPasses(dto.getKeyPasses())
+            .dribbles(dto.getDribbles())
+            .faulted(dto.getFaulted())
+            .offsides(dto.getOffsides())
+            .dispossesed(dto.getDispossesed())
+            .turnover(dto.getTurnover())
+            .passAccuracy(dto.getPassAccuracy())
             .yellowCards(dto.getYellowCards())
             .redCards(dto.getRedCards())
             .playerOfTheMatch(dto.getPlayerOfTheMatch())
@@ -121,6 +139,24 @@ public class PlayerServiceImpl implements PlayerService {
             player.setMinutes(dto.getMinutes());
             player.setGoals(dto.getGoals());
             player.setAssists(dto.getAssists());
+            player.setShotsOnTarget(dto.getShotsOnTarget());
+            player.setPassAccuracy(dto.getPassAccuracy());
+            player.setAerialWon(dto.getAerialWon());
+            player.setFaults(dto.getFaults());
+            player.setOffsidesGiven(dto.getOffsidesGiven());
+            player.setClears(dto.getClears());
+            player.setDribbled(dto.getDribbled());
+            player.setTackles(dto.getTackles());
+            player.setInterceptions(dto.getInterceptions());
+            player.setBlocks(dto.getBlocks());
+            player.setOwnGoals(dto.getOwnGoals());
+            player.setKeyPasses(dto.getKeyPasses());
+            player.setDribbles(dto.getDribbles());
+            player.setFaulted(dto.getFaulted());
+            player.setOffsides(dto.getOffsides());
+            player.setDispossesed(dto.getDispossesed());
+            player.setTurnover(dto.getTurnover());
+            player.setPassAccuracy(dto.getPassAccuracy());
             player.setYellowCards(dto.getYellowCards());
             player.setRedCards(dto.getRedCards());
             player.setPlayerOfTheMatch(dto.getPlayerOfTheMatch());

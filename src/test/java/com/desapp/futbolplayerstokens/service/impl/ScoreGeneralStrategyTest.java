@@ -20,9 +20,9 @@ class ScoreGeneralStrategyTest {
     @Test
     void shouldCalculatePlayerPriceUsingConfiguredWeights() {
         Map<String, BigDecimal> weights = new HashMap<>();
-        weights.put("played", new BigDecimal("0.20"));
-        weights.put("won", new BigDecimal("0.25"));
-        weights.put("lost", new BigDecimal("0.20"));
+        weights.put("appearances", new BigDecimal("0.20"));
+        weights.put("won", new BigDecimal("0.00"));
+        weights.put("lost", new BigDecimal("0.00"));
         weights.put("minutes", new BigDecimal("0.15"));
         weights.put("rating", new BigDecimal("0.20"));
         weights.put("yellowCards", new BigDecimal("0.10"));
@@ -30,9 +30,7 @@ class ScoreGeneralStrategyTest {
 
         Player player = Player.builder()
                 .id(1L)
-                .played(10)
-                .won(6)
-                .lost(2)
+            .appearances(10)
                 .minutes(900)
                 .rating(8.5)
                 .yellowCards(1)
@@ -52,7 +50,7 @@ class ScoreGeneralStrategyTest {
                 .strategyConfig(strategyConfig)
                 .build());
 
-        assertEquals(new BigDecimal("330.00000000"), result.getPrice());
+            assertEquals(new BigDecimal("275.00000000"), result.getPrice());
         assertEquals(42L, result.getStrategyId());
         assertEquals(3, result.getStrategyVersion());
     }
