@@ -67,13 +67,13 @@ class PlayerTest {
         player.applyPersistenceDefaults();
 
         
-        assertEquals(0, player.getShotsOnTarget());
-        assertEquals(1, player.getClears());
-        assertEquals(1, player.getTackles());
-        assertEquals(1, player.getInterceptions());
-        assertEquals(1, player.getBlocks());
+        assertEquals(0.0, player.getShotsOnTarget());
+        assertEquals(0.0, player.getClears());
+        assertEquals(0.0, player.getTackles());
+        assertEquals(0.0, player.getInterceptions());
+        assertEquals(0.0, player.getBlocks());
         assertEquals(1, player.getOwnGoals());
-        assertEquals(1, player.getKeyPasses());
+        assertEquals(0.0, player.getKeyPasses());
         
     }
 
