@@ -605,6 +605,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         if (source.getPassAccuracy() != null) {
             target.setPassAccuracy(source.getPassAccuracy());
         }
+    }
 
     private void persistScrapedPlayer(PlayerDetailDTO player, List<PlayerDetailDTO> newPlayers) {
         List<Player> existingPlayers = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
