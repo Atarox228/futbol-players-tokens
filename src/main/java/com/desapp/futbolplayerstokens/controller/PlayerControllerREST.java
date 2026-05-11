@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
+import com.desapp.futbolplayerstokens.modelo.LeagueConstant;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
@@ -122,11 +123,11 @@ public class PlayerControllerREST {
 
             // Definir las ligas a scrapear - Map de nombre de liga + URL
             Map<String, String> ligas = new LinkedHashMap<>();
-            ligas.put("LaLiga", "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
-            ligas.put("Premier League", "https://es.whoscored.com/regions/252/tournaments/2/seasons/10743/stages/24533/playerstatistics/inglaterra-premier-league-2025-2026");
-            ligas.put("Bundesliga", "https://es.whoscored.com/regions/81/tournaments/3/seasons/10720/stages/24478/playerstatistics/alemania-bundesliga-2025-2026");
-            ligas.put("Serie A", "https://es.whoscored.com/regions/108/tournaments/5/seasons/10732/stages/24500/playerstatistics/italia-serie-a-2025-2026");
-            ligas.put("Ligue 1", "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
+            ligas.put(LeagueConstant.LALIGA, "https://es.whoscored.com/regions/206/tournaments/4/seasons/10803/stages/24622/playerstatistics/espa%C3%B1a-laliga-2025-2026");
+            ligas.put(LeagueConstant.PREMIER_LEAGUE, "https://es.whoscored.com/regions/252/tournaments/2/seasons/10743/stages/24533/playerstatistics/inglaterra-premier-league-2025-2026");
+            ligas.put(LeagueConstant.BUNDESLIGA, "https://es.whoscored.com/regions/81/tournaments/3/seasons/10720/stages/24478/playerstatistics/alemania-bundesliga-2025-2026");
+            ligas.put(LeagueConstant.SERIE_A, "https://es.whoscored.com/regions/108/tournaments/5/seasons/10732/stages/24500/playerstatistics/italia-serie-a-2025-2026");
+            ligas.put(LeagueConstant.LIGUE_1, "https://es.whoscored.com/regions/74/tournaments/22/seasons/10792/stages/24609/playerstatistics/francia-ligue-1-2025-2026");
 
             int totalJugadoresNuevos = 0;
             int[] totalGuardados = {0};
