@@ -25,7 +25,7 @@ public class MatchScraperScheduler {
      * TESTING: Cada minuto (cron = "0 * * * * *")
      * PRODUCCIÓN: Cambiar a "0 0 0 * * *" (cada día a las 00:00)
      */
-    @Scheduled(cron = "1 18 0 * * *")
+    @Scheduled(cron = "1 0 0 * * *")
     public void scrapeMatchesDaily() {
         try {
             logger.info("🔄 Iniciando scraping de partidos...");
