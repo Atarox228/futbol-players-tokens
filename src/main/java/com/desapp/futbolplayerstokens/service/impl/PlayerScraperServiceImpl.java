@@ -80,6 +80,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String SPACE = " ";
     private static final String REGEX_MULTIPLE_SPACES = "\\s+";
     private static final String REGEX_NON_NUMERIC = "\\D";
+    private static final String REGEX_LEADING_COMMA_SPACE = "^,\\s*";
     private static final String EMPTY = "";
 
     private static final String JS_SCROLL_INTO_VIEW = "arguments[0].scrollIntoView(true);";
@@ -991,7 +992,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             try {
                 List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
                 if (positionSpans.size() >= 2) {
-                    String position = positionSpans.get(1).getText().trim().replaceAll("^,\\s*", EMPTY);
+                    String position = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
                     player.setPosition(position);
                 }
             } catch (NoSuchElementException e) {
@@ -1070,7 +1071,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 List<WebElement> metaDataSpans = row.findElements(By.cssSelector(CSS_PLAYER_META_DATA));
                 if (metaDataSpans.size() >= 2) {
                     // El segundo span contiene la posición (ej: ",  ME(C)  ")
-                    String position = metaDataSpans.get(1).getText().trim().replaceAll("^,\\s*", "");
+                    String position = metaDataSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
                     player.setPosition(position);
                 }
             } catch (Exception e) {
@@ -1211,7 +1212,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
                 if (positionSpans.size() >= 2) {
                     // El segundo span contiene las posiciones (ej: ",  MP(CID),DL  ")
-                    String position = positionSpans.get(1).getText().trim().replaceAll("^,\\s*", "");
+                    String position = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
                     player.setPosition(position);
                 } else {
                     player.setPosition(EMPTY);
