@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
+import com.desapp.futbolplayerstokens.modelo.LeagueConstant;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
@@ -768,11 +769,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private String getBaseUrlByLeague(String league) {
         return switch(league) {
-            case "LaLiga" -> "https://es.whoscored.com/teams/53/show/espa%C3%B1a-athletic-club";
-            case "Premier League" -> "https://es.whoscored.com/teams/13/show/inglaterra-arsenal";
-            case "Ligue 1" -> "https://es.whoscored.com/teams/614/show/francia-angers";
-            case "Bundesliga" -> "https://es.whoscored.com/teams/1730/show/alemania-augsburg";
-            case "Serie A" -> "https://es.whoscored.com/teams/80/show/italia-ac-milan";
+            case LeagueConstant.LALIGA -> "https://es.whoscored.com/teams/53/show/espa%C3%B1a-athletic-club";
+            case LeagueConstant.PREMIER_LEAGUE -> "https://es.whoscored.com/teams/13/show/inglaterra-arsenal";
+            case LeagueConstant.LIGUE_1 -> "https://es.whoscored.com/teams/614/show/francia-angers";
+            case LeagueConstant.BUNDESLIGA -> "https://es.whoscored.com/teams/1730/show/alemania-augsburg";
+            case LeagueConstant.SERIE_A -> "https://es.whoscored.com/teams/80/show/italia-ac-milan";
             default -> "https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona";
         };
     }
@@ -1495,11 +1496,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         logger.info("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put("Ligue 1", "Angers");
-        ligas.put("LaLiga", "Athletic Club");
-        ligas.put("Premier League", "Arsenal");
-        ligas.put("Bundesliga", "Augsburg");
-        ligas.put("Serie A", "AC Milan");
+        ligas.put(LeagueConstant.LIGUE_1, "Angers");
+        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
+        ligas.put(LeagueConstant.PREMIER_LEAGUE, "Arsenal");
+        ligas.put(LeagueConstant.BUNDESLIGA, "Augsburg");
+        ligas.put(LeagueConstant.SERIE_A, "AC Milan");
 
         int totalJugadores = 0;
 
@@ -1528,11 +1529,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put("Ligue 1", "Angers");
-        ligas.put("LaLiga", "Athletic Club");
-        ligas.put("Premier League", "Arsenal");
-        ligas.put("Bundesliga", "Augsburg");
-        ligas.put("Serie A", "AC Milan");
+        ligas.put(LeagueConstant.LIGUE_1, "Angers");
+        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
+        ligas.put(LeagueConstant.PREMIER_LEAGUE, "Arsenal");
+        ligas.put(LeagueConstant.BUNDESLIGA, "Augsburg");
+        ligas.put(LeagueConstant.SERIE_A, "AC Milan");
 
         int totalJugadores = 0;
 
