@@ -512,13 +512,24 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         if (source.getRating() != null) {
             target.setRating(source.getRating());
         }
-        
+
+        mergeAppearanceStats(target, source);
+        mergeOffensiveStats(target, source);
+        mergeDefensiveStats(target, source);
+        mergeCardStats(target, source);
+        mergeOtherStats(target, source);
+    }
+
+    private void mergeAppearanceStats(PlayerDetailDTO target, PlayerDetailDTO source) {
         if (source.getAppearances() != null) {
             target.setAppearances(source.getAppearances());
         }
         if (source.getMinutes() != null) {
             target.setMinutes(source.getMinutes());
         }
+    }
+
+    private void mergeOffensiveStats(PlayerDetailDTO target, PlayerDetailDTO source) {
         if (source.getGoals() != null) {
             target.setGoals(source.getGoals());
         }
@@ -528,31 +539,15 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         if (source.getShotsOnTarget() != null) {
             target.setShotsOnTarget(source.getShotsOnTarget());
         }
-        // passPrecision removed; passAccuracy handled below
-        if (source.getAerialWon() != null) {
-            target.setAerialWon(source.getAerialWon());
+        if (source.getKeyPasses() != null) {
+            target.setKeyPasses(source.getKeyPasses());
         }
-        if (source.getFaults() != null) {
-            target.setFaults(source.getFaults());
+        if (source.getDribbles() != null) {
+            target.setDribbles(source.getDribbles());
         }
-        if (source.getOffsidesGiven() != null) {
-            target.setOffsidesGiven(source.getOffsidesGiven());
-        }
-        if (source.getYellowCards() != null) {
-            target.setYellowCards(source.getYellowCards());
-        }
-        if (source.getRedCards() != null) {
-            target.setRedCards(source.getRedCards());
-        }
-        if (source.getPlayerOfTheMatch() != null) {
-            target.setPlayerOfTheMatch(source.getPlayerOfTheMatch());
-        }
-        if (source.getClears() != null) {
-            target.setClears(source.getClears());
-        }
-        if (source.getDribbled() != null) {
-            target.setDribbled(source.getDribbled());
-        }
+    }
+
+    private void mergeDefensiveStats(PlayerDetailDTO target, PlayerDetailDTO source) {
         if (source.getTackles() != null) {
             target.setTackles(source.getTackles());
         }
@@ -562,14 +557,38 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         if (source.getBlocks() != null) {
             target.setBlocks(source.getBlocks());
         }
+        if (source.getClears() != null) {
+            target.setClears(source.getClears());
+        }
+        if (source.getDribbled() != null) {
+            target.setDribbled(source.getDribbled());
+        }
+        if (source.getFaults() != null) {
+            target.setFaults(source.getFaults());
+        }
+        if (source.getOffsidesGiven() != null) {
+            target.setOffsidesGiven(source.getOffsidesGiven());
+        }
+    }
+
+    private void mergeCardStats(PlayerDetailDTO target, PlayerDetailDTO source) {
+        if (source.getYellowCards() != null) {
+            target.setYellowCards(source.getYellowCards());
+        }
+        if (source.getRedCards() != null) {
+            target.setRedCards(source.getRedCards());
+        }
+    }
+
+    private void mergeOtherStats(PlayerDetailDTO target, PlayerDetailDTO source) {
+        if (source.getAerialWon() != null) {
+            target.setAerialWon(source.getAerialWon());
+        }
+        if (source.getPlayerOfTheMatch() != null) {
+            target.setPlayerOfTheMatch(source.getPlayerOfTheMatch());
+        }
         if (source.getOwnGoals() != null) {
             target.setOwnGoals(source.getOwnGoals());
-        }
-        if (source.getKeyPasses() != null) {
-            target.setKeyPasses(source.getKeyPasses());
-        }
-        if (source.getDribbles() != null) {
-            target.setDribbles(source.getDribbles());
         }
         if (source.getFaulted() != null) {
             target.setFaulted(source.getFaulted());
@@ -586,7 +605,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         if (source.getPassAccuracy() != null) {
             target.setPassAccuracy(source.getPassAccuracy());
         }
-    }
 
     private void persistScrapedPlayer(PlayerDetailDTO player, List<PlayerDetailDTO> newPlayers) {
         List<Player> existingPlayers = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
