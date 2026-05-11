@@ -84,6 +84,31 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String JS_SCROLL_INTO_VIEW = "arguments[0].scrollIntoView(true);";
     private static final String JS_CLICK_ELEMENT = "arguments[0].click();";
 
+    // Timing constants
+    private static final class Timings {
+        static final Duration MAIN_PAGE_LOAD = Duration.ofSeconds(15);
+        static final Duration TEAM_SELECTION = Duration.ofSeconds(12);
+        static final long INITIAL_PAGE_LOAD_MS = 2000;
+        static final long POST_CLICK_DELAY_MS = 500;
+        static final long POST_PAGINATION_DELAY_MS = 1500;
+        static final long POST_POPUP_DELAY_MS = 2000;
+        static final long POST_TEAM_SELECT_DELAY_MS = 1200;
+        static final long TABLE_LOAD_DELAY_MS = 1000;
+    }
+
+    // Column indices for different table layouts
+    private enum StatsColumnLayout {
+        SUMMARY(4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14),
+        DEFENSIVE(4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14),
+        OFFENSIVE(4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14),
+        LEAGUE_PAGE(2, 3, 4, 5, 6, 7, 11, 12),
+        ROSTER(4, 5, 6, 7, 8, 9, 13, 14);
+
+        private final int[] indices;
+        StatsColumnLayout(int... indices) { this.indices = indices; }
+        int getIndex(int position) { return position < indices.length ? indices[position] : -1; }
+    }
+
     private static final String ERROR_HTTP_DETECTED = "❌ Error HTTP detectado en la página: ";
     private static final String ERROR_TABLE_NOT_LOADED = "❌ La tabla no cargó. Posible error 502 o servidor caído.";
     private static final String ERROR_DURING_SCRAPING = "❌ Error durante el scraping: ";
@@ -173,7 +198,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        WebDriverWait wait = new WebDriverWait(driver, Timings.MAIN_PAGE_LOAD);
         List<PlayerDetailDTO> allPlayers = new ArrayList<>();
 
         try {
@@ -209,12 +234,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 if (!isDisabled && nextButton.isDisplayed()) {
                     // Scroll hasta el botón y hacer click
                     ((JavascriptExecutor) driver).executeScript(JS_SCROLL_INTO_VIEW, nextButton);
-                    Thread.sleep(500);
+                    Thread.sleep(Timings.POST_CLICK_DELAY_MS);
 
                     nextButton.click();
 
                     // Esperar a que carguen completamente los nuevos datos
-                    Thread.sleep(1500);
+                    Thread.sleep(Timings.POST_PAGINATION_DELAY_MS);
                 } else {
                     hasNextButton = false;
                 }
@@ -234,8 +259,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private void prepareLeaguePlayersPage(String url, WebDriver driver, WebDriverWait wait) throws InterruptedException {
         driver.get(url);
 
-        // Esperar a que cargue la página inicial (más tiempo en headless)
-        Thread.sleep(4000);
+        // Esperar a que cargue la página inicial
+        Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
 
         // Detectar y cerrar popup de cookies/consentimiento
         closePopupIfPresent(driver, wait);
@@ -249,7 +274,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private void ensurePlayersTableLoaded(WebDriver driver, WebDriverWait wait) throws InterruptedException {
         try {
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector(CSS_TBODY_TR)));
-            Thread.sleep(1000);
+            Thread.sleep(Timings.TABLE_LOAD_DELAY_MS);
         } catch (TimeoutException e) {
             if (isLikelyHttpErrorPage(driver.getTitle(), driver.getPageSource())) {
                 throw new RuntimeException(ERROR_HTTP_DETECTED + extractHttpErrorDetails(driver));
@@ -295,12 +320,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
+        WebDriverWait wait = new WebDriverWait(driver, Timings.TEAM_SELECTION);
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
 
         try {
             driver.get(baseUrl);
-            Thread.sleep(2000);
+            Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
 
             closePopupIfPresent(driver, wait);
             selectTeamFromDropdown(driver, wait, teamName);
@@ -325,12 +350,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(12));
+        WebDriverWait wait = new WebDriverWait(driver, Timings.TEAM_SELECTION);
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
 
         try {
             driver.get(baseUrl);
-            Thread.sleep(2000);
+            Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
 
             closePopupIfPresent(driver, wait);
             selectTeamFromDropdown(driver, wait, starterTeam);
@@ -434,7 +459,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         try {
             wait.until(ExpectedConditions.presenceOfElementLocated(By.id(sectionId)));
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("#" + sectionId + " tbody tr")));
-            Thread.sleep(500);
+            Thread.sleep(Timings.POST_CLICK_DELAY_MS);
         } catch (TimeoutException e) {
             throw new RuntimeException("No se encontró la sección de plantilla: " + sectionId);
         }
@@ -579,38 +604,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         try {
             WebElement sectionLink = wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector(sectionHref)));
             ((JavascriptExecutor) driver).executeScript(JS_CLICK_ELEMENT, sectionLink);
-            Thread.sleep(500);
+            Thread.sleep(Timings.POST_CLICK_DELAY_MS);
         } catch (TimeoutException e) {
             // Si la pestaña ya está activa o no necesita click, continuar
-        }
-    }
-
-    private void processTeamPlayerRow(WebElement row, String teamName, String league, List<PlayerDetailDTO> newPlayers) {
-        try {
-            if (shouldSkipRow(row)) {
-                return;
-            }
-
-            PlayerDetailDTO player = extractPlayerDataFromRoster(row);
-            if (player == null || player.getName() == null || player.getName().isBlank()) {
-                return;
-            }
-
-            player.setTeam(teamName);
-            player.setLeague(league);
-
-            List<Player> existingPlayers = playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
-                    player.getName().trim(),
-                    player.getTeam().trim());
-
-            if (existingPlayers.isEmpty()) {
-                playerDesdeCero(player, playerRepository);
-                newPlayers.add(player);
-            } else {
-                modificandoPlayer(player, existingPlayers, playerRepository);
-            }
-        } catch (Exception e) {
-            // Continuar con el siguiente jugador
         }
     }
 
@@ -688,7 +684,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     public List<PlayerDetailDTO> scrapeNewPlayersOnly(String url, String league, java.util.function.Consumer<List<PlayerDetailDTO>> onPageComplete) {
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        WebDriverWait wait = new WebDriverWait(driver, Timings.MAIN_PAGE_LOAD);
 
         List<PlayerDetailDTO> allNewPlayers = new ArrayList<>();
 
@@ -763,7 +759,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         // Pequeño delay adicional para asegurar que los datos se renderizaron
-        Thread.sleep(1000);
+        Thread.sleep(Timings.TABLE_LOAD_DELAY_MS);
 
         // Extraer jugadores de la página actual
         List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
@@ -814,7 +810,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private List<WebElement> findSquadRowsFromTable(WebDriver driver, WebDriverWait wait) {
         try {
             wait.until(ExpectedConditions.presenceOfElementLocated(By.id(ID_TOP_PLAYER_STATS_SUMMARY_GRID)));
-            Thread.sleep(500);
+            Thread.sleep(Timings.POST_CLICK_DELAY_MS);
             WebElement table = driver.findElement(By.id(ID_TOP_PLAYER_STATS_SUMMARY_GRID));
             List<WebElement> rows = table.findElements(By.cssSelector(CSS_TBODY_TR));
             if (rows.isEmpty()) {
@@ -1340,7 +1336,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                 if (acceptButton != null && acceptButton.isDisplayed()) {
                     ((JavascriptExecutor) driver).executeScript(JS_CLICK_ELEMENT, acceptButton);
-                    Thread.sleep(2000);
+                    Thread.sleep(Timings.POST_POPUP_DELAY_MS);
                 }
             } catch (TimeoutException e) {
                 // No hay popup, continuar
