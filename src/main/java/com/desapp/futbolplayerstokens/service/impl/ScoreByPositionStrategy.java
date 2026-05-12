@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.ValuationContext;
 import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
+import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.service.Strategy;
@@ -21,13 +22,13 @@ public class ScoreByPositionStrategy implements Strategy {
     @Override
     public ValuationResult evaluate(ValuationContext valuationContext) {
         if (valuationContext == null) {
-            throw new IllegalArgumentException("ValuationContext is required");
+            throw new ValidationException("ValuationContext is required");
         }
 
         Player player = valuationContext.getPlayer();
         StrategyConfig strategyConfig = valuationContext.getStrategyConfig();
         if (player == null || strategyConfig == null) {
-            throw new IllegalArgumentException("player and strategyConfig are required");
+            throw new ValidationException("player and strategyConfig are required");
         }
         Map<String, BigDecimal> weights = strategyConfig.getWeights();
         String position = player.getPosition() == null ? "" : player.getPosition().trim().toUpperCase();
@@ -37,7 +38,7 @@ public class ScoreByPositionStrategy implements Strategy {
             case "GK" -> scoreGoalkeeper(player, weights);
             case "DF", "DEF" -> scoreDefender(player, weights);
             case "MF", "MID" -> scoreMidfielder(player, weights);
-            default -> throw new IllegalArgumentException("Unsupported position for position strategy: " + player.getPosition());
+            default -> throw new ValidationException("Unsupported position for position strategy: " + player.getPosition());
         };
 
         BigDecimal price = nullToZero(strategyConfig.getValorBase())

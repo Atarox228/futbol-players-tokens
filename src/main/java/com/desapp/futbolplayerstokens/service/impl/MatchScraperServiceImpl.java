@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.config.FootballDataProperties;
 import com.desapp.futbolplayerstokens.controller.dto.MatchApiDTO;
+import com.desapp.futbolplayerstokens.exception.ConfigurationException;
 import com.desapp.futbolplayerstokens.modelo.Match;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
 import com.desapp.futbolplayerstokens.service.MatchScraperService;
@@ -50,7 +51,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
         String apiToken = getApiToken();
 
         if (apiToken == null || apiToken.isEmpty()) {
-            throw new RuntimeException("❌ FOOTBALL_DATA_API_TOKEN no configurado. Setea la variable de entorno FOOTBALL_DATA_API_TOKEN con tu token de football-data.org");
+            throw new ConfigurationException("❌ FOOTBALL_DATA_API_TOKEN no configurado. Setea la variable de entorno FOOTBALL_DATA_API_TOKEN con tu token de football-data.org");
         }
 
         LocalDate today = LocalDate.now();

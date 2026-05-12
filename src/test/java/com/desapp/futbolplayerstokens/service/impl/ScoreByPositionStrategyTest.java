@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.ValuationContext;
 import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
+import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import org.junit.jupiter.api.Test;
@@ -78,7 +79,7 @@ class ScoreByPositionStrategyTest {
                 .version(1)
                 .build();
 
-        assertThrows(IllegalArgumentException.class, () -> strategy.evaluate(ValuationContext.builder()
+        assertThrows(ValidationException.class, () -> strategy.evaluate(ValuationContext.builder()
                 .player(player)
                 .strategyConfig(strategyConfig)
                 .build()));

@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
+import com.desapp.futbolplayerstokens.exception.ScrapingException;
 import com.desapp.futbolplayerstokens.modelo.LeagueConstant;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
@@ -208,9 +209,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             scrapePaginatedPages(driver, wait, league, allPlayers, onPageComplete);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
+            throw new ScrapingException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } catch (Exception e) {
-            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
+            throw new ScrapingException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } finally {
             driver.quit();
             logger.info("✓ Scraping finalizado. Total jugadores: {}", allPlayers.size());
@@ -279,10 +280,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             Thread.sleep(Timings.TABLE_LOAD_DELAY_MS);
         } catch (TimeoutException e) {
             if (isLikelyHttpErrorPage(driver.getTitle(), driver.getPageSource())) {
-                throw new RuntimeException(ERROR_HTTP_DETECTED + extractHttpErrorDetails(driver));
+                throw new ScrapingException(ERROR_HTTP_DETECTED + extractHttpErrorDetails(driver));
             }
 
-            throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
+            throw new ScrapingException(ERROR_TABLE_NOT_LOADED);
         }
     }
 
@@ -337,10 +338,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             return newPlayers;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
+            throw new ScrapingException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
 
         } catch (Exception e) {
-            throw new RuntimeException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
+            throw new ScrapingException("❌ Error scrapeando plantilla de " + teamName + ": " + e.getMessage(), e);
         } finally {
             driver.quit();
         }
@@ -373,9 +374,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             return newPlayers;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("❌ Error scrapeando liga " + league + ": " + e.getMessage(), e);
+            throw new ScrapingException("❌ Error scrapeando liga " + league + ": " + e.getMessage(), e);
         } catch (Exception e) {
-            throw new RuntimeException("❌ Error scrapeando liga " + league + ": " + e.getMessage(), e);
+            throw new ScrapingException("❌ Error scrapeando liga " + league + ": " + e.getMessage(), e);
         } finally {
             driver.quit();
         }
@@ -405,10 +406,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("No se pudo leer el selector de equipos: " + e.getMessage(), e);
+            throw new ScrapingException("No se pudo leer el selector de equipos: " + e.getMessage(), e);
         }
 
-        throw new RuntimeException("No se encontraron equipos en el selector de la página");
+        throw new ScrapingException("No se encontraron equipos en el selector de la página");
     }
 
     private List<String> orderTeamsStartingWith(List<String> teamNames, String teamName) {
@@ -463,7 +464,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector("#" + sectionId + " tbody tr")));
             Thread.sleep(Timings.POST_CLICK_DELAY_MS);
         } catch (TimeoutException e) {
-            throw new RuntimeException("No se encontró la sección de plantilla: " + sectionId);
+            throw new ScrapingException("No se encontró la sección de plantilla: " + sectionId);
         }
 
         List<WebElement> rows = driver.findElements(By.cssSelector("#" + sectionId + " tbody tr"));
@@ -727,10 +728,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
+            throw new ScrapingException(ERROR_DURING_SCRAPING + e.getMessage(), e);
 
         } catch (Exception e) {
-            throw new RuntimeException(ERROR_DURING_SCRAPING + e.getMessage(), e);
+            throw new ScrapingException(ERROR_DURING_SCRAPING + e.getMessage(), e);
         } finally {
             driver.quit();
         }
@@ -776,7 +777,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(
                 By.cssSelector(CSS_TBODY_TR)));
         } catch (TimeoutException e) {
-            throw new RuntimeException(ERROR_TABLE_NOT_LOADED);
+            throw new ScrapingException(ERROR_TABLE_NOT_LOADED);
         }
 
         // Pequeño delay adicional para asegurar que los datos se renderizaron
@@ -835,16 +836,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             WebElement table = driver.findElement(By.id(ID_TOP_PLAYER_STATS_SUMMARY_GRID));
             List<WebElement> rows = table.findElements(By.cssSelector(CSS_TBODY_TR));
             if (rows.isEmpty()) {
-                throw new RuntimeException("La tabla de plantilla no contiene filas");
+                throw new ScrapingException("La tabla de plantilla no contiene filas");
             }
             return rows;
         } catch (TimeoutException e) {
-            throw new RuntimeException("No se encontró la tabla de plantilla (top-player-stats-summary-grid) en la página");
+            throw new ScrapingException("No se encontró la tabla de plantilla (top-player-stats-summary-grid) en la página");
         } catch (NoSuchElementException e) {
-            throw new RuntimeException("No se encontró la tabla de plantilla (top-player-stats-summary-grid) en la página");
+            throw new ScrapingException("No se encontró la tabla de plantilla (top-player-stats-summary-grid) en la página");
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrumpido al esperar la tabla de plantilla", ie);
+            throw new ScrapingException("Interrumpido al esperar la tabla de plantilla", ie);
         }
     }
 
@@ -1194,14 +1195,14 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             Thread.sleep(1000);
             List<WebElement> rows = driver.findElements(By.xpath(squadRowsXPath));
             if (rows.isEmpty()) {
-                throw new RuntimeException("La tabla de plantilla no contiene filas");
+                throw new ScrapingException("La tabla de plantilla no contiene filas");
             }
             return rows;
         } catch (TimeoutException e) {
-            throw new RuntimeException("No se encontró la tabla de plantilla (Plantilla/Squad) en la página");
+            throw new ScrapingException("No se encontró la tabla de plantilla (Plantilla/Squad) en la página");
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrumpido al esperar la tabla de plantilla", ie);
+            throw new ScrapingException("Interrumpido al esperar la tabla de plantilla", ie);
         }
     }
 
@@ -1429,16 +1430,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                     }
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    throw new RuntimeException("Interrumpido al seleccionar equipo", ie);
+                    throw new ScrapingException("Interrumpido al seleccionar equipo", ie);
                 } catch (Exception e) {
                     // Probar siguiente select
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error al intentar seleccionar equipo: " + e.getMessage(), e);
+            throw new ScrapingException("Error al intentar seleccionar equipo: " + e.getMessage(), e);
         }
 
-        throw new RuntimeException("No se encontró el equipo '" + teamName + "' en el selector de la página");
+        throw new ScrapingException("No se encontró el equipo '" + teamName + "' en el selector de la página");
     }
 
     private String normalize(String text) {

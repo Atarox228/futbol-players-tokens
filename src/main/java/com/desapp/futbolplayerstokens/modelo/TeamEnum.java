@@ -1,5 +1,7 @@
 package com.desapp.futbolplayerstokens.modelo;
 
+import com.desapp.futbolplayerstokens.exception.ResourceNotFoundException;
+
 public enum TeamEnum {
 
     // LaLiga
@@ -136,6 +138,6 @@ public enum TeamEnum {
                 return team;
             }
         }
-        throw new IllegalArgumentException("No team with id " + id);
+        throw new ResourceNotFoundException("No team with id " + id);
     }
 }

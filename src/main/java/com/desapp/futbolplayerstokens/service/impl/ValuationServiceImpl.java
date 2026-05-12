@@ -2,6 +2,8 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.ValuationContext;
 import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
+import com.desapp.futbolplayerstokens.exception.DataUpdateException;
+import com.desapp.futbolplayerstokens.exception.ResourceNotFoundException;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
@@ -31,10 +33,10 @@ public class ValuationServiceImpl implements ValuationService {
     @Transactional
     public ValuationResult evaluatePlayer(Long playerId, Long strategyConfigId, String strategyKey) {
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                .orElseThrow(() -> new ResourceNotFoundException("Player not found with id: " + playerId));
 
         StrategyConfig strategyConfig = strategyConfigRepository.findById(strategyConfigId)
-                .orElseThrow(() -> new RuntimeException("StrategyConfig not found with id: " + strategyConfigId));
+                .orElseThrow(() -> new ResourceNotFoundException("StrategyConfig not found with id: " + strategyConfigId));
 
         ValuationContext valuationContext = ValuationContext.builder()
                 .player(player)
@@ -45,7 +47,7 @@ public class ValuationServiceImpl implements ValuationService {
         ValuationResult valuationResult = strategy.evaluate(valuationContext);
         int updatedRows = playerRepository.updateScoreById(playerId, valuationResult.getPrice());
         if (updatedRows == 0) {
-            throw new RuntimeException("Player score could not be updated for id: " + playerId);
+            throw new DataUpdateException("Player score could not be updated for id: " + playerId);
         }
 
         return valuationResult;

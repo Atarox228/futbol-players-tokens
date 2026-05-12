@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.ValuationContext;
 import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
+import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.service.Strategy;
@@ -29,7 +30,7 @@ public class ScoreGeneralStrategy implements Strategy {
     @Override
     public ValuationResult evaluate(ValuationContext valuationContext) {
         if (valuationContext == null || valuationContext.getPlayer() == null || valuationContext.getStrategyConfig() == null) {
-            throw new IllegalArgumentException("ValuationContext, player and strategyConfig are required");
+            throw new ValidationException("ValuationContext, player and strategyConfig are required");
         }
 
         Player player = valuationContext.getPlayer();

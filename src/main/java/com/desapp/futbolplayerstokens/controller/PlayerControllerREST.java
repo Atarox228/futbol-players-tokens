@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDTO;
+import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.LeagueConstant;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
@@ -233,7 +234,7 @@ public class PlayerControllerREST {
             case "bundesliga" -> "Union Berlin";
             case "serie a" -> "Inter";
             case "ligue 1" -> "Paris Saint-Germain";
-            default -> throw new IllegalArgumentException("Liga no soportada: " + league);
+            default -> throw new ValidationException("Liga no soportada: " + league);
         };
     }
 
