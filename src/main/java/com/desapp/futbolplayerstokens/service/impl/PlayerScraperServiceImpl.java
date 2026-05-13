@@ -382,7 +382,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
     }
 
-    private List<String> getTeamNamesFromDropdown(WebDriver driver, WebDriverWait wait) {
+    private List<String> getTeamNamesFromDropdown(WebDriverWait wait) {
         try {
             List<WebElement> selects = wait.until(d -> d.findElements(By.tagName(CSS_SELECT_TAG)));
 
