@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/player_market
+    username: postgres
+    password: root
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  sql:
+    init:
+      mode: never
+
+football-data:
+  api:
+    base-url: https://api.football-data.org/v4
+    token: c608aee5d3fd433592def43fcebb5daa
+    competition-ids:
+      - 2014
+      - 2021
+      - 2015
+      - 2002
+      - 2019

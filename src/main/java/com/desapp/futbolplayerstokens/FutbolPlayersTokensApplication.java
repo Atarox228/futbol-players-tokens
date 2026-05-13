@@ -24,15 +24,14 @@ public class FutbolPlayersTokensApplication {
     }
 
     private static void loadEnv() {
-        for (String filename : new String[]{".env.test", ".env.docker", ".env"}) {
+        String[] filenames = {".env.docker", ".env"};
+        for (String filename : filenames) {
             try {
-                Dotenv dotenv = Dotenv.configure().directory(".").filename(filename).ignoreIfMissing().load();
-                if (!dotenv.entries().isEmpty()) {
-                    dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
-                    break;
-                }
+                Dotenv dotenv = Dotenv.configure().filename(filename).ignoreIfMissing().load();
+                dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
+                break;
             } catch (Exception e) {
-                // Ignore and try next file
+                // Continue to next file
             }
         }
     }
