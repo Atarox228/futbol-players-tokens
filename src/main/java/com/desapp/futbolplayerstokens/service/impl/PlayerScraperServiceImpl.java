@@ -472,16 +472,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         for (WebElement row : rows) {
             try {
-                if (shouldSkipRow(row)) {
-                    continue;
+                if (!shouldSkipRow(row)) {
+                    PlayerDetailDTO player = rowExtractor.apply(row);
+                    if (player != null && player.getName() != null && !player.getName().isBlank()) {
+                        playersByName.put(normalize(player.getName()), player);
+                    }
                 }
-
-                PlayerDetailDTO player = rowExtractor.apply(row);
-                if (player == null || player.getName() == null || player.getName().isBlank()) {
-                    continue;
-                }
-
-                playersByName.put(normalize(player.getName()), player);
             } catch (Exception e) {
                 // Continuar con el siguiente jugador
             }
