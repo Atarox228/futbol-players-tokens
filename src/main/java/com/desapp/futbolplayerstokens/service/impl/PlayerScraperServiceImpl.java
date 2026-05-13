@@ -1008,20 +1008,23 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             PlayerDetailDTO player = PlayerDetailDTO.builder().build();
             player.setName(name);
-
-            try {
-                List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
-                if (positionSpans.size() >= 2) {
-                    String position = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
-                    player.setPosition(position);
-                }
-            } catch (NoSuchElementException e) {
-                player.setPosition(EMPTY);
-            }
+            extractPlayerPosition(row, player);
 
             return player;
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private void extractPlayerPosition(WebElement row, PlayerDetailDTO player) {
+        try {
+            List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
+            if (positionSpans.size() >= 2) {
+                String position = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
+                player.setPosition(position);
+            }
+        } catch (NoSuchElementException e) {
+            player.setPosition(EMPTY);
         }
     }
 
