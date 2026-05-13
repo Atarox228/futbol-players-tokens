@@ -510,97 +510,35 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             target.setRating(source.getRating());
         }
 
-        mergeAppearanceStats(target, source);
-        mergeOffensiveStats(target, source);
-        mergeDefensiveStats(target, source);
-        mergeCardStats(target, source);
-        mergeOtherStats(target, source);
+        copyIfNotNull(source.getAppearances(), target::setAppearances);
+        copyIfNotNull(source.getMinutes(), target::setMinutes);
+        copyIfNotNull(source.getGoals(), target::setGoals);
+        copyIfNotNull(source.getAssists(), target::setAssists);
+        copyIfNotNull(source.getShotsOnTarget(), target::setShotsOnTarget);
+        copyIfNotNull(source.getKeyPasses(), target::setKeyPasses);
+        copyIfNotNull(source.getDribbles(), target::setDribbles);
+        copyIfNotNull(source.getTackles(), target::setTackles);
+        copyIfNotNull(source.getInterceptions(), target::setInterceptions);
+        copyIfNotNull(source.getBlocks(), target::setBlocks);
+        copyIfNotNull(source.getClears(), target::setClears);
+        copyIfNotNull(source.getDribbled(), target::setDribbled);
+        copyIfNotNull(source.getFaults(), target::setFaults);
+        copyIfNotNull(source.getOffsidesGiven(), target::setOffsidesGiven);
+        copyIfNotNull(source.getYellowCards(), target::setYellowCards);
+        copyIfNotNull(source.getRedCards(), target::setRedCards);
+        copyIfNotNull(source.getAerialWon(), target::setAerialWon);
+        copyIfNotNull(source.getPlayerOfTheMatch(), target::setPlayerOfTheMatch);
+        copyIfNotNull(source.getOwnGoals(), target::setOwnGoals);
+        copyIfNotNull(source.getFaulted(), target::setFaulted);
+        copyIfNotNull(source.getOffsides(), target::setOffsides);
+        copyIfNotNull(source.getDispossesed(), target::setDispossesed);
+        copyIfNotNull(source.getTurnover(), target::setTurnover);
+        copyIfNotNull(source.getPassAccuracy(), target::setPassAccuracy);
     }
 
-    private void mergeAppearanceStats(PlayerDetailDTO target, PlayerDetailDTO source) {
-        if (source.getAppearances() != null) {
-            target.setAppearances(source.getAppearances());
-        }
-        if (source.getMinutes() != null) {
-            target.setMinutes(source.getMinutes());
-        }
-    }
-
-    private void mergeOffensiveStats(PlayerDetailDTO target, PlayerDetailDTO source) {
-        if (source.getGoals() != null) {
-            target.setGoals(source.getGoals());
-        }
-        if (source.getAssists() != null) {
-            target.setAssists(source.getAssists());
-        }
-        if (source.getShotsOnTarget() != null) {
-            target.setShotsOnTarget(source.getShotsOnTarget());
-        }
-        if (source.getKeyPasses() != null) {
-            target.setKeyPasses(source.getKeyPasses());
-        }
-        if (source.getDribbles() != null) {
-            target.setDribbles(source.getDribbles());
-        }
-    }
-
-    private void mergeDefensiveStats(PlayerDetailDTO target, PlayerDetailDTO source) {
-        if (source.getTackles() != null) {
-            target.setTackles(source.getTackles());
-        }
-        if (source.getInterceptions() != null) {
-            target.setInterceptions(source.getInterceptions());
-        }
-        if (source.getBlocks() != null) {
-            target.setBlocks(source.getBlocks());
-        }
-        if (source.getClears() != null) {
-            target.setClears(source.getClears());
-        }
-        if (source.getDribbled() != null) {
-            target.setDribbled(source.getDribbled());
-        }
-        if (source.getFaults() != null) {
-            target.setFaults(source.getFaults());
-        }
-        if (source.getOffsidesGiven() != null) {
-            target.setOffsidesGiven(source.getOffsidesGiven());
-        }
-    }
-
-    private void mergeCardStats(PlayerDetailDTO target, PlayerDetailDTO source) {
-        if (source.getYellowCards() != null) {
-            target.setYellowCards(source.getYellowCards());
-        }
-        if (source.getRedCards() != null) {
-            target.setRedCards(source.getRedCards());
-        }
-    }
-
-    private void mergeOtherStats(PlayerDetailDTO target, PlayerDetailDTO source) {
-        if (source.getAerialWon() != null) {
-            target.setAerialWon(source.getAerialWon());
-        }
-        if (source.getPlayerOfTheMatch() != null) {
-            target.setPlayerOfTheMatch(source.getPlayerOfTheMatch());
-        }
-        if (source.getOwnGoals() != null) {
-            target.setOwnGoals(source.getOwnGoals());
-        }
-        if (source.getFaulted() != null) {
-            target.setFaulted(source.getFaulted());
-        }
-        if (source.getOffsides() != null) {
-            target.setOffsides(source.getOffsides());
-        }
-        if (source.getDispossesed() != null) {
-            target.setDispossesed(source.getDispossesed());
-        }
-        if (source.getTurnover() != null) {
-            target.setTurnover(source.getTurnover());
-        }
-        if (source.getPassAccuracy() != null) {
-            target.setPassAccuracy(source.getPassAccuracy());
+    private <T> void copyIfNotNull(T value, java.util.function.Consumer<T> setter) {
+        if (value != null) {
+            setter.accept(value);
         }
     }
 
@@ -1179,46 +1117,37 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
     }
 
+    private WebElement findElementWithFallback(WebDriverWait wait, String... xpaths) {
+        for (String xpath : xpaths) {
+            try {
+                return wait.until(ExpectedConditions.elementToBeClickable(By.xpath(xpath)));
+            } catch (TimeoutException e) {
+                // Intentar siguiente
+            }
+        }
+        return null;
+    }
+
     private void closePopupIfPresent(WebDriver driver, WebDriverWait wait) {
         try {
-            // Intenta encontrar y hacer click en botones comunes de aceptación
-            try {
-                // Buscar botón "Aceptar todo", "Accept all", "Aceptar", etc.
-                WebElement acceptButton = null;
+            WebElement acceptButton = findElementWithFallback(wait,
+                XPATH_ACCEPTAR_TODO, XPATH_ACCEPT_ALL, XPATH_ACCEPTAR, XPATH_ACCEPT);
 
+            if (acceptButton == null) {
                 try {
                     acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                        By.xpath(XPATH_ACCEPTAR_TODO)));
-                } catch (TimeoutException e1) {
-                    try {
-                        acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                            By.xpath(XPATH_ACCEPT_ALL)));
-                    } catch (TimeoutException e2) {
-                        try {
-                            acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                                By.xpath(XPATH_ACCEPTAR)));
-                        } catch (TimeoutException e3) {
-                            try {
-                                acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                                    By.xpath(XPATH_ACCEPT)));
-                            } catch (TimeoutException e4) {
-                                acceptButton = wait.until(ExpectedConditions.elementToBeClickable(
-                                    By.cssSelector(CSS_COOKIE_ACCEPT_ALL)));
-                            }
-                        }
-                    }
+                        By.cssSelector(CSS_COOKIE_ACCEPT_ALL)));
+                } catch (TimeoutException e) {
+                    return;
                 }
+            }
 
-                if (acceptButton != null && acceptButton.isDisplayed()) {
-                    ((JavascriptExecutor) driver).executeScript(JS_CLICK_ELEMENT, acceptButton);
-                    Thread.sleep(Timings.POST_POPUP_DELAY_MS);
-                }
-            } catch (TimeoutException e) {
-                // No hay popup, continuar
+            if (acceptButton != null && acceptButton.isDisplayed()) {
+                ((JavascriptExecutor) driver).executeScript(JS_CLICK_ELEMENT, acceptButton);
+                Thread.sleep(Timings.POST_POPUP_DELAY_MS);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-
         } catch (Exception e) {
             // Ignorar errores con popup
         }
@@ -1326,33 +1255,18 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     }
 
     private WebElement findNextButton(WebDriver driver) throws NoSuchElementException {
-        // Intenta encontrar el botón "siguiente" de varias formas
-        WebElement nextButton = null;
+        String[] selectors = {ID_NEXT, XPATH_NEXT_OPTION, XPATH_NEXT_LOWER, XPATH_NEXT_UPPER};
 
-        // Primero intenta por ID (la forma más específica)
-        try {
-            nextButton = driver.findElement(By.id(ID_NEXT));
-            return nextButton;
-        } catch (NoSuchElementException e1) {
-        }
-
-        // Intenta por clase y atributo
-        try {
-            nextButton = driver.findElement(By.xpath(XPATH_NEXT_OPTION));
-            return nextButton;
-        } catch (NoSuchElementException e2) {
-        }
-
-        try {
-            nextButton = driver.findElement(By.xpath(XPATH_NEXT_LOWER));
-            return nextButton;
-        } catch (NoSuchElementException e3) {
-        }
-
-        try {
-            nextButton = driver.findElement(By.xpath(XPATH_NEXT_UPPER));
-            return nextButton;
-        } catch (NoSuchElementException e4) {
+        for (String selector : selectors) {
+            try {
+                if (selector.equals(ID_NEXT)) {
+                    return driver.findElement(By.id(selector));
+                } else {
+                    return driver.findElement(By.xpath(selector));
+                }
+            } catch (NoSuchElementException e) {
+                // Continuar con siguiente selector
+            }
         }
 
         throw new NoSuchElementException("No se encontró botón 'Siguiente' con ningún selector");
