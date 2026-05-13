@@ -11,8 +11,7 @@ import io.github.cdimascio.dotenv.Dotenv;
 public class FutbolPlayersTokensApplication {
 
     public static void main(String[] args) {
-        Dotenv dotenv = Dotenv.configure().load();
-        dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
+        loadEnv();
 
         String chromeDriver = System.getenv("CHROMEDRIVER_BIN");
         String chromeBin = System.getenv("CHROMIUM_BIN");
@@ -24,4 +23,13 @@ public class FutbolPlayersTokensApplication {
         SpringApplication.run(FutbolPlayersTokensApplication.class, args);
     }
 
+    private static void loadEnv() {
+        for (String filename : new String[]{".env.test", ".env.docker", ".env"}) {
+            Dotenv dotenv = Dotenv.configure().filename(filename).ignoreIfMissing().load();
+            if (!dotenv.entries().isEmpty()) {
+                dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
+                break;
+            }
+        }
+    }
 }
