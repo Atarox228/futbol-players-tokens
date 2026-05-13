@@ -363,7 +363,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             closePopupIfPresent(driver, wait);
             selectTeamFromDropdown(driver, wait, starterTeam);
 
-            List<String> teamNames = getTeamNamesFromDropdown(driver, wait);
+            List<String> teamNames = getTeamNamesFromDropdown(wait);
             List<String> orderedTeamNames = orderTeamsStartingWith(teamNames, starterTeam);
 
             for (String currentTeamName : orderedTeamNames) {
