@@ -4,13 +4,16 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.github.cdimascio.dotenv.Dotenv;
 
 @SpringBootApplication
 @EnableScheduling
 public class FutbolPlayersTokensApplication {
 
     public static void main(String[] args) {
-        // Configure WebDriverManager for Docker environments
+        Dotenv dotenv = Dotenv.configure().load();
+        dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
+
         String chromeDriver = System.getenv("CHROMEDRIVER_BIN");
         String chromeBin = System.getenv("CHROMIUM_BIN");
 
