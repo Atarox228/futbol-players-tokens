@@ -112,7 +112,7 @@ public class DynamicMatchScheduler {
         scheduledMatches.put(matchId, future);
         scheduleInfo.put(matchId, new MatchScheduleInfo(matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime));
 
-        logger.info("📅 Scheduler programado - Partido: {} | Equipos: {} vs {} | Horario partido: {} | Ejecución programada para: {}", matchId, match.getTeam1Id(), match.getTeam2Id(), matchTime, executionTime);
+        logger.info("📅 Scheduler programado - Partido: {} | Equipos: {} vs {} | Horario partido: {} | Ejecución programada para: {}", matchId, formatTeam(match.getTeam1Id()), formatTeam(match.getTeam2Id()), matchTime, executionTime);
     }
 
     /**
@@ -237,6 +237,15 @@ public class DynamicMatchScheduler {
             return TeamEnum.fromId(teamId.intValue()).getLeague();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private String formatTeam(Long teamId) {
+        try {
+            TeamEnum team = TeamEnum.fromId(teamId.intValue());
+            return team.getName() + " (" + teamId + ")";
+        } catch (Exception e) {
+            return "Unknown (" + teamId + ")";
         }
     }
 
