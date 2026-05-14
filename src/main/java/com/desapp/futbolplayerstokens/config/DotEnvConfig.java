@@ -6,6 +6,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class DotEnvConfig {
     public DotEnvConfig() {
-        Dotenv.configure().load();
+        Dotenv.configure().ignoreIfMissing().load();
     }
 }
