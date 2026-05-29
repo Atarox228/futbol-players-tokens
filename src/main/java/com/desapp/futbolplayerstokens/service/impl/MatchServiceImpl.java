@@ -1,5 +1,6 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
+import com.desapp.futbolplayerstokens.exception.ResourceNotFoundException;
 import com.desapp.futbolplayerstokens.modelo.Match;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
 import com.desapp.futbolplayerstokens.service.MatchService;
@@ -47,13 +48,13 @@ public class MatchServiceImpl implements MatchService {
                     existingMatch.setMatchTime(match.getMatchTime());
                     return matchRepository.save(existingMatch);
                 })
-                .orElseThrow(() -> new RuntimeException("Match not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Match not found with id: " + id));
     }
 
     @Override
     public void deleteMatch(Long id) {
         if (!matchRepository.existsById(id)) {
-            throw new RuntimeException("Match not found with id: " + id);
+            throw new ResourceNotFoundException("Match not found with id: " + id);
         }
         matchRepository.deleteById(id);
     }

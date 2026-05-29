@@ -12,7 +12,14 @@ public interface PlayerScraperService {
 
     List<PlayerDetailDTO> scrapeTeamPlayersByName(String teamName, String league);
 
+    List<PlayerDetailDTO> scrapeLeaguePlayersByStarterTeam(String starterTeam, String league);
+
     List<PlayerDetailDTO> scrapeNewPlayersOnly(String url, String league, Consumer<List<PlayerDetailDTO>> onPageComplete);
 
     void scrapeAllPlayersIfDatabaseEmpty();
+    
+    /**
+     * Fuerza el scraping completo de todas las ligas, limpiando la BD antes de ejecutar.
+     */
+    void scrapeAllPlayersForce();
 }

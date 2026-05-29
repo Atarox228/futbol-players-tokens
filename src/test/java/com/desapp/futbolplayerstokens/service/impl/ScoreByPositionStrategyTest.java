@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.ValuationContext;
 import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
+import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class ScoreByPositionStrategyTest {
                 .id(1L)
                 .position("FW")
                 .goals(10)
-                .shotsOnTarget(5)
+                .shotsOnTarget(5.0)
                 .build();
 
         StrategyConfig strategyConfig = StrategyConfig.builder()
@@ -50,8 +51,7 @@ class ScoreByPositionStrategyTest {
         Player player = Player.builder()
                 .id(2L)
                 .position("GK")
-                .clears(4)
-                .goalsConceded(2)
+                .clears(4.0)
                 .build();
 
         StrategyConfig strategyConfig = StrategyConfig.builder()
@@ -66,7 +66,7 @@ class ScoreByPositionStrategyTest {
                 .strategyConfig(strategyConfig)
                 .build());
 
-        assertEquals(new BigDecimal("104.00000000"), result.getPrice());
+                assertEquals(new BigDecimal("116.00000000"), result.getPrice());
     }
 
     @Test
@@ -79,7 +79,7 @@ class ScoreByPositionStrategyTest {
                 .version(1)
                 .build();
 
-        assertThrows(IllegalArgumentException.class, () -> strategy.evaluate(ValuationContext.builder()
+        assertThrows(ValidationException.class, () -> strategy.evaluate(ValuationContext.builder()
                 .player(player)
                 .strategyConfig(strategyConfig)
                 .build()));

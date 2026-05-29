@@ -34,10 +34,6 @@ class PlayerTest {
         assertEquals(3, player.getAssists());
 
         // Verificar valores por defecto
-        assertEquals(1, player.getPlayed());
-        assertEquals(1, player.getWon());
-        assertEquals(1, player.getLost());
-        assertEquals(1.0, player.getPassAccuracy());
     }
 
     @Test
@@ -70,18 +66,15 @@ class PlayerTest {
 
         player.applyPersistenceDefaults();
 
-        assertEquals(1, player.getPlayed());
-        assertEquals(1, player.getWon());
-        assertEquals(1, player.getLost());
-        assertEquals(1, player.getShotsOnTarget());
-        assertEquals(1, player.getClears());
-        assertEquals(1, player.getGoalsConceded());
-        assertEquals(1, player.getTackles());
-        assertEquals(1, player.getInterceptions());
-        assertEquals(1, player.getBlocks());
+        
+        assertEquals(0.0, player.getShotsOnTarget());
+        assertEquals(0.0, player.getClears());
+        assertEquals(0.0, player.getTackles());
+        assertEquals(0.0, player.getInterceptions());
+        assertEquals(0.0, player.getBlocks());
         assertEquals(1, player.getOwnGoals());
-        assertEquals(1, player.getKeyPasses());
-        assertEquals(1.0, player.getPassAccuracy());
+        assertEquals(0.0, player.getKeyPasses());
+        
     }
 
     @Test
@@ -90,17 +83,13 @@ class PlayerTest {
         Player player = Player.builder()
                 .name("Custom Player")
                 .team("Custom Team")
-                .played(5)
-                .won(3)
-                .lost(2)
+            
                 .passAccuracy(0.85)
                 .build();
 
         player.applyPersistenceDefaults();
 
-        assertEquals(5, player.getPlayed());
-        assertEquals(3, player.getWon());
-        assertEquals(2, player.getLost());
+        
         assertEquals(0.85, player.getPassAccuracy());
     }
 
@@ -159,10 +148,8 @@ class PlayerTest {
                 .team("Test Team")
                 .build();
 
-        assertEquals(1, player.getPlayed());
-        assertEquals(1, player.getWon());
-        assertEquals(1, player.getLost());
-        assertEquals(1, player.getShotsOnTarget());
+        
+        assertEquals(0, player.getShotsOnTarget());
         assertEquals(1.0, player.getPassAccuracy());
     }
 

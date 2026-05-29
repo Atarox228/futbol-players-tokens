@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.Collection;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -86,14 +85,20 @@ public class DynamicMatchScheduler {
     }
 
     /**
-     * Programa un partido individual 1 minuto después de agregarse (testing)
-     * Para producción cambiar a: Duration.ofHours(2)
+     * Programa un partido individual 2 horas después de su horario de comienzo
      */
     private void scheduleMatch(Match match) {
         long matchId = match.getId();
-        Instant now = Instant.now();
-        Instant executionInstant = now.plus(Duration.ofHours(2));
-        LocalDateTime executionTime = LocalDateTime.ofInstant(executionInstant, ZoneId.systemDefault());
+        
+        // Obtener el horario del partido y agregar 2 horas
+        LocalDateTime matchTime = match.getMatchTime();
+        if (matchTime == null) {
+            logger.warn("⚠️ Partido {} no tiene horario definido", matchId);
+            return;
+        }
+        
+        LocalDateTime executionTime = matchTime.plus(Duration.ofHours(2));
+        Instant executionInstant = executionTime.atZone(ZoneId.systemDefault()).toInstant();
 
         ScheduledFuture<?> future = taskScheduler.schedule(
             () -> {
@@ -106,7 +111,7 @@ public class DynamicMatchScheduler {
         scheduledMatches.put(matchId, future);
         scheduleInfo.put(matchId, new MatchScheduleInfo(matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime));
 
-        logger.info("📅 Scheduler programado - Partido: {} | Equipos: {} vs {} | Ejecución programada para: {} | Instant: {}", matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime, executionInstant);
+        logger.info("📅 Scheduler programado - Partido: {} | Equipos: {} vs {} | Horario partido: {} | Ejecución programada para: {}", matchId, formatTeam(match.getTeam1Id()), formatTeam(match.getTeam2Id()), matchTime, executionTime);
     }
 
     /**
@@ -182,7 +187,7 @@ public class DynamicMatchScheduler {
      */
     private boolean isMatchFinished(Match match) {
         try {
-            String apiToken = System.getenv("FOOTBALL_DATA_API_TOKEN");
+            String apiToken = getApiToken();
             if (apiToken == null || apiToken.isEmpty()) {
                 logger.error("❌ FOOTBALL_DATA_API_TOKEN no configurado");
                 return false;
@@ -234,6 +239,15 @@ public class DynamicMatchScheduler {
         }
     }
 
+    private String formatTeam(Long teamId) {
+        try {
+            TeamEnum team = TeamEnum.fromId(teamId.intValue());
+            return team.getName() + " (" + teamId + ")";
+        } catch (Exception e) {
+            return "Unknown (" + teamId + ")";
+        }
+    }
+
     /**
      * Cancela todos los schedulers activos
      */
@@ -257,6 +271,20 @@ public class DynamicMatchScheduler {
      */
     public List<MatchScheduleInfo> getAllScheduledMatches() {
         return new ArrayList<>(scheduleInfo.values());
+    }
+
+    /**
+     * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
+     */
+    private String getApiToken() {
+        // Intenta obtener desde System.getProperty() primero (cargado desde .env)
+        String token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isEmpty()) {
+            return token;
+        }
+        
+        // Fallback a System.getenv() por si está seteado en el SO
+        return System.getenv("FOOTBALL_DATA_API_TOKEN");
     }
 
     public static class MatchScheduleInfo {

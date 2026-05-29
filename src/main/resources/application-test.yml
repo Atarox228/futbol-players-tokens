@@ -1,14 +1,14 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/player_market
-    username: ${SPRING_DATASOURCE_USERNAME:}
-    password: ${SPRING_DATASOURCE_PASSWORD:}
+    username: postgres
+    password: root
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update   # create / update / validate
-    show-sql: true
+      ddl-auto: update
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -18,14 +18,13 @@ spring:
     init:
       mode: never
 
-# Football-Data.org API Configuration
 football-data:
   api:
     base-url: https://api.football-data.org/v4
-    token: ${FOOTBALL_DATA_API_TOKEN:}
+    token: c608aee5d3fd433592def43fcebb5daa
     competition-ids:
-      - 2014  # LaLiga
-      - 2021  # Premier League
-      - 2015  # Ligue 1
-      - 2002  # Bundesliga
-      - 2019  # Serie A
+      - 2014
+      - 2021
+      - 2015
+      - 2002
+      - 2019

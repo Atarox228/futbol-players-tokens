@@ -1,5 +1,6 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
+import com.desapp.futbolplayerstokens.exception.ValidationException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -25,7 +26,7 @@ class ValuationStrategyRouterImplTest {
 
     @Test
     void shouldRejectUnsupportedKey() {
-        assertThrows(IllegalArgumentException.class, () -> router.resolve("unknown"));
+        assertThrows(ValidationException.class, () -> router.resolve("unknown"));
     }
 }
 

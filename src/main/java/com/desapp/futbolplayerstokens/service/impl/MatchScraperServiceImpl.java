@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.config.FootballDataProperties;
 import com.desapp.futbolplayerstokens.controller.dto.MatchApiDTO;
+import com.desapp.futbolplayerstokens.exception.ConfigurationException;
 import com.desapp.futbolplayerstokens.modelo.Match;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
 import com.desapp.futbolplayerstokens.service.MatchScraperService;
@@ -46,10 +47,11 @@ public class MatchScraperServiceImpl implements MatchScraperService {
             matchRepository.deleteAll();
         }
 
-        String apiToken = System.getenv("FOOTBALL_DATA_API_TOKEN");
+        // Intenta obtener el token del .env, si no está disponible, usa System.getenv()
+        String apiToken = getApiToken();
 
         if (apiToken == null || apiToken.isEmpty()) {
-            throw new RuntimeException("❌ FOOTBALL_DATA_API_TOKEN no configurado. Setea la variable de entorno FOOTBALL_DATA_API_TOKEN con tu token de football-data.org");
+            throw new ConfigurationException("❌ FOOTBALL_DATA_API_TOKEN no configurado. Setea la variable de entorno FOOTBALL_DATA_API_TOKEN con tu token de football-data.org");
         }
 
         LocalDate today = LocalDate.now();
@@ -105,5 +107,19 @@ public class MatchScraperServiceImpl implements MatchScraperService {
         }
 
         return savedMatches;
+    }
+
+    /**
+     * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
+     */
+    private String getApiToken() {
+        // Intenta obtener desde System.getProperty() primero (cargado desde .env)
+        String token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isEmpty()) {
+            return token;
+        }
+        
+        // Fallback a System.getenv() por si está seteado en el SO
+        return System.getenv("FOOTBALL_DATA_API_TOKEN");
     }
 }

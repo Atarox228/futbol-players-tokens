@@ -12,9 +12,6 @@ public class PlayerDetailDTO {
     private Long id;
     private String name;
     private Double rating;
-    private Integer played;
-    private Integer won;
-    private Integer lost;
     private String team;
     private String league;
     private String position;
@@ -22,14 +19,22 @@ public class PlayerDetailDTO {
     private Integer minutes;
     private Integer goals;
     private Integer assists;
-    private Integer shotsOnTarget;
-    private Integer clears;
-    private Integer goalsConceded;
-    private Integer tackles;
-    private Integer interceptions;
-    private Integer blocks;
+    private Double shotsOnTarget;
+    private Double aerialWon;
+    private Double faults;
+    private Double offsidesGiven;
+    private Double clears;
+    private Double dribbled;
+    private Double tackles;
+    private Double interceptions;
+    private Double blocks;
     private Integer ownGoals;
-    private Integer keyPasses;
+    private Double keyPasses;
+    private Double dribbles;
+    private Double faulted;
+    private Double offsides;
+    private Double dispossesed;
+    private Double turnover;
     private Double passAccuracy;
     private Integer yellowCards;
     private Integer redCards;
@@ -41,9 +46,7 @@ public class PlayerDetailDTO {
                 .id(player.getId())
                 .name(player.getName())
                 .rating(player.getRating())
-                .played(player.getPlayed())
-                .won(player.getWon())
-                .lost(player.getLost())
+            
                 .team(player.getTeam())
                 .league(player.getLeague())
                 .position(player.getPosition())
@@ -52,13 +55,22 @@ public class PlayerDetailDTO {
                 .goals(player.getGoals())
                 .assists(player.getAssists())
                 .shotsOnTarget(player.getShotsOnTarget())
+                .passAccuracy(player.getPassAccuracy())
+            .aerialWon(player.getAerialWon())
+            .faults(player.getFaults())
+            .offsidesGiven(player.getOffsidesGiven())
                 .clears(player.getClears())
-                .goalsConceded(player.getGoalsConceded())
+            .dribbled(player.getDribbled())
                 .tackles(player.getTackles())
                 .interceptions(player.getInterceptions())
                 .blocks(player.getBlocks())
                 .ownGoals(player.getOwnGoals())
                 .keyPasses(player.getKeyPasses())
+            .dribbles(player.getDribbles())
+            .faulted(player.getFaulted())
+            .offsides(player.getOffsides())
+            .dispossesed(player.getDispossesed())
+            .turnover(player.getTurnover())
                 .passAccuracy(player.getPassAccuracy())
                 .yellowCards(player.getYellowCards())
                 .redCards(player.getRedCards())

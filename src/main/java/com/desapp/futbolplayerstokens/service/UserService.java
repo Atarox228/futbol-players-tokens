@@ -1,5 +1,6 @@
 package com.desapp.futbolplayerstokens.service;
 
+import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,7 +21,7 @@ public class UserService {
 
     public User registerUser(String username, String password, String email) {
         if (userRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already exists");
+            throw new ValidationException("Username already exists");
         }
         User user = User.builder()
                 .username(username)

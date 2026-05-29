@@ -9,6 +9,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -53,5 +54,17 @@ class PlayerScraperServiceImplTest {
         boolean result = PlayerScraperServiceImpl.isLikelyHttpErrorPage(null, null);
 
         assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Debería parsear enteros y decimales de estadística")
+    void testParseStatHelpers() {
+        assertEquals(12, PlayerScraperServiceImpl.parseIntegerStat("12"));
+        assertEquals(26, PlayerScraperServiceImpl.parseIntegerStat("15(11)"));
+        assertEquals(0, PlayerScraperServiceImpl.parseIntegerStat(null));
+
+        assertEquals(87.5, PlayerScraperServiceImpl.parseDecimalStat("87,5%"));
+        assertEquals(6.78, PlayerScraperServiceImpl.parseDecimalStat("6.78"));
+        assertEquals(0.0, PlayerScraperServiceImpl.parseDecimalStat(""));
     }
 }

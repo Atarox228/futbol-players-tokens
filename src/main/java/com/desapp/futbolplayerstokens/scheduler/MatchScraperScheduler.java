@@ -21,6 +21,12 @@ public class MatchScraperScheduler {
         this.dynamicMatchScheduler = dynamicMatchScheduler;
     }
 
+    @EventListener(ApplicationReadyEvent.class)
+    public void scrapeOnApplicationStart() {
+        logger.info("🚀 Aplicación iniciada. Ejecutando scraping inicial...");
+        scrapeMatchesDaily();
+    }
+
     /**
      * TESTING: Cada minuto (cron = "0 * * * * *")
      * PRODUCCIÓN: Cambiar a "0 0 0 * * *" (cada día a las 00:00)
