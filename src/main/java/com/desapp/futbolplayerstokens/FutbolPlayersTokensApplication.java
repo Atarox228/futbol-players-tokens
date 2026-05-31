@@ -28,7 +28,16 @@ public class FutbolPlayersTokensApplication {
         for (String filename : filenames) {
             try {
                 Dotenv dotenv = Dotenv.configure().filename(filename).ignoreIfMissing().load();
-                dotenv.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
+                dotenv.entries().forEach(entry -> {
+                    System.setProperty(entry.getKey(), entry.getValue());
+
+                    if ("POSTGRES_USER".equals(entry.getKey())) {
+                        System.setProperty("SPRING_DATASOURCE_USERNAME", entry.getValue());
+                    }
+                    if ("POSTGRES_PASSWORD".equals(entry.getKey())) {
+                        System.setProperty("SPRING_DATASOURCE_PASSWORD", entry.getValue());
+                    }
+                });
                 break;
             } catch (Exception e) {
                 // Continue to next file
