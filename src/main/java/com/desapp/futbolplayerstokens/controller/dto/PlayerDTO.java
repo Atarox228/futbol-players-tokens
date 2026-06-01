@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.controller.dto;
 
 import com.desapp.futbolplayerstokens.modelo.Player;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 
@@ -8,12 +9,19 @@ import java.math.BigDecimal;
 
 @Data
 @Builder
+@Schema(name = "PlayerDTO", description = "DTO que representa un jugador de fútbol")
 public class PlayerDTO {
+    @Schema(description = "ID único del jugador", example = "1")
     private Long id;
+    @Schema(description = "Nombre del jugador", example = "Cristiano Ronaldo")
     private String name;
+    @Schema(description = "Equipo del jugador", example = "Manchester United")
     private String team;
+    @Schema(description = "Liga del jugador", example = "LALIGA")
     private String league;
+    @Schema(description = "Posición del jugador", example = "Forward")
     private String position;
+    @Schema(description = "Puntuación del jugador", example = "85.5")
     private BigDecimal score;
 
     public static PlayerDTO toDTO(Player player) {
