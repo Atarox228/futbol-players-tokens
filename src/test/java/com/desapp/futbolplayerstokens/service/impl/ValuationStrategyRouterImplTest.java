@@ -9,19 +9,29 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ValuationStrategyRouterImplTest {
 
     private final ScoreGeneralStrategy scoreGeneralStrategy = new ScoreGeneralStrategy();
-    private final ScoreByPositionStrategy scoreByPositionStrategy = new ScoreByPositionStrategy();
+    private final ScoreByPositionStrategy scoreByPositionStrategy = createStrategy();
     private final ValuationStrategyRouterImpl router = new ValuationStrategyRouterImpl(scoreGeneralStrategy, scoreByPositionStrategy);
 
+    private ScoreByPositionStrategy createStrategy() {
+        ScoreByPositionStrategy strategy = new ScoreByPositionStrategy();
+        strategy.setScoreGeneralStrategy(scoreGeneralStrategy);
+        return strategy;
+    }
+
     @Test
-    void shouldReturnGeneralStrategyWhenKeyIsNullOrBlank() {
+    void shouldReturnGeneralStrategyWhenKeyIsNullOrBlankOrGeneralVariants() {
         assertSame(scoreGeneralStrategy, router.resolve(null));
         assertSame(scoreGeneralStrategy, router.resolve("   "));
+        assertSame(scoreGeneralStrategy, router.resolve("GENERAL"));
+        assertSame(scoreGeneralStrategy, router.resolve("default"));
+        assertSame(scoreGeneralStrategy, router.resolve("General_Score"));
     }
 
     @Test
     void shouldReturnPositionStrategyWhenExplicitKeyIsPassed() {
         assertSame(scoreByPositionStrategy, router.resolve("POSITION"));
         assertSame(scoreByPositionStrategy, router.resolve("by_position"));
+        assertSame(scoreByPositionStrategy, router.resolve("POSITION_SCORE"));
     }
 
     @Test
@@ -29,4 +39,3 @@ class ValuationStrategyRouterImplTest {
         assertThrows(ValidationException.class, () -> router.resolve("unknown"));
     }
 }
-
