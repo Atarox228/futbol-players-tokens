@@ -27,6 +27,10 @@ public class User {
     private Role role;
 
     public enum Role {
-        USER, ADMIN
+        USER, ADMIN, SUPERUSER
     }
+
+    @Column(precision = 19, scale = 8)
+    @Builder.Default
+    private java.math.BigDecimal balance = new java.math.BigDecimal("1000");
 }
