@@ -30,6 +30,7 @@ public class ScoreByPositionStrategy implements Strategy {
 
     // Forward defaults
     private static final BigDecimal FW_GOALS = new BigDecimal("0.35");
+    private static final BigDecimal FW_OWN_GOALS = BigDecimal.ZERO;
     private static final BigDecimal FW_SHOTS = new BigDecimal("0.20");
     private static final BigDecimal FW_DRIBBLES = new BigDecimal("0.20");
     private static final BigDecimal FW_ASSISTS = new BigDecimal("0.15");
@@ -39,6 +40,7 @@ public class ScoreByPositionStrategy implements Strategy {
 
     // Midfielder defaults
     private static final BigDecimal MF_KEYPASSES = new BigDecimal("0.30");
+    private static final BigDecimal MF_PASS_ACCURACY = BigDecimal.ZERO;
     private static final BigDecimal MF_ASSISTS = new BigDecimal("0.25");
     private static final BigDecimal MF_DRIBBLES = new BigDecimal("0.20");
     private static final BigDecimal MF_TACKLES = new BigDecimal("0.15");
@@ -49,6 +51,8 @@ public class ScoreByPositionStrategy implements Strategy {
     // Defender defaults
     private static final BigDecimal DF_TACKLES = new BigDecimal("0.30");
     private static final BigDecimal DF_INTERCEPTIONS = new BigDecimal("0.25");
+    private static final BigDecimal DF_OWN_GOALS = BigDecimal.ZERO;
+    private static final BigDecimal DF_FAULTS = BigDecimal.ZERO;
     private static final BigDecimal DF_CLEARS = new BigDecimal("0.20");
     private static final BigDecimal DF_BLOCKS = new BigDecimal("0.15");
     private static final BigDecimal DF_RATING = new BigDecimal("0.10");
@@ -112,31 +116,32 @@ public class ScoreByPositionStrategy implements Strategy {
     }
 
     private boolean isForward(String pos) {
-        String[] vals = new String[]{"FW","ST","CF","SS","LW","RW","WF","LF","RF"};
+        String[] vals = new String[]{"FW","ST","CF","SS","LW","RW","WF","LF","RF","FORWARD","DELANTERO","STRIKER"};
         for (String v : vals) if (pos.contains(v)) return true;
         return false;
     }
 
     private boolean isMidfielder(String pos) {
-        String[] vals = new String[]{"MF","MID","AM","CM","DM","CAM","CDM","LM","RM","WM"};
+        String[] vals = new String[]{"MF","MID","AM","CM","DM","CAM","CDM","LM","RM","WM","MEDIOCAMPO","MIDFIELDER"};
         for (String v : vals) if (pos.contains(v)) return true;
         return false;
     }
 
     private boolean isDefender(String pos) {
-        String[] vals = new String[]{"DF","DEF","CB","LB","RB","LWB","RWB","SW"};
+        String[] vals = new String[]{"DF","DEF","CB","LB","RB","LWB","RWB","SW","DEFENSA","DEFENDER"};
         for (String v : vals) if (pos.contains(v)) return true;
         return false;
     }
 
     private boolean isGoalkeeper(String pos) {
-        String[] vals = new String[]{"GK","GKP","POR","PT"};
+        String[] vals = new String[]{"GK","GKP","POR","PT","GOALKEEPER","ARQUERO"};
         for (String v : vals) if (pos.contains(v)) return true;
         return false;
     }
 
     private BigDecimal scoreForward(Player p, java.util.Map<String, BigDecimal> weights) {
         BigDecimal goals = norm(p.getGoals(), 30.0);
+        BigDecimal ownGoals = norm(p.getOwnGoals(), 30.0);
         BigDecimal shots = norm(p.getShotsOnTarget(), 30.0);
         BigDecimal dribbles = norm(p.getDribbles(), 50.0);
         BigDecimal assists = norm(p.getAssists(), 20.0);
@@ -145,6 +150,7 @@ public class ScoreByPositionStrategy implements Strategy {
         BigDecimal yellow = norm(p.getYellowCards(), 10.0);
 
         BigDecimal positive = getW(weights, "fw_goals", FW_GOALS).multiply(goals)
+                .add(getW(weights, "fw_ownGoals", FW_OWN_GOALS).multiply(ownGoals))
                 .add(getW(weights, "fw_shots", FW_SHOTS).multiply(shots))
                 .add(getW(weights, "fw_dribbles", FW_DRIBBLES).multiply(dribbles))
                 .add(getW(weights, "fw_assists", FW_ASSISTS).multiply(assists))
@@ -158,6 +164,7 @@ public class ScoreByPositionStrategy implements Strategy {
 
     private BigDecimal scoreMidfielder(Player p, java.util.Map<String, BigDecimal> weights) {
         BigDecimal keyPasses = norm(p.getKeyPasses(), 100.0);
+        BigDecimal passAccuracy = norm(p.getPassAccuracy(), 1.0);
         BigDecimal assists = norm(p.getAssists(), 20.0);
         BigDecimal dribbles = norm(p.getDribbles(), 50.0);
         BigDecimal tackles = norm(p.getTackles(), 80.0);
@@ -166,6 +173,7 @@ public class ScoreByPositionStrategy implements Strategy {
         BigDecimal yellow = norm(p.getYellowCards(), 10.0);
 
         BigDecimal positive = getW(weights, "mf_keyPasses", MF_KEYPASSES).multiply(keyPasses)
+                .add(getW(weights, "mf_passAccuracy", MF_PASS_ACCURACY).multiply(passAccuracy))
                 .add(getW(weights, "mf_assists", MF_ASSISTS).multiply(assists))
                 .add(getW(weights, "mf_dribbles", MF_DRIBBLES).multiply(dribbles))
                 .add(getW(weights, "mf_tackles", MF_TACKLES).multiply(tackles))
@@ -180,6 +188,8 @@ public class ScoreByPositionStrategy implements Strategy {
     private BigDecimal scoreDefender(Player p, java.util.Map<String, BigDecimal> weights) {
         BigDecimal tackles = norm(p.getTackles(), 80.0);
         BigDecimal interceptions = norm(p.getInterceptions(), 60.0);
+        BigDecimal ownGoals = norm(p.getOwnGoals(), 5.0);
+        BigDecimal faults = norm(p.getFaults(), 40.0);
         BigDecimal clears = norm(p.getClears(), 60.0);
         BigDecimal blocks = norm(p.getBlocks(), 30.0);
         BigDecimal rating = normRating(p.getRating());
@@ -193,7 +203,9 @@ public class ScoreByPositionStrategy implements Strategy {
                 .add(getW(weights, "df_rating", DF_RATING).multiply(rating));
 
         BigDecimal negative = getW(weights, "df_redCards", DF_RED).multiply(red)
-                .add(getW(weights, "df_yellowCards", DF_YELLOW).multiply(yellow));
+                .add(getW(weights, "df_yellowCards", DF_YELLOW).multiply(yellow))
+                .add(getW(weights, "df_ownGoals", DF_OWN_GOALS).multiply(ownGoals))
+                .add(getW(weights, "df_faults", DF_FAULTS).multiply(faults));
 
         return positive.subtract(negative);
     }

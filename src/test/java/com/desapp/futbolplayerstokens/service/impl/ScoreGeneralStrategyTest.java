@@ -136,6 +136,40 @@ class ScoreGeneralStrategyTest {
     }
 
     @Test
+    void shouldUseConfiguredMinutesAndRatingOnly() {
+        Player player = Player.builder()
+                .id(5L)
+                .minutes(1710)
+                .rating(7.5)
+                .yellowCards(0)
+                .redCards(0)
+                .build();
+
+        HashMap<String, BigDecimal> weights = new HashMap<>();
+        weights.put("goals", BigDecimal.ZERO);
+        weights.put("assists", BigDecimal.ZERO);
+        weights.put("keyPasses", BigDecimal.ZERO);
+        weights.put("dribbles", BigDecimal.ZERO);
+        weights.put("tackles", BigDecimal.ZERO);
+        weights.put("minutes", new BigDecimal("0.50"));
+        weights.put("rating", new BigDecimal("0.50"));
+        weights.put("yellowCards", new BigDecimal("0.20"));
+        weights.put("redCards", new BigDecimal("0.40"));
+
+        StrategyConfig cfg = StrategyConfig.builder()
+                .id(11L)
+                .valorBase(new BigDecimal("100.00"))
+                .factorEscala(new BigDecimal("10.00"))
+                .version(1)
+                .weights(weights)
+                .build();
+
+        ValuationResult res = strategy.evaluate(ValuationContext.builder().player(player).strategyConfig(cfg).build());
+
+        assertEquals(new BigDecimal("105.00000000"), res.getPrice());
+    }
+
+    @Test
     void shouldRejectNullContext() {
         assertThrows(ValidationException.class, () -> strategy.evaluate(null));
     }

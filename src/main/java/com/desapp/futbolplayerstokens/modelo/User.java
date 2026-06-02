@@ -3,6 +3,8 @@ package com.desapp.futbolplayerstokens.modelo;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -16,21 +18,24 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String username;
 
-    private String password;
-
+    @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(nullable = false)
+    private String password;
+
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Role role;
 
-    public enum Role {
-        USER, ADMIN, SUPERUSER
-    }
+    @Column(precision = 19, scale = 8, nullable = false)
+    private BigDecimal balance;
 
-    @Column(precision = 19, scale = 8)
-    @Builder.Default
-    private java.math.BigDecimal balance = new java.math.BigDecimal("1000");
+    @Column(unique = true)
+    private String apiKey;
+
+    public enum Role { USER, ADMIN, SUPERUSER }
 }

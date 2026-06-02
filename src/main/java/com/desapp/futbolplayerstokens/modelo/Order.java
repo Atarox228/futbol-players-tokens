@@ -19,30 +19,39 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
-    private Long playerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "player_id", nullable = false)
+    private Player player;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private OrderType type;
 
-    public enum OrderType { BUY, SELL }
-
+    @Column(nullable = false)
     private int quantity;
 
-    @Column(precision = 19, scale = 8)
+    @Column(precision = 19, scale = 8, nullable = false)
     private BigDecimal priceAtOrder;
 
-    @Column(precision = 19, scale = 8)
+    @Column(precision = 19, scale = 8, nullable = false)
     private BigDecimal total;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String idempotencyKey;
 
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
     public void prePersist() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
-}
 
+    public enum OrderType { BUY, SELL }
+}

@@ -6,7 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"userId","playerId"}))
+@Table(name = "portfolio", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "player_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,23 +14,21 @@ import java.math.BigDecimal;
 @Builder
 public class Portfolio {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-	private Long userId;
-	private Long playerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-	private int tokenQty;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "player_id", nullable = false)
+    private Player player;
 
-	@Column(precision = 19, scale = 8)
-	private BigDecimal avgBuyPrice;
+    @Column(nullable = false)
+    private int tokenQty;
 
-	@Column(precision = 19, scale = 8)
-	private BigDecimal currentValue;
-
-	@Column(precision = 19, scale = 8)
-	private BigDecimal profitLoss;
+    @Column(precision = 19, scale = 8, nullable = false)
+    private BigDecimal avgBuyPrice;
 }
-
-

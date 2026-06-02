@@ -17,7 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
@@ -99,22 +99,71 @@ public class DataLoader implements ApplicationRunner {
 
     private void createDefaultStrategyIfMissing() {
         if (strategyConfigRepository.findTopByOrderByVersionDesc().isEmpty()) {
-            Map<String, BigDecimal> weights = new HashMap<>();
-            weights.put("goals", new BigDecimal("0.25"));
-            weights.put("assists", new BigDecimal("0.15"));
-            weights.put("rating", new BigDecimal("0.20"));
-            weights.put("yellowCards", new BigDecimal("0.10"));
-            weights.put("redCards", new BigDecimal("0.20"));
-            weights.put("tackles", new BigDecimal("0.05"));
-            weights.put("keyPasses", new BigDecimal("0.05"));
             StrategyConfig cfg = StrategyConfig.builder()
                     .valorBase(new BigDecimal("1"))
                     .factorEscala(new BigDecimal("10"))
                     .version(1)
-                    .weights(weights)
+                    .weights(defaultStrategyWeights())
                     .build();
             strategyConfigRepository.save(cfg);
         }
+    }
+
+    private Map<String, BigDecimal> defaultStrategyWeights() {
+        Map<String, BigDecimal> weights = new LinkedHashMap<>();
+
+        addGeneralStrategyWeights(weights);
+        addPositionStrategyWeights(weights);
+
+        return weights;
+    }
+
+    private void addGeneralStrategyWeights(Map<String, BigDecimal> weights) {
+        weights.put("goals", BigDecimal.ZERO);
+        weights.put("assists", BigDecimal.ZERO);
+        weights.put("keyPasses", BigDecimal.ZERO);
+        weights.put("dribbles", BigDecimal.ZERO);
+        weights.put("tackles", BigDecimal.ZERO);
+        weights.put("minutes", new BigDecimal("0.50"));
+        weights.put("rating", new BigDecimal("0.50"));
+        weights.put("yellowCards", new BigDecimal("0.20"));
+        weights.put("redCards", new BigDecimal("0.40"));
+    }
+
+    private void addPositionStrategyWeights(Map<String, BigDecimal> weights) {
+        weights.put("gk_clears", BigDecimal.ONE);
+        weights.put("gk_blocks", BigDecimal.ZERO);
+        weights.put("gk_interceptions", BigDecimal.ZERO);
+        weights.put("gk_rating", BigDecimal.ZERO);
+        weights.put("gk_redCards", BigDecimal.ZERO);
+
+        weights.put("df_interceptions", new BigDecimal("0.35"));
+        weights.put("df_tackles", new BigDecimal("0.35"));
+        weights.put("df_ownGoals", new BigDecimal("0.15"));
+        weights.put("df_faults", new BigDecimal("0.15"));
+        weights.put("df_clears", BigDecimal.ZERO);
+        weights.put("df_blocks", BigDecimal.ZERO);
+        weights.put("df_rating", BigDecimal.ZERO);
+        weights.put("df_redCards", BigDecimal.ZERO);
+        weights.put("df_yellowCards", BigDecimal.ZERO);
+
+        weights.put("mf_keyPasses", new BigDecimal("0.50"));
+        weights.put("mf_passAccuracy", new BigDecimal("0.50"));
+        weights.put("mf_assists", BigDecimal.ZERO);
+        weights.put("mf_dribbles", BigDecimal.ZERO);
+        weights.put("mf_tackles", BigDecimal.ZERO);
+        weights.put("mf_rating", BigDecimal.ZERO);
+        weights.put("mf_yellowCards", BigDecimal.ZERO);
+        weights.put("mf_redCards", BigDecimal.ZERO);
+
+        weights.put("fw_ownGoals", new BigDecimal("0.50"));
+        weights.put("fw_shots", new BigDecimal("0.50"));
+        weights.put("fw_goals", BigDecimal.ZERO);
+        weights.put("fw_dribbles", BigDecimal.ZERO);
+        weights.put("fw_assists", BigDecimal.ZERO);
+        weights.put("fw_keyPasses", BigDecimal.ZERO);
+        weights.put("fw_redCards", BigDecimal.ZERO);
+        weights.put("fw_yellowCards", BigDecimal.ZERO);
     }
 }
 

@@ -24,6 +24,7 @@ public class ScoreGeneralStrategy implements Strategy {
     private static final BigDecimal W_GOALS = new BigDecimal("0.25");
     private static final BigDecimal W_ASSISTS = new BigDecimal("0.15");
     private static final BigDecimal W_RATING = new BigDecimal("0.20");
+    private static final BigDecimal W_MINUTES = BigDecimal.ZERO;
     private static final BigDecimal W_KEYPASSES = new BigDecimal("0.10");
     private static final BigDecimal W_DRIBBLES = new BigDecimal("0.10");
     private static final BigDecimal W_TACKLES = new BigDecimal("0.10");
@@ -47,6 +48,7 @@ public class ScoreGeneralStrategy implements Strategy {
         BigDecimal goalsNorm = norm(p.getGoals(), 30.0);
         BigDecimal assistsNorm = norm(p.getAssists(), 20.0);
         BigDecimal ratingNorm = normRating(p.getRating());
+        BigDecimal minutesNorm = norm(p.getMinutes(), 3420.0);
         BigDecimal keyPassesNorm = norm(p.getKeyPasses(), 100.0);
         BigDecimal dribblesNorm = norm(p.getDribbles(), 50.0);
         BigDecimal tacklesNorm = norm(p.getTackles(), 80.0);
@@ -56,6 +58,7 @@ public class ScoreGeneralStrategy implements Strategy {
         BigDecimal positive = getWeight(weights, "goals", W_GOALS).multiply(goalsNorm)
                 .add(getWeight(weights, "assists", W_ASSISTS).multiply(assistsNorm))
                 .add(getWeight(weights, "rating", W_RATING).multiply(ratingNorm))
+                .add(getWeight(weights, "minutes", W_MINUTES).multiply(minutesNorm))
                 .add(getWeight(weights, "keyPasses", W_KEYPASSES).multiply(keyPassesNorm))
                 .add(getWeight(weights, "dribbles", W_DRIBBLES).multiply(dribblesNorm))
                 .add(getWeight(weights, "tackles", W_TACKLES).multiply(tacklesNorm));

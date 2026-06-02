@@ -13,6 +13,7 @@ public class OrderDTO {
     private Long id;
     private Long userId;
     private Long playerId;
+    private String playerName;
     private String type;
     private int quantity;
     private BigDecimal priceAtOrder;
@@ -24,9 +25,10 @@ public class OrderDTO {
         if (o == null) return null;
         return OrderDTO.builder()
                 .id(o.getId())
-                .userId(o.getUserId())
-                .playerId(o.getPlayerId())
-                .type(o.getType() == null ? null : o.getType().name())
+                .userId(o.getUser().getId())
+                .playerId(o.getPlayer().getId())
+                .playerName(o.getPlayer().getName())
+                .type(o.getType().name())
                 .quantity(o.getQuantity())
                 .priceAtOrder(o.getPriceAtOrder())
                 .total(o.getTotal())

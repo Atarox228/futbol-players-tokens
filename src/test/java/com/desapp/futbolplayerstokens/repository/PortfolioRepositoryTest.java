@@ -1,6 +1,8 @@
 package com.desapp.futbolplayerstokens.repository;
 
+import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.Portfolio;
+import com.desapp.futbolplayerstokens.modelo.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,48 +24,79 @@ class PortfolioRepositoryTest {
     @Autowired
     private PortfolioRepository portfolioRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PlayerRepository playerRepository;
+
     private Portfolio p1;
     private Portfolio p2;
+    private User user1;
+    private Player player1;
 
     @BeforeEach
     void setUp() {
         portfolioRepository.deleteAll();
 
+        user1 = userRepository.save(User.builder()
+                .username("portfolio-user-1")
+                .email("portfolio-user-1@example.com")
+                .password("password")
+                .role(User.Role.USER)
+                .balance(new BigDecimal("1000"))
+                .build());
+        User user2 = userRepository.save(User.builder()
+                .username("portfolio-user-2")
+                .email("portfolio-user-2@example.com")
+                .password("password")
+                .role(User.Role.USER)
+                .balance(new BigDecimal("1000"))
+                .build());
+
+        player1 = playerRepository.save(Player.builder()
+                .name("Portfolio Player 1")
+                .team("Team A")
+                .league("League A")
+                .position("Forward")
+                .build());
+        Player player2 = playerRepository.save(Player.builder()
+                .name("Portfolio Player 2")
+                .team("Team B")
+                .league("League B")
+                .position("Midfielder")
+                .build());
+
         p1 = Portfolio.builder()
-                .userId(1L)
-                .playerId(10L)
+                .user(user1)
+                .player(player1)
                 .tokenQty(50)
                 .avgBuyPrice(new BigDecimal("1.0"))
-                .currentValue(new BigDecimal("50.0"))
-                .profitLoss(new BigDecimal("0.0"))
                 .build();
 
         p2 = Portfolio.builder()
-                .userId(2L)
-                .playerId(11L)
+                .user(user2)
+                .player(player2)
                 .tokenQty(20)
                 .avgBuyPrice(new BigDecimal("2.0"))
-                .currentValue(new BigDecimal("40.0"))
-                .profitLoss(new BigDecimal("0.0"))
                 .build();
     }
 
     @Test
-    void testFindByUserId() {
+    void testFindByUser() {
         portfolioRepository.save(p1);
         portfolioRepository.save(p2);
 
-        List<Portfolio> list = portfolioRepository.findByUserId(1L);
+        List<Portfolio> list = portfolioRepository.findByUser(user1);
         assertEquals(1, list.size());
-        assertEquals(10L, list.get(0).getPlayerId());
+        assertEquals(player1.getId(), list.getFirst().getPlayer().getId());
     }
 
     @Test
-    void testFindByUserIdAndPlayerId() {
+    void testFindByUserAndPlayer() {
         portfolioRepository.save(p1);
-        Optional<Portfolio> opt = portfolioRepository.findByUserIdAndPlayerId(1L, 10L);
+        Optional<Portfolio> opt = portfolioRepository.findByUserAndPlayer(user1, player1);
         assertTrue(opt.isPresent());
         assertEquals(50, opt.get().getTokenQty());
     }
 }
-
