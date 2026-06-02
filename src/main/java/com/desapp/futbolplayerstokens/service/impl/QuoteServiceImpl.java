@@ -16,8 +16,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -31,15 +33,18 @@ public class QuoteServiceImpl implements QuoteService {
     private final PlayerRepository playerRepository;
     private final StrategyConfigRepository strategyConfigRepository;
     private final ValuationService valuationService;
+    private final TransactionTemplate transactionTemplate;
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
                             PlayerRepository playerRepository,
                             StrategyConfigRepository strategyConfigRepository,
-                            ValuationService valuationService) {
+                            ValuationService valuationService,
+                            TransactionTemplate transactionTemplate) {
         this.quoteRepository = quoteRepository;
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
         this.valuationService = valuationService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Override
@@ -79,6 +84,22 @@ public class QuoteServiceImpl implements QuoteService {
     @Override
     @Transactional
     public void recalculateAll(QuoteTrigger trigger) {
+        if (trigger == QuoteTrigger.MANUAL) {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    transactionTemplate.executeWithoutResult(status -> doRecalculateAll(trigger));
+                } catch (Exception e) {
+                    LOGGER.error("Error while running manual recalculation", e);
+                }
+            });
+            LOGGER.info("Manual quote recalculation queued for all players");
+            return;
+        }
+
+        transactionTemplate.executeWithoutResult(status -> doRecalculateAll(trigger));
+    }
+
+    private void doRecalculateAll(QuoteTrigger trigger) {
         StrategyConfig active = strategyConfigRepository.findTopByOrderByVersionDesc()
                 .orElseThrow(() -> new ConfigurationException("No active strategy config"));
 

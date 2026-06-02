@@ -19,11 +19,13 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -43,6 +45,9 @@ class QuoteServiceImplTest {
 
     @Mock
     private PlayerRepository playerRepository;
+
+    @Mock
+    private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private QuoteServiceImpl quoteService;
@@ -86,6 +91,13 @@ class QuoteServiceImplTest {
                 .strategyId(1L)
                 .strategyVersion(1)
                 .build();
+
+        lenient().doAnswer(invocation -> {
+            Consumer<?> consumer = invocation.getArgument(0);
+            consumer.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+
     }
 
     @Test
@@ -97,7 +109,7 @@ class QuoteServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(10L, result.get(0).getId());
+        assertEquals(10L, result.getFirst().getId());
         verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong(), any());
     }
 
@@ -119,8 +131,8 @@ class QuoteServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(20L, result.get(0).getId());
-        assertEquals("MANUAL", result.get(0).getTrigger());
+        assertEquals(20L, result.getFirst().getId());
+        assertEquals("MANUAL", result.getFirst().getTrigger());
         verify(valuationService, times(1)).evaluatePlayer(eq(playerId), eq(testStrategyConfig.getId()), isNull());
     }
 
@@ -176,6 +188,24 @@ class QuoteServiceImplTest {
         for (Quote q : saved) {
             assertEquals(QuoteTrigger.SCHEDULED, q.getTrigger());
         }
+    }
+
+    @Test
+    void recalculateAll_whenManual_queuesAsyncExecution_andSavesQuotesWithManualTrigger() {
+        Player p1 = Player.builder().id(1L).build();
+        Player p2 = Player.builder().id(2L).build();
+
+        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(playerRepository.findAll()).thenReturn(List.of(p1, p2));
+        when(valuationService.evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull()))
+                .thenReturn(testValuationResult);
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        quoteService.recalculateAll(QuoteTrigger.MANUAL);
+
+        verify(valuationService, timeout(1000).times(2)).evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull());
+        verify(quoteRepository, timeout(1000).times(2)).save(quoteCaptor.capture());
+        assertTrue(quoteCaptor.getAllValues().stream().allMatch(q -> q.getTrigger() == QuoteTrigger.MANUAL));
     }
 
     @Test

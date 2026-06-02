@@ -23,7 +23,7 @@ public class QuoteControllerREST {
     @PostMapping("/recalculate")
     public ResponseEntity<String> recalculateAll() {
         quoteService.recalculateAll(QuoteTrigger.MANUAL);
-        return ResponseEntity.ok("Recalculation triggered for all players");
+        return ResponseEntity.accepted().body("Recalculation triggered for all players");
     }
 
     @GetMapping("/player/{id:[0-9]+}/current")
