@@ -36,12 +36,13 @@ public class ScoreGeneralStrategy implements Strategy {
         ValuationContext ctx;
         Player p;
         StrategyConfig cfg;
+        String requisitos = "ValuationContext, player and strategyConfig are required";
         try {
-            ctx = Objects.requireNonNull(valuationContext, "ValuationContext, player and strategyConfig are required");
-            p = Objects.requireNonNull(ctx.getPlayer(), "ValuationContext, player and strategyConfig are required");
-            cfg = Objects.requireNonNull(ctx.getStrategyConfig(), "ValuationContext, player and strategyConfig are required");
+            ctx = Objects.requireNonNull(valuationContext, requisitos);
+            p = Objects.requireNonNull(ctx.getPlayer(), requisitos);
+            cfg = Objects.requireNonNull(ctx.getStrategyConfig(), requisitos);
         } catch (NullPointerException ex) {
-            throw new ValidationException("ValuationContext, player and strategyConfig are required");
+            throw new ValidationException(requisitos);
         }
         Map<String, BigDecimal> weights = cfg.getWeights();
 

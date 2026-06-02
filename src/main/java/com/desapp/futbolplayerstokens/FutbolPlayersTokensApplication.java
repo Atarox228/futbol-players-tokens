@@ -69,13 +69,11 @@ public class FutbolPlayersTokensApplication {
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
 
-                if (line.isBlank() || line.startsWith("#")) {
-                    continue;
-                }
-
                 int separatorIndex = line.indexOf('=');
 
-                if (separatorIndex <= 0) {
+                if (line.isBlank()
+                        || line.startsWith("#")
+                        || separatorIndex <= 0) {
                     continue;
                 }
 

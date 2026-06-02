@@ -45,16 +45,17 @@ public class OrderControllerREST {
         return userRepository.findByUsername(username).map(u -> u.getId()).orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    public static class BuyRequest {
-        public Long playerId;
-        public int quantity;
-        public String idempotencyKey;
-    }
+    public record BuyRequest(
+            Long playerId,
+            int quantity,
+            String idempotencyKey
+    ) {}
 
-    public static class SellRequest {
-        public Long playerId;
-        public int quantity;
-        public String idempotencyKey;
-    }
+    public record SellRequest(
+            Long playerId,
+            int quantity,
+            String idempotencyKey
+    ) {}
+
 }
 

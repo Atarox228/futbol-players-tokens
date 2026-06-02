@@ -35,6 +35,8 @@ public class QuoteServiceImpl implements QuoteService {
     private final ValuationService valuationService;
     private final TransactionTemplate transactionTemplate;
 
+    private final String estrategiaInactiva = "No active strategy config";
+
     public QuoteServiceImpl(QuoteRepository quoteRepository,
                             PlayerRepository playerRepository,
                             StrategyConfigRepository strategyConfigRepository,
@@ -55,7 +57,7 @@ public class QuoteServiceImpl implements QuoteService {
                     .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
 
             StrategyConfig active = strategyConfigRepository.findTopByOrderByVersionDesc()
-                    .orElseThrow(() -> new ConfigurationException("No active strategy config"));
+                    .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
 
             Quote q = recalculateSingle(player, active, QuoteTrigger.MANUAL);
             return List.of(QuoteDTO.toDTO(q));
@@ -75,7 +77,7 @@ public class QuoteServiceImpl implements QuoteService {
                 .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
 
         StrategyConfig active = strategyConfigRepository.findTopByOrderByVersionDesc()
-                .orElseThrow(() -> new ConfigurationException("No active strategy config"));
+                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
 
         Quote q = recalculateSingle(player, active, QuoteTrigger.MANUAL);
         return QuoteDTO.toDTO(q);
@@ -101,7 +103,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     private void doRecalculateAll(QuoteTrigger trigger) {
         StrategyConfig active = strategyConfigRepository.findTopByOrderByVersionDesc()
-                .orElseThrow(() -> new ConfigurationException("No active strategy config"));
+                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
 
         List<Player> players = playerRepository.findAll();
         int total = 0;
