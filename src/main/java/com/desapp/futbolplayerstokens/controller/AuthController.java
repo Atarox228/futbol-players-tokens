@@ -3,6 +3,12 @@ package com.desapp.futbolplayerstokens.controller;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.security.JwtUtil;
 import com.desapp.futbolplayerstokens.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,6 +21,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "Authentication", description = "Endpoints para autenticación y gestión de usuarios")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -28,6 +35,11 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @Operation(summary = "Registrar nuevo usuario", description = "Crea una nueva cuenta de usuario con username, email y contraseña")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Usuario registrado exitosamente"),
+        @ApiResponse(responseCode = "400", description = "Error en la validación o usuario ya existe")
+    })
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
             User user = userService.registerUser(request.getUsername(), request.getPassword(), request.getEmail());
@@ -38,6 +50,11 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @Operation(summary = "Iniciar sesión", description = "Autentica al usuario y devuelve un token JWT válido por 24 horas")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Login exitoso, token devuelto"),
+        @ApiResponse(responseCode = "400", description = "Credenciales inválidas")
+    })
     public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -60,6 +77,10 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @Operation(summary = "Cerrar sesión", description = "Invalida el token JWT del usuario")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Logout exitoso")
+    })
     public ResponseEntity<?> logout(HttpServletResponse response) {
         Cookie cookie = new Cookie("authToken", null);
         cookie.setHttpOnly(true);
@@ -71,8 +92,11 @@ public class AuthController {
     }
 
     public static class RegisterRequest {
+        @Schema(description = "Nombre de usuario único", example = "juan_perez")
         private String username;
+        @Schema(description = "Contraseña del usuario", example = "password123")
         private String password;
+        @Schema(description = "Email del usuario", example = "juan@example.com")
         private String email;
 
         // getters and setters
@@ -85,7 +109,9 @@ public class AuthController {
     }
 
     public static class LoginRequest {
+        @Schema(description = "Nombre de usuario", example = "juan_perez")
         private String username;
+        @Schema(description = "Contraseña del usuario", example = "password123")
         private String password;
 
         // getters and setters

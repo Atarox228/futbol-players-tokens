@@ -33,6 +33,18 @@ O con Gradle:
 
 La aplicación se levanta en `http://localhost:8080`.
 
+## Documentación Swagger
+
+- Swagger UI interactiva: `http://localhost:8080/swagger-ui.html`
+- API docs JSON: `http://localhost:8080/v3/api-docs`
+- API docs YAML: `http://localhost:8080/v3/api-docs.yaml`
+
+Para usar los endpoints protegidos, haga clic en el botón "Authorize" en Swagger UI y pegue el token en el formato:
+
+```text
+Bearer <jwt-token>
+```
+
 ## Endpoints JWT
 
 ### 1. Registro de usuario
