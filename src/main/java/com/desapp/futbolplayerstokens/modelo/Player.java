@@ -66,6 +66,10 @@ public class Player {
     private Double turnover = 0.0;
     @Builder.Default
     private Double passAccuracy = 1.0;
+    @Builder.Default
+    private Integer availableTokens = 100;
+    @Builder.Default
+    private Integer totalTokens = 100;
     private Integer yellowCards;
     private Integer redCards;
     private Integer playerOfTheMatch;
@@ -96,6 +100,8 @@ public class Player {
         dispossesed = defaultIfNull(dispossesed, 0.0);
         turnover = defaultIfNull(turnover, 0.0);
         passAccuracy = (passAccuracy == null || passAccuracy.doubleValue() == 0.0) ? DEFAULT_PASS_ACCURACY : passAccuracy;
+        availableTokens = defaultIfNull(availableTokens, 100);
+        totalTokens = defaultIfNull(totalTokens, 100);
         lastModifiedAt = LocalDateTime.now();
     }
 

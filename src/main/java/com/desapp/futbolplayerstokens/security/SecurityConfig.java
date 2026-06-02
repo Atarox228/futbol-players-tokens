@@ -33,6 +33,8 @@ public class SecurityConfig {
                         .requestMatchers("/players/scrape/**").permitAll()
                         .requestMatchers("/api/matches/scrape/**").permitAll()
                         .requestMatchers("/api/scheduler/**").permitAll()
+                        .requestMatchers("/orders/**").authenticated()
+                        .requestMatchers("/users/**").authenticated()
                         // permitir acceso a endpoints de quotes para usuarios autenticados
                         .requestMatchers("/quotes/**").authenticated()
                         .anyRequest().authenticated()
