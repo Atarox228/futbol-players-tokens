@@ -4,6 +4,7 @@ import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 import com.desapp.futbolplayerstokens.exception.ScrapingException;
 import com.desapp.futbolplayerstokens.modelo.LeagueConstant;
 import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import com.desapp.futbolplayerstokens.service.PlayerService;
@@ -68,6 +69,22 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String TEAM_SQUAD_SUMMARY_SECTION = "team-squad-stats-summary";
     private static final String TEAM_SQUAD_DEFENSIVE_SECTION = "team-squad-stats-defensive";
     private static final String TEAM_SQUAD_OFFENSIVE_SECTION = "team-squad-stats-offensive";
+
+    // Non-team options to filter out from dropdown (e.g., "All Players" view)
+    private static final String[] NON_TEAM_DROPDOWN_OPTIONS = {
+        "todos los jugadores", "all players", "all players in the league",
+        "todos los equipos", "all teams"
+    };
+
+    // Teams skipped during dropdown loop and scraped separately via direct URL
+    private static final String[] SKIP_TEAM_NAMES = {
+        "Liverpool", "Crystal Palace"
+    };
+
+    private static final Map<String, String> TEAM_OVERRIDE_URLS = Map.of(
+        "Liverpool", "https://es.whoscored.com/teams/26/show/inglaterra-liverpool",
+        "Crystal Palace", "https://es.whoscored.com/teams/162/show/inglaterra-crystal-palace"
+    );
 
     private static final String ATTR_CLASS = "class";
     private static final String ATTR_DISABLED = "disabled";
@@ -366,8 +383,35 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             List<String> teamNames = getTeamNamesFromDropdown(wait);
             List<String> orderedTeamNames = orderTeamsStartingWith(teamNames, starterTeam);
 
-            for (String currentTeamName : orderedTeamNames) {
+            // Filter out teams that redirect to wrong competition via dropdown
+            List<String> dropdownTeams = new ArrayList<>();
+            List<String> skipTeams = new ArrayList<>();
+            for (String name : orderedTeamNames) {
+                if (isSkipTeam(name)) {
+                    skipTeams.add(name);
+                } else {
+                    dropdownTeams.add(name);
+                }
+            }
+
+            // Scrape all teams via dropdown first
+            for (String currentTeamName : dropdownTeams) {
                 selectTeamFromDropdown(driver, wait, currentTeamName);
+                newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, currentTeamName, league));
+            }
+
+            // Scrape skip teams via direct URL navigation
+            for (String currentTeamName : skipTeams) {
+                String overrideUrl = TEAM_OVERRIDE_URLS.get(currentTeamName);
+                if (overrideUrl == null) {
+                    logger.warn("⚠️ No hay URL override para {}. Saltando.", currentTeamName);
+                    continue;
+                }
+                logger.info("➡️ Navegando directo a {} ({})", currentTeamName, overrideUrl);
+                driver.get(overrideUrl);
+                Thread.sleep(Timings.POST_POPUP_DELAY_MS);
+                closePopupIfPresent(driver, wait);
+                waitForTeamPageTitle(driver, wait, currentTeamName);
                 newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, currentTeamName, league));
             }
 
@@ -393,13 +437,13 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 }
 
                 Select select = new Select(selectElement);
-                List<String> teamNames = new ArrayList<>();
-                for (WebElement option : select.getOptions()) {
-                    String optionText = option.getText() == null ? EMPTY : option.getText().trim();
-                    if (!optionText.isBlank()) {
-                        teamNames.add(optionText);
+                    List<String> teamNames = new ArrayList<>();
+                    for (WebElement option : select.getOptions()) {
+                        String optionText = option.getText() == null ? EMPTY : option.getText().trim();
+                        if (!optionText.isBlank() && isTeamOption(optionText)) {
+                            teamNames.add(optionText);
+                        }
                     }
-                }
 
                 if (!teamNames.isEmpty()) {
                     return teamNames;
@@ -443,8 +487,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_OFFENSIVE_SECTION, this::extractOffensivePlayerFromRow));
 
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
+        String canonicalTeamName = resolveTeamName(teamName);
         for (PlayerDetailDTO player : playersByName.values()) {
-            player.setTeam(teamName);
+            player.setTeam(canonicalTeamName);
             player.setLeague(league);
             persistScrapedPlayer(player, newPlayers);
         }
@@ -1076,7 +1121,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
             try {
                 WebElement teamElement = row.findElement(By.cssSelector(CSS_PLAYER_META_TEAM_NAME));
-                player.setTeam(teamElement.getText().trim().replaceAll(",\\s*$", EMPTY));
+                String rawTeam = teamElement.getText().trim().replaceAll(",\\s*$", EMPTY);
+                player.setTeam(resolveTeamName(rawTeam));
             } catch (NoSuchElementException e) {
                 player.setTeam(EMPTY);
             }
@@ -1184,12 +1230,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         String target = normalize(teamName);
 
         try {
-            // Buscar todos los selects EXCEPTO el locale-select
             List<WebElement> selects = wait.until(d -> d.findElements(By.tagName(CSS_SELECT_TAG)));
 
             for (WebElement selectElement : selects) {
                 try {
-                    // Saltar el select de idioma
                     String selectId = selectElement.getAttribute(ATTR_ID);
                     if (ID_LOCALE_SELECT.equals(selectId)) {
                         continue;
@@ -1197,31 +1241,94 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
                     Select select = new Select(selectElement);
                     List<WebElement> options = select.getOptions();
+
+                    String currentlySelected = select.getFirstSelectedOption().getText().trim();
+                    if (normalize(currentlySelected).equals(target)) {
+                        return;
+                    }
+
                     for (WebElement option : options) {
                         String optionText = option.getText().trim();
                         String normalizedOption = normalize(optionText);
                         if (normalizedOption.equals(target) || normalizedOption.contains(target) || target.contains(normalizedOption)) {
-                            String previousUrl = driver.getCurrentUrl();
+                            String squadBefore = getSquadSectionPreview(driver);
+
                             select.selectByVisibleText(optionText);
 
-                            // Esperar cambio de URL o recarga de datos tras cambiar equipo.
-                            wait.until(d -> !d.getCurrentUrl().equals(previousUrl) || d.findElements(By.cssSelector(CSS_TBODY_TR)).size() > 0);
-                            Thread.sleep(1200);
+                            if (!waitForSquadContentChange(driver, wait, squadBefore)) {
+                                logger.warn("⚠️ La tabla de plantilla no cambió después de seleccionar {}. " +
+                                    "Se reintentará.", teamName);
+
+                                select.selectByVisibleText(optionText);
+                                Thread.sleep(2000);
+                                if (!waitForSquadContentChange(driver, wait, squadBefore)) {
+                                    throw new ScrapingException(
+                                        "No se pudo cambiar al equipo '" + teamName + "' - la tabla no se actualizó");
+                                }
+                            }
+
+                            Thread.sleep(Timings.POST_TEAM_SELECT_DELAY_MS);
                             return;
                         }
                     }
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new ScrapingException("Interrumpido al seleccionar equipo", ie);
+                } catch (ScrapingException e) {
+                    throw e;
                 } catch (Exception e) {
                     // Probar siguiente select
                 }
             }
+        } catch (ScrapingException e) {
+            throw e;
         } catch (Exception e) {
             throw new ScrapingException("Error al intentar seleccionar equipo: " + e.getMessage(), e);
         }
 
         throw new ScrapingException("No se encontró el equipo '" + teamName + "' en el selector de la página");
+    }
+
+    private String getSquadSectionPreview(WebDriver driver) {
+        try {
+            WebElement section = driver.findElement(By.id(TEAM_SQUAD_SUMMARY_SECTION));
+            String text = section.getText();
+            return text != null && text.length() > 100 ? text.substring(0, 100) : text;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private boolean waitForSquadContentChange(WebDriver driver, WebDriverWait wait, String previousPreview) {
+        if (previousPreview == null || previousPreview.isEmpty()) {
+            return true;
+        }
+
+        try {
+            wait.withTimeout(Duration.ofSeconds(8))
+                .pollingEvery(Duration.ofMillis(300))
+                .until(d -> {
+                    String current = getSquadSectionPreview(d);
+                    return !current.equals(previousPreview) && !current.isEmpty();
+                });
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
+    }
+
+    private boolean waitForTeamPageTitle(WebDriver driver, WebDriverWait wait, String expectedTeamName) {
+        try {
+            wait.withTimeout(Duration.ofSeconds(12))
+                .pollingEvery(Duration.ofMillis(300))
+                .until(d -> {
+                    String title = d.getTitle();
+                    return title != null && normalize(title).contains(normalize(expectedTeamName));
+                });
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
     }
 
     private String normalize(String text) {
@@ -1230,6 +1337,43 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             .toLowerCase(Locale.ROOT)
             .trim();
         return normalized;
+    }
+
+    private boolean isSkipTeam(String teamName) {
+        String normalized = normalize(teamName);
+        for (String skip : SKIP_TEAM_NAMES) {
+            if (normalize(skip).equals(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isTeamOption(String optionText) {
+        String normalized = normalize(optionText);
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        for (String nonTeam : NON_TEAM_DROPDOWN_OPTIONS) {
+            if (normalized.contains(nonTeam)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String resolveTeamName(String rawName) {
+        if (rawName == null || rawName.isBlank()) {
+            return rawName;
+        }
+        String normalized = normalize(rawName);
+        for (TeamEnum team : TeamEnum.values()) {
+            if (normalize(team.getName()).equals(normalized)) {
+                return team.getName();
+            }
+        }
+        // Fallback: return the original if no match found
+        return rawName;
     }
 
     private ChromeOptions createChromeOptions() {
@@ -1298,11 +1442,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         logger.info("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put(LeagueConstant.LIGUE_1, "Angers");
-        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
         ligas.put(LeagueConstant.PREMIER_LEAGUE, "Arsenal");
+        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
         ligas.put(LeagueConstant.BUNDESLIGA, "Augsburg");
         ligas.put(LeagueConstant.SERIE_A, "AC Milan");
+        ligas.put(LeagueConstant.LIGUE_1, "Angers");
 
         scrapeAllLeagues(ligas, "Scraping automático");
     }
@@ -1318,12 +1462,17 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put(LeagueConstant.LIGUE_1, "Angers");
-        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
         ligas.put(LeagueConstant.PREMIER_LEAGUE, "Arsenal");
+        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
         ligas.put(LeagueConstant.BUNDESLIGA, "Augsburg");
         ligas.put(LeagueConstant.SERIE_A, "AC Milan");
+        ligas.put(LeagueConstant.LIGUE_1, "Angers");
 
         scrapeAllLeagues(ligas, "Scraping forzado");
+
+        int deleted = playerRepository.deleteDuplicatesByNameAndTeam();
+        if (deleted > 0) {
+            logger.info("🧹 Duplicados eliminados después del scraping: {}", deleted);
+        }
     }
 }

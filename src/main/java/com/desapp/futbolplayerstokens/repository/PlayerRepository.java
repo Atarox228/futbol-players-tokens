@@ -36,4 +36,8 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
 
     @Query("SELECT p FROM Player p WHERE p.score IS NULL ORDER BY p.id ASC")
     List<Player> findByScoreNullOrdered(Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "DELETE FROM Player WHERE id NOT IN (SELECT MIN(p2.id) FROM Player p2 GROUP BY p2.name, p2.team)", nativeQuery = true)
+    int deleteDuplicatesByNameAndTeam();
 }

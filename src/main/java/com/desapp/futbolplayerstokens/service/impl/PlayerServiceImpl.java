@@ -43,10 +43,8 @@ public class PlayerServiceImpl implements PlayerService {
         int saved = 0;
         for (PlayerDetailDTO dto : playerDTOs) {
             try {
-                if (playerRepository.findAll().stream()
-                        .anyMatch(p -> p.getName().equals(dto.getName()) &&
-                                      p.getLeague().equals(dto.getLeague()) &&
-                                      p.getTeam().equals(dto.getTeam()))) {
+                if (!playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(
+                        dto.getName().trim(), dto.getTeam().trim()).isEmpty()) {
                     continue;
                 }
 
