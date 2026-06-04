@@ -43,10 +43,6 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew build
       env:
-        # Variables para que Spring conecte a la DB del service de arriba
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/player_market
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: root
         FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
 
     - name: Build Docker Image with Docker Compose

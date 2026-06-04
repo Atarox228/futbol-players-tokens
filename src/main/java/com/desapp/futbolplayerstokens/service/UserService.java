@@ -6,6 +6,7 @@ import com.desapp.futbolplayerstokens.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 @Service
@@ -23,11 +24,15 @@ public class UserService {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new ValidationException("Username already exists");
         }
+        if (userRepository.existsByEmail(email)) {
+            throw new ValidationException("Email already exists");
+        }
         User user = User.builder()
                 .username(username)
                 .password(passwordEncoder.encode(password))
                 .email(email)
                 .role(User.Role.USER)
+                .balance(new BigDecimal("1000"))
                 .build();
         return userRepository.save(user);
     }

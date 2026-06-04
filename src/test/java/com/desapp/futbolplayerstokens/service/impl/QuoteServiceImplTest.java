@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
 import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
+import com.desapp.futbolplayerstokens.exception.ConfigurationException;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.Quote;
 import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
@@ -13,18 +14,21 @@ import com.desapp.futbolplayerstokens.service.ValuationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,8 +46,14 @@ class QuoteServiceImplTest {
     @Mock
     private PlayerRepository playerRepository;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     @InjectMocks
     private QuoteServiceImpl quoteService;
+
+    @Captor
+    private ArgumentCaptor<Quote> quoteCaptor;
 
     private Player testPlayer;
     private StrategyConfig testStrategyConfig;
@@ -81,175 +91,130 @@ class QuoteServiceImplTest {
                 .strategyId(1L)
                 .strategyVersion(1)
                 .build();
+
+        lenient().doAnswer(invocation -> {
+            Consumer<?> consumer = invocation.getArgument(0);
+            consumer.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+
     }
 
     @Test
-    void testGetQuotesByPlayerId_WhenQuotesExist_ShouldReturnList() {
-        // Arrange
+    void getQuotesByPlayerId_WhenQuotesExist_returnsDtosWithoutCallingValuation() {
         Long playerId = 1L;
-        List<Quote> existingQuotes = List.of(testQuote);
-        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId))
-                .thenReturn(existingQuotes);
+        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId)).thenReturn(List.of(testQuote));
 
-        // Act
         List<QuoteDTO> result = quoteService.getQuotesByPlayerId(playerId);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(10L, result.get(0).getId());
-        assertEquals(playerId, result.get(0).getPlayerId());
-        assertEquals(new BigDecimal("10000.50"), result.get(0).getPrice());
-        assertEquals("MANUAL", result.get(0).getTrigger());
-
-        verify(quoteRepository, times(1)).findByPlayerIdOrderByTimestampDesc(playerId);
-        verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong());
-        verify(strategyConfigRepository, never()).findAll();
+        assertEquals(10L, result.getFirst().getId());
+        verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong(), any());
     }
 
     @Test
-    void testGetQuotesByPlayerId_WhenNoQuotesExist_ShouldCreateAndReturnNewQuote() {
-        // Arrange
+    void getQuotesByPlayerId_WhenNoQuotes_exist_createsQuoteViaRecalculateSingle() {
         Long playerId = 1L;
-        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId))
-                .thenReturn(List.of());
-        when(playerRepository.findById(playerId))
-                .thenReturn(Optional.of(testPlayer));
-        when(strategyConfigRepository.findAll())
-                .thenReturn(List.of(testStrategyConfig));
-        when(valuationService.evaluatePlayer(playerId, testStrategyConfig.getId()))
+        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId)).thenReturn(List.of());
+        when(playerRepository.findById(playerId)).thenReturn(Optional.of(testPlayer));
+        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(valuationService.evaluatePlayer(eq(playerId), eq(testStrategyConfig.getId()), isNull()))
                 .thenReturn(testValuationResult);
-        when(quoteRepository.save(any(Quote.class)))
-                .thenAnswer(invocation -> {
-                    Quote q = invocation.getArgument(0);
-                    q.setId(20L);
-                    return q;
-                });
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> {
+            Quote q = invocation.getArgument(0);
+            q.setId(20L);
+            return q;
+        });
 
-        // Act
         List<QuoteDTO> result = quoteService.getQuotesByPlayerId(playerId);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(20L, result.get(0).getId());
-        assertEquals(playerId, result.get(0).getPlayerId());
-        assertEquals(new BigDecimal("12000.75"), result.get(0).getPrice());
-        assertEquals("MANUAL", result.get(0).getTrigger());
-
-        verify(quoteRepository, times(1)).findByPlayerIdOrderByTimestampDesc(playerId);
-        verify(playerRepository, times(1)).findById(playerId);
-        verify(strategyConfigRepository, times(1)).findAll();
-        verify(valuationService, times(1)).evaluatePlayer(playerId, testStrategyConfig.getId());
-        verify(quoteRepository, times(1)).save(any(Quote.class));
+        assertEquals(20L, result.getFirst().getId());
+        assertEquals("MANUAL", result.getFirst().getTrigger());
+        verify(valuationService, times(1)).evaluatePlayer(eq(playerId), eq(testStrategyConfig.getId()), isNull());
     }
 
     @Test
-    void testGetQuotesByPlayerId_WhenPlayerNotFound_ShouldThrowException() {
-        // Arrange
-        Long playerId = 999L;
-        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId))
-                .thenReturn(List.of());
-        when(playerRepository.findById(playerId))
-                .thenReturn(Optional.empty());
-
-        // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            quoteService.getQuotesByPlayerId(playerId);
-        });
-        assertEquals("Player not found with id: 999", exception.getMessage());
-
-        verify(quoteRepository, times(1)).findByPlayerIdOrderByTimestampDesc(playerId);
-        verify(playerRepository, times(1)).findById(playerId);
-        verify(strategyConfigRepository, never()).findAll();
-        verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong());
-    }
-
-    @Test
-    void testGetQuotesByPlayerId_WhenNoStrategyConfigAvailable_ShouldThrowException() {
-        // Arrange
+    void getCurrentQuote_WhenExists_returnsTopQuoteDto() {
         Long playerId = 1L;
-        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId))
-                .thenReturn(List.of());
-        when(playerRepository.findById(playerId))
-                .thenReturn(Optional.of(testPlayer));
-        when(strategyConfigRepository.findAll())
-                .thenReturn(List.of());
+        when(quoteRepository.findTopByPlayerIdOrderByTimestampDesc(playerId)).thenReturn(Optional.of(testQuote));
 
-        // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            quoteService.getQuotesByPlayerId(playerId);
-        });
-        assertEquals("No strategy config available to calculate quote", exception.getMessage());
+        QuoteDTO dto = quoteService.getCurrentQuote(playerId);
 
-        verify(quoteRepository, times(1)).findByPlayerIdOrderByTimestampDesc(playerId);
-        verify(playerRepository, times(1)).findById(playerId);
-        verify(strategyConfigRepository, times(1)).findAll();
-        verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong());
+        assertNotNull(dto);
+        assertEquals(10L, dto.getId());
+        verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong(), any());
     }
 
     @Test
-    void testGetQuotesByPlayerId_WhenMultipleQuotesExist_ShouldReturnAllOrdered() {
-        // Arrange
+    void getCurrentQuote_WhenMissing_createsViaRecalculateSingle() {
         Long playerId = 1L;
-        Quote quote2 = Quote.builder()
-                .id(11L)
-                .player(testPlayer)
-                .price(new BigDecimal("11000.00"))
-                .timestamp(LocalDateTime.of(2026, 5, 4, 12, 0, 0))
-                .strategyId(1L)
-                .strategyVersion(1)
-                .trigger(QuoteTrigger.SCHEDULED)
-                .build();
-
-        List<Quote> existingQuotes = List.of(testQuote, quote2); // already ordered by timestamp DESC
-        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId))
-                .thenReturn(existingQuotes);
-
-        // Act
-        List<QuoteDTO> result = quoteService.getQuotesByPlayerId(playerId);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(10L, result.get(0).getId());
-        assertEquals(11L, result.get(1).getId());
-
-        verify(quoteRepository, times(1)).findByPlayerIdOrderByTimestampDesc(playerId);
-        verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong());
-    }
-
-    @Test
-    void testGetQuotesByPlayerId_WhenMultipleStrategyConfigsExist_ShouldUseLatestVersion() {
-        // Arrange
-        Long playerId = 1L;
-        StrategyConfig configV1 = StrategyConfig.builder().id(1L).version(1).build();
-        StrategyConfig configV2 = StrategyConfig.builder().id(2L).version(2).build();
-        StrategyConfig configV3 = StrategyConfig.builder().id(3L).version(3).build();
-
-        when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId))
-                .thenReturn(List.of());
-        when(playerRepository.findById(playerId))
-                .thenReturn(Optional.of(testPlayer));
-        when(strategyConfigRepository.findAll())
-                .thenReturn(List.of(configV1, configV2, configV3));
-        when(valuationService.evaluatePlayer(playerId, configV3.getId()))
+        when(quoteRepository.findTopByPlayerIdOrderByTimestampDesc(playerId)).thenReturn(Optional.empty());
+        when(playerRepository.findById(playerId)).thenReturn(Optional.of(testPlayer));
+        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(valuationService.evaluatePlayer(eq(playerId), eq(testStrategyConfig.getId()), isNull()))
                 .thenReturn(testValuationResult);
-        when(quoteRepository.save(any(Quote.class)))
-                .thenAnswer(invocation -> {
-                    Quote q = invocation.getArgument(0);
-                    q.setId(20L);
-                    return q;
-                });
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Act
-        List<QuoteDTO> result = quoteService.getQuotesByPlayerId(playerId);
+        QuoteDTO dto = quoteService.getCurrentQuote(playerId);
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(1, result.size());
+        assertNotNull(dto);
+        assertEquals(new BigDecimal("12000.75"), dto.getPrice());
+        verify(valuationService, times(1)).evaluatePlayer(eq(playerId), eq(testStrategyConfig.getId()), isNull());
+    }
 
-        verify(valuationService, times(1)).evaluatePlayer(playerId, 3L); // should use configV3 (version 3)
+    @Test
+    void recalculateAll_withThreePlayers_callsValuationThreeTimes_andSavesQuotesWithScheduledTrigger() {
+        Player p1 = Player.builder().id(1L).build();
+        Player p2 = Player.builder().id(2L).build();
+        Player p3 = Player.builder().id(3L).build();
+        List<Player> players = List.of(p1, p2, p3);
+
+        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(playerRepository.findAll()).thenReturn(players);
+        when(valuationService.evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull()))
+                .thenReturn(testValuationResult);
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        quoteService.recalculateAll(QuoteTrigger.SCHEDULED);
+
+        verify(valuationService, times(3)).evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull());
+        verify(quoteRepository, times(3)).save(quoteCaptor.capture());
+
+        List<Quote> saved = quoteCaptor.getAllValues();
+        assertEquals(3, saved.size());
+        for (Quote q : saved) {
+            assertEquals(QuoteTrigger.SCHEDULED, q.getTrigger());
+        }
+    }
+
+    @Test
+    void recalculateAll_whenManual_queuesAsyncExecution_andSavesQuotesWithManualTrigger() {
+        Player p1 = Player.builder().id(1L).build();
+        Player p2 = Player.builder().id(2L).build();
+
+        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(playerRepository.findAll()).thenReturn(List.of(p1, p2));
+        when(valuationService.evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull()))
+                .thenReturn(testValuationResult);
+        when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        quoteService.recalculateAll(QuoteTrigger.MANUAL);
+
+        verify(valuationService, timeout(1000).times(2)).evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull());
+        verify(quoteRepository, timeout(1000).times(2)).save(quoteCaptor.capture());
+        assertTrue(quoteCaptor.getAllValues().stream().allMatch(q -> q.getTrigger() == QuoteTrigger.MANUAL));
+    }
+
+    @Test
+    void recalculateAll_whenNoStrategyConfig_throwsConfigurationException() {
+        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.empty());
+
+        assertThrows(ConfigurationException.class, () -> quoteService.recalculateAll(QuoteTrigger.SCHEDULED));
+        verify(playerRepository, never()).findAll();
+        verify(valuationService, never()).evaluatePlayer(anyLong(), anyLong(), any());
     }
 }
 

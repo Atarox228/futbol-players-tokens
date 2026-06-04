@@ -14,6 +14,12 @@ import com.desapp.futbolplayerstokens.service.RankingService;
 import jakarta.annotation.security.PermitAll;
 
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/players")
+@Tag(name = "Players", description = "Endpoints para gestión de jugadores de fútbol")
 public class PlayerControllerREST {
 
     private final PlayerService playerService;
@@ -43,14 +50,23 @@ public class PlayerControllerREST {
     }
 
     @GetMapping("/hello")
+    @Operation(summary = "Health check", description = "Endpoint simple para verificar que el servicio está activo")
     public String hello() {
         return "Hello World";
     }
 
     @GetMapping
+    @Operation(summary = "Obtener jugadores", description = "Retorna una lista de jugadores con filtros opcionales por liga, equipo y posición")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Lista de jugadores"),
+        @ApiResponse(responseCode = "400", description = "Error en los parámetros")
+    })
     public ResponseEntity<List<PlayerDTO>> getPlayers(
+            @Parameter(description = "Liga de los jugadores (ej: LALIGA)")
             @RequestParam(required = false) String league,
+            @Parameter(description = "Equipo de los jugadores")
             @RequestParam(required = false) String team,
+            @Parameter(description = "Posición del jugador en el campo")
             @RequestParam(required = false) String position) {
         try {
             List<PlayerDTO> players = playerService.getPlayersWithFilters(league, team, position);
@@ -61,8 +77,15 @@ public class PlayerControllerREST {
     }
 
     @GetMapping("/ranking")
+    @Operation(summary = "Obtener ranking de jugadores", description = "Retorna un ranking paginado de jugadores ordenados por puntuación")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Ranking de jugadores"),
+        @ApiResponse(responseCode = "400", description = "Error en la paginación")
+    })
     public ResponseEntity<List<PlayerRankingDTO>> getRanking(
+            @Parameter(description = "Número de página (comienza en 0)")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Cantidad de registros por página")
             @RequestParam(defaultValue = "20") int size) {
         try {
             List<PlayerRankingDTO> ranking = rankingService.getRanking(page, size);
@@ -73,7 +96,14 @@ public class PlayerControllerREST {
     }
 
     @GetMapping("/{id:[0-9]+}")
-    public ResponseEntity<PlayerDetailDTO> getPlayer(@PathVariable Long id) {
+    @Operation(summary = "Obtener jugador por ID", description = "Retorna la información detallada de un jugador específico")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Jugador encontrado"),
+        @ApiResponse(responseCode = "404", description = "Jugador no encontrado")
+    })
+    public ResponseEntity<PlayerDetailDTO> getPlayer(
+            @Parameter(description = "ID del jugador")
+            @PathVariable Long id) {
         try {
             PlayerDetailDTO player = playerService.getPlayerById(id);
             return ResponseEntity.ok(player);
@@ -83,7 +113,14 @@ public class PlayerControllerREST {
     }
 
     @GetMapping("/{id:[0-9]+}/quotes")
-    public ResponseEntity<List<QuoteDTO>> getQuotes(@PathVariable Long id) {
+    @Operation(summary = "Obtener cotizaciones de un jugador", description = "Retorna el historial de cotizaciones de un jugador específico")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Cotizaciones encontradas"),
+        @ApiResponse(responseCode = "400", description = "Error en la búsqueda")
+    })
+    public ResponseEntity<List<QuoteDTO>> getQuotes(
+            @Parameter(description = "ID del jugador")
+            @PathVariable Long id) {
         try {
             List<QuoteDTO> quotes = quoteService.getQuotesByPlayerId(id);
             return ResponseEntity.ok(quotes);
@@ -93,6 +130,11 @@ public class PlayerControllerREST {
     }
     @PostMapping("/scrape")
     @PermitAll
+    @Operation(summary = "Raspar y actualizar jugadores", description = "Extrae datos de jugadores de fuentes externas y los almacena en la base de datos")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Scrape completado exitosamente"),
+        @ApiResponse(responseCode = "400", description = "Error durante el scraping")
+    })
     public ResponseEntity<String> scrapeAndSavePlayers() {
         try {
             long startTime = System.currentTimeMillis();
