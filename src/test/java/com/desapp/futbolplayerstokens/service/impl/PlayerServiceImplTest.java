@@ -99,7 +99,8 @@ class PlayerServiceImplTest {
         List<PlayerDetailDTO> players = new ArrayList<>();
         players.add(playerDetailDTO);
 
-        when(playerRepository.findAll()).thenReturn(new ArrayList<>());
+        when(playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(anyString(), anyString()))
+                .thenReturn(new ArrayList<>());
         when(playerRepository.save(any(Player.class))).thenReturn(player);
 
         playerService.saveAllPlayers(players);
@@ -113,7 +114,8 @@ class PlayerServiceImplTest {
         List<PlayerDetailDTO> players = new ArrayList<>();
         players.add(playerDetailDTO);
 
-        when(playerRepository.findAll()).thenReturn(List.of(player));
+        when(playerRepository.findByNameIgnoreCaseAndTeamIgnoreCase(anyString(), anyString()))
+                .thenReturn(List.of(player));
 
         playerService.saveAllPlayers(players);
 
