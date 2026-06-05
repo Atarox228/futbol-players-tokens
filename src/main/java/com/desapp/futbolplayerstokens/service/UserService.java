@@ -1,5 +1,6 @@
 package com.desapp.futbolplayerstokens.service;
 
+import com.desapp.futbolplayerstokens.exception.ResourceNotFoundException;
 import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
@@ -39,5 +40,10 @@ public class UserService {
 
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
+    }
+
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }
