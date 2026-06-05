@@ -133,6 +133,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String ERROR_TABLE_NOT_LOADED = "❌ La tabla no cargó. Posible error 502 o servidor caído.";
     private static final String ERROR_DURING_SCRAPING = "❌ Error durante el scraping: ";
 
+    private static final int NAVIGATION_RETRIES = 3;
+    private static final long RETRY_DELAY_MS = 15000;
+
     private final PlayerRepository playerRepository;
     private final PlayerService playerService;
 
@@ -276,11 +279,27 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         return hasNextButton;
     }
 
-    private void prepareLeaguePlayersPage(String url, WebDriver driver, WebDriverWait wait) throws InterruptedException {
-        driver.get(url);
+    private void navigateWithRetry(WebDriver driver, WebDriverWait wait, String url) throws InterruptedException {
+        int attempt = 0;
+        while (attempt < NAVIGATION_RETRIES) {
+            attempt++;
+            driver.get(url);
+            Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
 
-        // Esperar a que cargue la página inicial
-        Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
+            if (!isLikelyHttpErrorPage(driver.getTitle(), driver.getPageSource())) {
+                return;
+            }
+
+            logger.warn("⚠️ Error 502 detectado al cargar {}. Intento {}/{}. Reintentando en 15s...", url, attempt, NAVIGATION_RETRIES);
+            if (attempt < NAVIGATION_RETRIES) {
+                Thread.sleep(RETRY_DELAY_MS);
+            }
+        }
+        throw new ScrapingException(ERROR_HTTP_DETECTED + extractHttpErrorDetails(driver));
+    }
+
+    private void prepareLeaguePlayersPage(String url, WebDriver driver, WebDriverWait wait) throws InterruptedException {
+        navigateWithRetry(driver, wait, url);
 
         // Detectar y cerrar popup de cookies/consentimiento
         closePopupIfPresent(driver, wait);
@@ -344,8 +363,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
 
         try {
-            driver.get(baseUrl);
-            Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
+            navigateWithRetry(driver, wait, baseUrl);
 
             closePopupIfPresent(driver, wait);
             selectTeamFromDropdown(driver, wait, teamName);
@@ -408,7 +426,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                     continue;
                 }
                 logger.info("➡️ Navegando directo a {} ({})", currentTeamName, overrideUrl);
-                driver.get(overrideUrl);
+                navigateWithRetry(driver, wait, overrideUrl);
                 Thread.sleep(Timings.POST_POPUP_DELAY_MS);
                 closePopupIfPresent(driver, wait);
                 waitForTeamPageTitle(driver, wait, currentTeamName);
@@ -551,6 +569,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         if (source.getPosition() != null && !source.getPosition().isBlank()) {
             target.setPosition(source.getPosition());
         }
+        if (source.getAltPosition() != null && !source.getAltPosition().isBlank()) {
+            target.setAltPosition(source.getAltPosition());
+        }
         if (source.getRating() != null) {
             target.setRating(source.getRating());
         }
@@ -639,6 +660,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             existingPlayer.setYellowCards(player.getYellowCards());
             existingPlayer.setRedCards(player.getRedCards());
             existingPlayer.setPlayerOfTheMatch(player.getPlayerOfTheMatch());
+            if (player.getPosition() != null && !player.getPosition().isBlank()) {
+                existingPlayer.setPosition(player.getPosition());
+            }
+            if (player.getAltPosition() != null && !player.getAltPosition().isBlank()) {
+                existingPlayer.setAltPosition(player.getAltPosition());
+            }
             existingPlayer.setLastModifiedAt(LocalDateTime.now());
         }
         playerRepository.saveAll(existingPlayers);
@@ -651,6 +678,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             .team(player.getTeam())
             .league(player.getLeague())
             .position(player.getPosition())
+            .altPosition(player.getAltPosition())
             .appearances(player.getAppearances())
             .minutes(player.getMinutes())
             .goals(player.getGoals())
@@ -970,12 +998,68 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         try {
             List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
             if (positionSpans.size() >= 2) {
-                String position = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
-                player.setPosition(position);
+                String rawPosition = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
+                applyParsedPositions(rawPosition, player);
             }
         } catch (NoSuchElementException e) {
             player.setPosition(EMPTY);
         }
+    }
+
+    static void applyParsedPositions(String raw, PlayerDetailDTO player) {
+        if (raw == null || raw.isBlank()) {
+            player.setPosition(EMPTY);
+            player.setAltPosition(null);
+            return;
+        }
+        java.util.Set<String> rawBases = new java.util.LinkedHashSet<>();
+        java.util.Set<String> result = new java.util.LinkedHashSet<>();
+        String[] parts = raw.split(",");
+        for (String part : parts) {
+            String base = part.trim();
+            int paren = base.indexOf('(');
+            if (paren != -1) {
+                base = base.substring(0, paren).trim();
+            }
+            if (base.isEmpty()) continue;
+            rawBases.add(base.toUpperCase(java.util.Locale.ROOT));
+            String mapped = mapPositionBase(base);
+            if (mapped != null) {
+                result.add(mapped);
+            }
+        }
+        if (rawBases.contains("DM") && !result.contains("Defender")) {
+            result.add("Defender");
+        }
+        if (rawBases.contains("AM") && !result.contains("Forward")) {
+            result.add("Forward");
+        }
+        if (result.isEmpty()) {
+            player.setPosition(EMPTY);
+            player.setAltPosition(null);
+            return;
+        }
+        java.util.Iterator<String> it = result.iterator();
+        player.setPosition(it.next());
+        if (it.hasNext()) {
+            StringBuilder sb = new StringBuilder(it.next());
+            while (it.hasNext()) {
+                sb.append(", ").append(it.next());
+            }
+            player.setAltPosition(sb.toString());
+        } else {
+            player.setAltPosition(null);
+        }
+    }
+
+    private static String mapPositionBase(String base) {
+        if (base == null || base.isBlank()) return null;
+        String u = base.toUpperCase(java.util.Locale.ROOT).trim();
+        if (u.equals("DF") || u.equals("D") || u.equals("DEFENDER")) return "Defender";
+        if (u.equals("ME") || u.equals("MP") || u.equals("MC") || u.equals("M") || u.equals("AM") || u.equals("DM") || u.equals("MIDFIELDER")) return "Midfielder";
+        if (u.equals("FW") || u.equals("DL") || u.equals("FORWARD")) return "Forward";
+        if (u.equals("POR") || u.equals("GOALKEEPER")) return "Goalkeeper";
+        return null;
     }
 
     private Integer parseCellAsInteger(List<WebElement> cells, int index) {
@@ -1053,8 +1137,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             try {
                 List<WebElement> metaDataSpans = row.findElements(By.cssSelector(CSS_PLAYER_META_DATA));
                 if (metaDataSpans.size() >= 2) {
-                    String position = metaDataSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
-                    player.setPosition(position);
+                    String rawPosition = metaDataSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
+                    applyParsedPositions(rawPosition, player);
                 }
             } catch (Exception e) {
                 // Si no se puede extraer la posición, continuar sin ella
@@ -1130,8 +1214,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             try {
                 List<WebElement> positionSpans = row.findElements(By.cssSelector(CSS_NESTED_PLAYER_META_DATA));
                 if (positionSpans.size() >= 2) {
-                    String position = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
-                    player.setPosition(position);
+                    String rawPosition = positionSpans.get(1).getText().trim().replaceAll(REGEX_LEADING_COMMA_SPACE, EMPTY);
+                    applyParsedPositions(rawPosition, player);
                 } else {
                     player.setPosition(EMPTY);
                 }

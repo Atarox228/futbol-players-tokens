@@ -70,7 +70,8 @@ public class AuthController {
             cookie.setAttribute("SameSite", "Strict");
             response.addCookie(cookie);
 
-            return ResponseEntity.ok(Map.of("token", token, "message", "Login successful"));
+            User user = userService.findByUsername(request.getUsername()).orElseThrow(() -> new RuntimeException("User not found"));
+            return ResponseEntity.ok(Map.of("token", token, "message", "Login successful", "userId", user.getId()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Invalid credentials");
         }

@@ -73,6 +73,8 @@ public class PlayerDetailDTO {
     private Integer playerOfTheMatch;
     @Schema(description = "Puntuación del jugador", example = "85.5")
     private BigDecimal score;
+    @Schema(description = "Posición alternativa del jugador", example = "Midfielder")
+    private String altPosition;
 
     public static PlayerDetailDTO toDTO(Player player) {
         return PlayerDetailDTO.builder()
@@ -109,6 +111,7 @@ public class PlayerDetailDTO {
                 .redCards(player.getRedCards())
                 .playerOfTheMatch(player.getPlayerOfTheMatch())
                 .score(player.getScore())
+                .altPosition(player.getAltPosition())
                 .build();
     }
 }

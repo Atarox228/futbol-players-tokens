@@ -16,7 +16,7 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
     @Query("SELECT p FROM Player p WHERE " +
            "(:league IS NULL OR p.league = :league) AND " +
            "(:team IS NULL OR p.team = :team) AND " +
-           "(:position IS NULL OR p.position = :position)")
+           "(:position IS NULL OR p.position = :position OR p.altPosition = :position)")
     List<Player> findByFilters(
             @Param("league") String league,
             @Param("team") String team,

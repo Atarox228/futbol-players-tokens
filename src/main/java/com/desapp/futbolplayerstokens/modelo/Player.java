@@ -27,6 +27,7 @@ public class Player {
     private String team;
     private String league;
     private String position;
+    private String altPosition;
     private Double rating;
     private Integer appearances;
     private Integer minutes;

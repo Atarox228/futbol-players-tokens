@@ -23,6 +23,8 @@ public class PlayerDTO {
     private String position;
     @Schema(description = "Puntuación del jugador", example = "85.5")
     private BigDecimal score;
+    @Schema(description = "Posición alternativa del jugador", example = "Midfielder")
+    private String altPosition;
 
     public static PlayerDTO toDTO(Player player) {
         return PlayerDTO.builder()
@@ -32,6 +34,7 @@ public class PlayerDTO {
                 .league(player.getLeague())
                 .position(player.getPosition())
                 .score(player.getScore())
+                .altPosition(player.getAltPosition())
                 .build();
     }
     

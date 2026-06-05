@@ -101,6 +101,7 @@ public class PlayerServiceImpl implements PlayerService {
             .team(dto.getTeam())
             .league(dto.getLeague())
             .position(dto.getPosition())
+            .altPosition(dto.getAltPosition())
             .appearances(dto.getAppearances())
             .minutes(dto.getMinutes())
             .goals(dto.getGoals())
@@ -158,6 +159,12 @@ public class PlayerServiceImpl implements PlayerService {
             player.setYellowCards(dto.getYellowCards());
             player.setRedCards(dto.getRedCards());
             player.setPlayerOfTheMatch(dto.getPlayerOfTheMatch());
+            if (dto.getPosition() != null && !dto.getPosition().isBlank()) {
+                player.setPosition(dto.getPosition());
+            }
+            if (dto.getAltPosition() != null && !dto.getAltPosition().isBlank()) {
+                player.setAltPosition(dto.getAltPosition());
+            }
             player.setLastModifiedAt(LocalDateTime.now());
         }
         playerRepository.saveAll(players);
