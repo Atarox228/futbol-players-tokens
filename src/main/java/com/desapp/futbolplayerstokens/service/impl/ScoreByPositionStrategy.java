@@ -5,6 +5,7 @@ import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
 import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
+import com.desapp.futbolplayerstokens.modelo.StrategyConfig.StrategyType;
 import com.desapp.futbolplayerstokens.service.Strategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,35 +30,35 @@ public class ScoreByPositionStrategy implements Strategy {
     private static final BigDecimal ONE = BigDecimal.ONE;
 
     // Forward defaults
-    private static final BigDecimal FW_GOALS = new BigDecimal("0.35");
-    private static final BigDecimal FW_OWN_GOALS = BigDecimal.ZERO;
-    private static final BigDecimal FW_SHOTS = new BigDecimal("0.20");
-    private static final BigDecimal FW_DRIBBLES = new BigDecimal("0.20");
-    private static final BigDecimal FW_ASSISTS = new BigDecimal("0.15");
-    private static final BigDecimal FW_KEYPASSES = new BigDecimal("0.10");
-    private static final BigDecimal FW_RED = new BigDecimal("0.10");
-    private static final BigDecimal FW_YELLOW = new BigDecimal("0.05");
+    private static final BigDecimal FWD_GOALS = new BigDecimal("0.35");
+    private static final BigDecimal FWD_OWN_GOALS = BigDecimal.ZERO;
+    private static final BigDecimal FWD_SHOTS = new BigDecimal("0.20");
+    private static final BigDecimal FWD_DRIBBLES = new BigDecimal("0.20");
+    private static final BigDecimal FWD_ASSISTS = new BigDecimal("0.15");
+    private static final BigDecimal FWD_KEYPASSES = new BigDecimal("0.10");
+    private static final BigDecimal FWD_RED = new BigDecimal("0.10");
+    private static final BigDecimal FWD_YELLOW = new BigDecimal("0.05");
 
     // Midfielder defaults
-    private static final BigDecimal MF_KEYPASSES = new BigDecimal("0.30");
-    private static final BigDecimal MF_PASS_ACCURACY = BigDecimal.ZERO;
-    private static final BigDecimal MF_ASSISTS = new BigDecimal("0.25");
-    private static final BigDecimal MF_DRIBBLES = new BigDecimal("0.20");
-    private static final BigDecimal MF_TACKLES = new BigDecimal("0.15");
-    private static final BigDecimal MF_RATING = new BigDecimal("0.10");
-    private static final BigDecimal MF_YELLOW = new BigDecimal("0.05");
-    private static final BigDecimal MF_RED = new BigDecimal("0.10");
+    private static final BigDecimal MID_KEYPASSES = new BigDecimal("0.30");
+    private static final BigDecimal MID_PASS_ACCURACY = BigDecimal.ZERO;
+    private static final BigDecimal MID_ASSISTS = new BigDecimal("0.25");
+    private static final BigDecimal MID_DRIBBLES = new BigDecimal("0.20");
+    private static final BigDecimal MID_TACKLES = new BigDecimal("0.15");
+    private static final BigDecimal MID_RATING = new BigDecimal("0.10");
+    private static final BigDecimal MID_YELLOW = new BigDecimal("0.05");
+    private static final BigDecimal MID_RED = new BigDecimal("0.10");
 
     // Defender defaults
-    private static final BigDecimal DF_TACKLES = new BigDecimal("0.30");
-    private static final BigDecimal DF_INTERCEPTIONS = new BigDecimal("0.25");
-    private static final BigDecimal DF_OWN_GOALS = BigDecimal.ZERO;
-    private static final BigDecimal DF_FAULTS = BigDecimal.ZERO;
-    private static final BigDecimal DF_CLEARS = new BigDecimal("0.20");
-    private static final BigDecimal DF_BLOCKS = new BigDecimal("0.15");
-    private static final BigDecimal DF_RATING = new BigDecimal("0.10");
-    private static final BigDecimal DF_RED = new BigDecimal("0.10");
-    private static final BigDecimal DF_YELLOW = new BigDecimal("0.05");
+    private static final BigDecimal DEF_TACKLES = new BigDecimal("0.30");
+    private static final BigDecimal DEF_INTERCEPTIONS = new BigDecimal("0.25");
+    private static final BigDecimal DEF_OWN_GOALS = BigDecimal.ZERO;
+    private static final BigDecimal DEF_FAULTS = BigDecimal.ZERO;
+    private static final BigDecimal DEF_CLEARS = new BigDecimal("0.20");
+    private static final BigDecimal DEF_BLOCKS = new BigDecimal("0.15");
+    private static final BigDecimal DEF_RATING = new BigDecimal("0.10");
+    private static final BigDecimal DEF_RED = new BigDecimal("0.10");
+    private static final BigDecimal DEF_YELLOW = new BigDecimal("0.05");
 
     // Goalkeeper defaults
     private static final BigDecimal GK_CLEARS = new BigDecimal("0.40");
@@ -115,6 +116,20 @@ public class ScoreByPositionStrategy implements Strategy {
                 .build();
     }
 
+    public static StrategyType resolveType(String position) {
+        String pos = position == null ? "" : position.trim().toUpperCase(java.util.Locale.ROOT);
+        if (pos.isEmpty()) return StrategyType.GENERAL;
+        String[] fwVals = new String[]{"FW","ST","CF","SS","LW","RW","WF","LF","RF","FORWARD","DELANTERO","STRIKER"};
+        for (String v : fwVals) if (pos.contains(v)) return StrategyType.FORWARD;
+        String[] mfVals = new String[]{"MF","MID","AM","CM","DM","CAM","CDM","LM","RM","WM","MEDIOCAMPO","MIDFIELDER"};
+        for (String v : mfVals) if (pos.contains(v)) return StrategyType.MIDFIELDER;
+        String[] dfVals = new String[]{"DF","DEF","CB","LB","RB","LWB","RWB","SW","DEFENSA","DEFENDER"};
+        for (String v : dfVals) if (pos.contains(v)) return StrategyType.DEFENDER;
+        String[] gkVals = new String[]{"GK","GKP","POR","PT","GOALKEEPER","ARQUERO"};
+        for (String v : gkVals) if (pos.contains(v)) return StrategyType.GOALKEEPER;
+        return StrategyType.GENERAL;
+    }
+
     private boolean isForward(String pos) {
         String[] vals = new String[]{"FW","ST","CF","SS","LW","RW","WF","LF","RF","FORWARD","DELANTERO","STRIKER"};
         for (String v : vals) if (pos.contains(v)) return true;
@@ -149,15 +164,15 @@ public class ScoreByPositionStrategy implements Strategy {
         BigDecimal red = norm(p.getRedCards(), 3.0);
         BigDecimal yellow = norm(p.getYellowCards(), 10.0);
 
-        BigDecimal positive = getW(weights, "fw_goals", FW_GOALS).multiply(goals)
-                .add(getW(weights, "fw_ownGoals", FW_OWN_GOALS).multiply(ownGoals))
-                .add(getW(weights, "fw_shots", FW_SHOTS).multiply(shots))
-                .add(getW(weights, "fw_dribbles", FW_DRIBBLES).multiply(dribbles))
-                .add(getW(weights, "fw_assists", FW_ASSISTS).multiply(assists))
-                .add(getW(weights, "fw_keyPasses", FW_KEYPASSES).multiply(keyPasses));
+        BigDecimal positive = getW(weights, "goals", FWD_GOALS).multiply(goals)
+                .add(getW(weights, "ownGoals", FWD_OWN_GOALS).multiply(ownGoals))
+                .add(getW(weights, "shots", FWD_SHOTS).multiply(shots))
+                .add(getW(weights, "dribbles", FWD_DRIBBLES).multiply(dribbles))
+                .add(getW(weights, "assists", FWD_ASSISTS).multiply(assists))
+                .add(getW(weights, "keyPasses", FWD_KEYPASSES).multiply(keyPasses));
 
-        BigDecimal negative = getW(weights, "fw_redCards", FW_RED).multiply(red)
-                .add(getW(weights, "fw_yellowCards", FW_YELLOW).multiply(yellow));
+        BigDecimal negative = getW(weights, "redCards", FWD_RED).multiply(red)
+                .add(getW(weights, "yellowCards", FWD_YELLOW).multiply(yellow));
 
         return positive.subtract(negative);
     }
@@ -172,15 +187,15 @@ public class ScoreByPositionStrategy implements Strategy {
         BigDecimal red = norm(p.getRedCards(), 3.0);
         BigDecimal yellow = norm(p.getYellowCards(), 10.0);
 
-        BigDecimal positive = getW(weights, "mf_keyPasses", MF_KEYPASSES).multiply(keyPasses)
-                .add(getW(weights, "mf_passAccuracy", MF_PASS_ACCURACY).multiply(passAccuracy))
-                .add(getW(weights, "mf_assists", MF_ASSISTS).multiply(assists))
-                .add(getW(weights, "mf_dribbles", MF_DRIBBLES).multiply(dribbles))
-                .add(getW(weights, "mf_tackles", MF_TACKLES).multiply(tackles))
-                .add(getW(weights, "mf_rating", MF_RATING).multiply(rating));
+        BigDecimal positive = getW(weights, "keyPasses", MID_KEYPASSES).multiply(keyPasses)
+                .add(getW(weights, "passAccuracy", MID_PASS_ACCURACY).multiply(passAccuracy))
+                .add(getW(weights, "assists", MID_ASSISTS).multiply(assists))
+                .add(getW(weights, "dribbles", MID_DRIBBLES).multiply(dribbles))
+                .add(getW(weights, "tackles", MID_TACKLES).multiply(tackles))
+                .add(getW(weights, "rating", MID_RATING).multiply(rating));
 
-        BigDecimal negative = getW(weights, "mf_yellowCards", MF_YELLOW).multiply(yellow)
-                .add(getW(weights, "mf_redCards", MF_RED).multiply(red));
+        BigDecimal negative = getW(weights, "yellowCards", MID_YELLOW).multiply(yellow)
+                .add(getW(weights, "redCards", MID_RED).multiply(red));
 
         return positive.subtract(negative);
     }
@@ -196,16 +211,16 @@ public class ScoreByPositionStrategy implements Strategy {
         BigDecimal red = norm(p.getRedCards(), 3.0);
         BigDecimal yellow = norm(p.getYellowCards(), 10.0);
 
-        BigDecimal positive = getW(weights, "df_tackles", DF_TACKLES).multiply(tackles)
-                .add(getW(weights, "df_interceptions", DF_INTERCEPTIONS).multiply(interceptions))
-                .add(getW(weights, "df_clears", DF_CLEARS).multiply(clears))
-                .add(getW(weights, "df_blocks", DF_BLOCKS).multiply(blocks))
-                .add(getW(weights, "df_rating", DF_RATING).multiply(rating));
+        BigDecimal positive = getW(weights, "tackles", DEF_TACKLES).multiply(tackles)
+                .add(getW(weights, "interceptions", DEF_INTERCEPTIONS).multiply(interceptions))
+                .add(getW(weights, "clears", DEF_CLEARS).multiply(clears))
+                .add(getW(weights, "blocks", DEF_BLOCKS).multiply(blocks))
+                .add(getW(weights, "rating", DEF_RATING).multiply(rating));
 
-        BigDecimal negative = getW(weights, "df_redCards", DF_RED).multiply(red)
-                .add(getW(weights, "df_yellowCards", DF_YELLOW).multiply(yellow))
-                .add(getW(weights, "df_ownGoals", DF_OWN_GOALS).multiply(ownGoals))
-                .add(getW(weights, "df_faults", DF_FAULTS).multiply(faults));
+        BigDecimal negative = getW(weights, "redCards", DEF_RED).multiply(red)
+                .add(getW(weights, "yellowCards", DEF_YELLOW).multiply(yellow))
+                .add(getW(weights, "ownGoals", DEF_OWN_GOALS).multiply(ownGoals))
+                .add(getW(weights, "faults", DEF_FAULTS).multiply(faults));
 
         return positive.subtract(negative);
     }
@@ -217,12 +232,12 @@ public class ScoreByPositionStrategy implements Strategy {
         BigDecimal rating = normRating(p.getRating());
         BigDecimal red = norm(p.getRedCards(), 3.0);
 
-        BigDecimal positive = getW(weights, "gk_clears", GK_CLEARS).multiply(clears)
-                .add(getW(weights, "gk_blocks", GK_BLOCKS).multiply(blocks))
-                .add(getW(weights, "gk_interceptions", GK_INTERCEPTIONS).multiply(interceptions))
-                .add(getW(weights, "gk_rating", GK_RATING).multiply(rating));
+        BigDecimal positive = getW(weights, "clears", GK_CLEARS).multiply(clears)
+                .add(getW(weights, "blocks", GK_BLOCKS).multiply(blocks))
+                .add(getW(weights, "interceptions", GK_INTERCEPTIONS).multiply(interceptions))
+                .add(getW(weights, "rating", GK_RATING).multiply(rating));
 
-        BigDecimal negative = getW(weights, "gk_redCards", GK_RED).multiply(red);
+        BigDecimal negative = getW(weights, "redCards", GK_RED).multiply(red);
 
         return positive.subtract(negative);
     }
