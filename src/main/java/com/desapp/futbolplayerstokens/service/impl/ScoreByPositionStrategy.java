@@ -29,6 +29,10 @@ public class ScoreByPositionStrategy implements Strategy {
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final BigDecimal ONE = BigDecimal.ONE;
 
+    private static final String KEY_RED_CARDS = "redCards";
+    private static final String KEY_YELLOW_CARDS = "yellowCards";
+    private static final String KEY_RATING = "rating";
+
     // Forward defaults
     private static final BigDecimal FWD_GOALS = new BigDecimal("0.35");
     private static final BigDecimal FWD_OWN_GOALS = BigDecimal.ZERO;
@@ -171,8 +175,8 @@ public class ScoreByPositionStrategy implements Strategy {
                 .add(getW(weights, "assists", FWD_ASSISTS).multiply(assists))
                 .add(getW(weights, "keyPasses", FWD_KEYPASSES).multiply(keyPasses));
 
-        BigDecimal negative = getW(weights, "redCards", FWD_RED).multiply(red)
-                .add(getW(weights, "yellowCards", FWD_YELLOW).multiply(yellow));
+        BigDecimal negative = getW(weights, KEY_RED_CARDS, FWD_RED).multiply(red)
+                .add(getW(weights, KEY_YELLOW_CARDS, FWD_YELLOW).multiply(yellow));
 
         return positive.subtract(negative);
     }
@@ -192,10 +196,10 @@ public class ScoreByPositionStrategy implements Strategy {
                 .add(getW(weights, "assists", MID_ASSISTS).multiply(assists))
                 .add(getW(weights, "dribbles", MID_DRIBBLES).multiply(dribbles))
                 .add(getW(weights, "tackles", MID_TACKLES).multiply(tackles))
-                .add(getW(weights, "rating", MID_RATING).multiply(rating));
+                .add(getW(weights, KEY_RATING, MID_RATING).multiply(rating));
 
-        BigDecimal negative = getW(weights, "yellowCards", MID_YELLOW).multiply(yellow)
-                .add(getW(weights, "redCards", MID_RED).multiply(red));
+        BigDecimal negative = getW(weights, KEY_YELLOW_CARDS, MID_YELLOW).multiply(yellow)
+                .add(getW(weights, KEY_RED_CARDS, MID_RED).multiply(red));
 
         return positive.subtract(negative);
     }
@@ -215,10 +219,10 @@ public class ScoreByPositionStrategy implements Strategy {
                 .add(getW(weights, "interceptions", DEF_INTERCEPTIONS).multiply(interceptions))
                 .add(getW(weights, "clears", DEF_CLEARS).multiply(clears))
                 .add(getW(weights, "blocks", DEF_BLOCKS).multiply(blocks))
-                .add(getW(weights, "rating", DEF_RATING).multiply(rating));
+                .add(getW(weights, KEY_RATING, DEF_RATING).multiply(rating));
 
-        BigDecimal negative = getW(weights, "redCards", DEF_RED).multiply(red)
-                .add(getW(weights, "yellowCards", DEF_YELLOW).multiply(yellow))
+        BigDecimal negative = getW(weights, KEY_RED_CARDS, DEF_RED).multiply(red)
+                .add(getW(weights, KEY_YELLOW_CARDS, DEF_YELLOW).multiply(yellow))
                 .add(getW(weights, "ownGoals", DEF_OWN_GOALS).multiply(ownGoals))
                 .add(getW(weights, "faults", DEF_FAULTS).multiply(faults));
 
@@ -235,9 +239,9 @@ public class ScoreByPositionStrategy implements Strategy {
         BigDecimal positive = getW(weights, "clears", GK_CLEARS).multiply(clears)
                 .add(getW(weights, "blocks", GK_BLOCKS).multiply(blocks))
                 .add(getW(weights, "interceptions", GK_INTERCEPTIONS).multiply(interceptions))
-                .add(getW(weights, "rating", GK_RATING).multiply(rating));
+                .add(getW(weights, KEY_RATING, GK_RATING).multiply(rating));
 
-        BigDecimal negative = getW(weights, "redCards", GK_RED).multiply(red);
+        BigDecimal negative = getW(weights, KEY_RED_CARDS, GK_RED).multiply(red);
 
         return positive.subtract(negative);
     }
