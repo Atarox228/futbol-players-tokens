@@ -26,6 +26,14 @@ public class DataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
 
+    private static final String ASSISTS = "assists";
+    private static final String RATING = "rating";
+    private static final String KEY_PASSES = "keyPasses";
+    private static final String DRIBBLES = "dribbles";
+    private static final String TACKLES = "tackles";
+    private static final String YELLOW_CARDS = "yellowCards";
+    private static final String RED_CARDS = "redCards";
+
     private final UserService userService;
     private final PlayerScraperService scraperService;
     private final PlayerRepository playerRepository;
@@ -110,14 +118,14 @@ public class DataLoader implements ApplicationRunner {
     private void createGeneralStrategy() {
         Map<String, BigDecimal> weights = new LinkedHashMap<>();
         weights.put("goals", new BigDecimal("0.25"));
-        weights.put("assists", new BigDecimal("0.15"));
-        weights.put("rating", new BigDecimal("0.20"));
+        weights.put(ASSISTS, new BigDecimal("0.15"));
+        weights.put(RATING, new BigDecimal("0.20"));
         weights.put("minutes", BigDecimal.ZERO);
-        weights.put("keyPasses", new BigDecimal("0.10"));
-        weights.put("dribbles", new BigDecimal("0.10"));
-        weights.put("tackles", new BigDecimal("0.10"));
-        weights.put("yellowCards", new BigDecimal("0.05"));
-        weights.put("redCards", new BigDecimal("0.05"));
+        weights.put(KEY_PASSES, new BigDecimal("0.10"));
+        weights.put(DRIBBLES, new BigDecimal("0.10"));
+        weights.put(TACKLES, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
+        weights.put(RED_CARDS, new BigDecimal("0.05"));
 
         StrategyConfig cfg = StrategyConfig.builder()
                 .type(StrategyConfig.StrategyType.GENERAL)
@@ -134,11 +142,11 @@ public class DataLoader implements ApplicationRunner {
         weights.put("goals", new BigDecimal("0.35"));
         weights.put("ownGoals", BigDecimal.ZERO);
         weights.put("shots", new BigDecimal("0.20"));
-        weights.put("dribbles", new BigDecimal("0.20"));
-        weights.put("assists", new BigDecimal("0.15"));
-        weights.put("keyPasses", new BigDecimal("0.10"));
-        weights.put("redCards", new BigDecimal("0.10"));
-        weights.put("yellowCards", new BigDecimal("0.05"));
+        weights.put(DRIBBLES, new BigDecimal("0.20"));
+        weights.put(ASSISTS, new BigDecimal("0.15"));
+        weights.put(KEY_PASSES, new BigDecimal("0.10"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
 
         StrategyConfig cfg = StrategyConfig.builder()
                 .type(StrategyConfig.StrategyType.FORWARD)
@@ -152,14 +160,14 @@ public class DataLoader implements ApplicationRunner {
 
     private void createMidfielderStrategy() {
         Map<String, BigDecimal> weights = new LinkedHashMap<>();
-        weights.put("keyPasses", new BigDecimal("0.30"));
+        weights.put(KEY_PASSES, new BigDecimal("0.30"));
         weights.put("passAccuracy", BigDecimal.ZERO);
-        weights.put("assists", new BigDecimal("0.25"));
-        weights.put("dribbles", new BigDecimal("0.20"));
-        weights.put("tackles", new BigDecimal("0.15"));
-        weights.put("rating", new BigDecimal("0.10"));
-        weights.put("yellowCards", new BigDecimal("0.05"));
-        weights.put("redCards", new BigDecimal("0.10"));
+        weights.put(ASSISTS, new BigDecimal("0.25"));
+        weights.put(DRIBBLES, new BigDecimal("0.20"));
+        weights.put(TACKLES, new BigDecimal("0.15"));
+        weights.put(RATING, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
 
         StrategyConfig cfg = StrategyConfig.builder()
                 .type(StrategyConfig.StrategyType.MIDFIELDER)
@@ -173,13 +181,13 @@ public class DataLoader implements ApplicationRunner {
 
     private void createDefenderStrategy() {
         Map<String, BigDecimal> weights = new LinkedHashMap<>();
-        weights.put("tackles", new BigDecimal("0.30"));
+        weights.put(TACKLES, new BigDecimal("0.30"));
         weights.put("interceptions", new BigDecimal("0.25"));
         weights.put("clears", new BigDecimal("0.20"));
         weights.put("blocks", new BigDecimal("0.15"));
-        weights.put("rating", new BigDecimal("0.10"));
-        weights.put("redCards", new BigDecimal("0.10"));
-        weights.put("yellowCards", new BigDecimal("0.05"));
+        weights.put(RATING, new BigDecimal("0.10"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
         weights.put("ownGoals", BigDecimal.ZERO);
         weights.put("faults", BigDecimal.ZERO);
 
@@ -198,8 +206,8 @@ public class DataLoader implements ApplicationRunner {
         weights.put("clears", new BigDecimal("0.40"));
         weights.put("blocks", new BigDecimal("0.30"));
         weights.put("interceptions", new BigDecimal("0.20"));
-        weights.put("rating", new BigDecimal("0.10"));
-        weights.put("redCards", new BigDecimal("0.10"));
+        weights.put(RATING, new BigDecimal("0.10"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
 
         StrategyConfig cfg = StrategyConfig.builder()
                 .type(StrategyConfig.StrategyType.GOALKEEPER)
