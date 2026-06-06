@@ -91,12 +91,7 @@ public class QuoteServiceImpl implements QuoteService {
     @Override
     @Transactional
     public void recalculateAll(QuoteTrigger trigger) {
-        try {
-            transactionTemplate.executeWithoutResult(status -> doRecalculateAll(trigger));
-        } catch (Exception e) {
-            LOGGER.error("Error during recalculation", e);
-            throw e;
-        }
+        transactionTemplate.executeWithoutResult(status -> doRecalculateAll(trigger));
     }
 
     private void doRecalculateAll(QuoteTrigger trigger) {
