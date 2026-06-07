@@ -96,5 +96,5 @@ public class FutbolPlayersTokensApplication {
         }
 
         return loadedVariables > 0;
-    }
+    }   
 }

@@ -68,6 +68,11 @@ public class OrderControllerREST {
         return orderService.sellAll(userId, "sell-all-" + LocalDate.now());
     }
 
+    @GetMapping("/player/{playerId}")
+    public List<OrderDTO> ordersByPlayer(@PathVariable Long playerId) {
+        return orderService.getOrdersByPlayer(playerId);
+    }
+
     @PostMapping("/{id}/cancel")
     public OrderDTO cancelOrder(@PathVariable Long id) {
         Long userId = currentUserId();

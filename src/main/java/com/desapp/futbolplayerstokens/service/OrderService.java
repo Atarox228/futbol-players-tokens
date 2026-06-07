@@ -19,5 +19,6 @@ public interface OrderService {
     Page<OrderDTO> getOrderBook(Order.OrderType type, Pageable pageable);
     List<OrderDTO> getAllPendingOrders();
     List<OrderDTO> sellAll(Long userId, String idempotencyKeyPrefix);
+    List<OrderDTO> getOrdersByPlayer(Long playerId);
 }
 

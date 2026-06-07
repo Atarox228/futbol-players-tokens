@@ -85,8 +85,6 @@ public class OrderServiceImpl implements OrderService {
             User user = order.getUser();
             user.setBalance(user.getBalance().add(refund));
             userRepository.save(user);
-        } else {
-            portfolioService.updatePosition(userId, order.getPlayer().getId(), remaining, BigDecimal.ZERO, Order.OrderType.BUY);
         }
 
         order.setStatus(Order.OrderStatus.CANCELLED);
@@ -210,8 +208,6 @@ public class OrderServiceImpl implements OrderService {
             throw new InsufficientTokensException(quantity, portfolio.getTokenQty());
         }
 
-        portfolioService.updatePosition(userId, playerId, quantity, minPrice, Order.OrderType.SELL);
-
         Order order = Order.builder()
                 .user(user)
                 .player(player)
@@ -314,10 +310,21 @@ public class OrderServiceImpl implements OrderService {
 
         if (sellOrder.getRemainingQuantity() == 0) {
             sellOrder.setStatus(Order.OrderStatus.FILLED);
-        } else {
+        } else if (sellOrder.getRemainingQuantity() < sellOrder.getQuantity()) {
             sellOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
         }
         orderRepository.save(sellOrder);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getOrdersByPlayer(Long playerId) {
+        Player player = findPlayer(playerId);
+        return orderRepository.findByPlayerAndStatusIn(player,
+                List.of(Order.OrderStatus.PENDING, Order.OrderStatus.PARTIALLY_FILLED))
+                .stream()
+                .map(OrderDTO::toDTO)
+                .toList();
     }
 
     private User findUser(Long userId) {
