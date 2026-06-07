@@ -16,10 +16,13 @@ import com.desapp.futbolplayerstokens.service.OrderService;
 import com.desapp.futbolplayerstokens.service.PortfolioService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -103,12 +106,36 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderDTO> getPendingOrdersByUserId(Long userId) {
+    public Page<OrderDTO> getTransactionsByUserId(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return orderRepository.findByUserAndStatus(user, Order.OrderStatus.PENDING).stream()
-                .map(OrderDTO::toDTO)
-                .toList();
+        return orderRepository.findByUser(user, pageable).map(OrderDTO::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getPendingOrdersByUserId(Long userId) {
+        return getPendingOrdersByUserId(userId, null, Pageable.unpaged()).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderDTO> getPendingOrdersByUserId(Long userId, Order.OrderType type, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return (type == null
+                ? orderRepository.findByUserAndStatus(user, Order.OrderStatus.PENDING, pageable)
+                : orderRepository.findByUserAndStatusAndType(user, Order.OrderStatus.PENDING, type, pageable))
+                .map(OrderDTO::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderDTO> getOrderBook(Order.OrderType type, Pageable pageable) {
+        return (type == null
+                ? orderRepository.findByStatus(Order.OrderStatus.PENDING, pageable)
+                : orderRepository.findByStatusAndType(Order.OrderStatus.PENDING, type, pageable))
+                .map(OrderDTO::toDTO);
     }
 
     @Override
@@ -117,6 +144,21 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.findByStatus(Order.OrderStatus.PENDING).stream()
                 .map(OrderDTO::toDTO)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public List<OrderDTO> sellAll(Long userId, String idempotencyKeyPrefix) {
+        User user = findUser(userId);
+        List<Portfolio> portfolio = portfolioRepository.findByUser(user);
+        List<OrderDTO> orders = new ArrayList<>();
+        for (Portfolio p : portfolio) {
+            if (p.getTokenQty() <= 0) continue;
+            String key = idempotencyKeyPrefix + "-" + p.getPlayer().getId();
+            OrderDTO order = sell(userId, p.getPlayer().getId(), p.getTokenQty(), key, null);
+            orders.add(order);
+        }
+        return orders;
     }
 
     private OrderDTO createBuyOrder(Long userId, Long playerId, int quantity, String idempotencyKey, BigDecimal maxPrice) {

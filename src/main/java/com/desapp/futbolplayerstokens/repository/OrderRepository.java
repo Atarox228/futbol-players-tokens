@@ -3,6 +3,8 @@ package com.desapp.futbolplayerstokens.repository;
 import com.desapp.futbolplayerstokens.modelo.Order;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,7 +25,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findPendingBuyOrdersForSell(@Param("player") Player player, @Param("minPrice") BigDecimal minPrice);
 
     List<Order> findByUserAndStatus(User user, Order.OrderStatus status);
+    Page<Order> findByUserAndStatus(User user, Order.OrderStatus status, Pageable pageable);
 
     List<Order> findByStatus(Order.OrderStatus status);
+    Page<Order> findByStatus(Order.OrderStatus status, Pageable pageable);
+
+    List<Order> findByStatusAndType(Order.OrderStatus status, Order.OrderType type);
+    Page<Order> findByStatusAndType(Order.OrderStatus status, Order.OrderType type, Pageable pageable);
+
+    List<Order> findByUserAndStatusAndType(User user, Order.OrderStatus status, Order.OrderType type);
+    Page<Order> findByUserAndStatusAndType(User user, Order.OrderStatus status, Order.OrderType type, Pageable pageable);
+
+    Page<Order> findByUser(User user, Pageable pageable);
 }
 
