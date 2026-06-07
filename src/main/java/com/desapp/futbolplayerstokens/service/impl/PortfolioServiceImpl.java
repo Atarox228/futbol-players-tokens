@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.PortfolioDTO;
+import com.desapp.futbolplayerstokens.exception.InsufficientTokensException;
 import com.desapp.futbolplayerstokens.exception.ResourceNotFoundException;
 import com.desapp.futbolplayerstokens.modelo.Order;
 import com.desapp.futbolplayerstokens.modelo.Player;
@@ -108,5 +109,39 @@ public class PortfolioServiceImpl implements PortfolioService {
 
         portfolio.setTokenQty(newQty);
         portfolioRepository.save(portfolio);
+    }
+
+    @Override
+    @Transactional
+    public void transferTokens(Long fromUserId, Long toUserId, Long playerId, int quantity) {
+        User fromUser = userRepository.findById(fromUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("From user not found"));
+        User toUser = userRepository.findById(toUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("To user not found"));
+        Player player = playerRepository.findById(playerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
+
+        Portfolio fromPortfolio = portfolioRepository.findByUserAndPlayer(fromUser, player)
+                .orElseThrow(() -> new ResourceNotFoundException("From user has no portfolio for this player"));
+
+        if (fromPortfolio.getTokenQty() < quantity) {
+            throw new InsufficientTokensException(quantity, fromPortfolio.getTokenQty());
+        }
+
+        updateSellPosition(fromPortfolio, quantity);
+
+        Portfolio toPortfolio = portfolioRepository.findByUserAndPlayer(toUser, player).orElse(null);
+        if (toPortfolio == null) {
+            Portfolio newPortfolio = Portfolio.builder()
+                    .user(toUser)
+                    .player(player)
+                    .tokenQty(quantity)
+                    .avgBuyPrice(BigDecimal.ZERO)
+                    .build();
+            portfolioRepository.save(newPortfolio);
+        } else {
+            toPortfolio.setTokenQty(toPortfolio.getTokenQty() + quantity);
+            portfolioRepository.save(toPortfolio);
+        }
     }
 }

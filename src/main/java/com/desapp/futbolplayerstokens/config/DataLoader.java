@@ -1,10 +1,12 @@
 package com.desapp.futbolplayerstokens.config;
 
 import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.Portfolio;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.OrderRepository;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
@@ -40,19 +42,22 @@ public class DataLoader implements ApplicationRunner {
     private final StrategyConfigRepository strategyConfigRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final PortfolioRepository portfolioRepository;
 
     public DataLoader(UserService userService,
                       PlayerScraperService scraperService,
                       PlayerRepository playerRepository,
                       StrategyConfigRepository strategyConfigRepository,
                       OrderRepository orderRepository,
-                      UserRepository userRepository) {
+                      UserRepository userRepository,
+                      PortfolioRepository portfolioRepository) {
         this.userService = userService;
         this.scraperService = scraperService;
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.portfolioRepository = portfolioRepository;
     }
 
     @Override
@@ -67,6 +72,7 @@ public class DataLoader implements ApplicationRunner {
         createSuperuserIfMissing();
         createTestUsersIfMissing();
         createDefaultStrategyIfMissing();
+        seedSuperuserPortfolio();
     }
 
     private void loadMockPlayers() {
@@ -101,6 +107,24 @@ public class DataLoader implements ApplicationRunner {
             if (userRepository.findByUsername(uname).isEmpty()) {
                 userService.registerUser(uname, "password", uname + "@example.com");
                 // ensure balance is set to 1000 by default on creation
+            }
+        }
+    }
+
+    private void seedSuperuserPortfolio() {
+        User superuser = userRepository.findByUsername("superuser").orElse(null);
+        if (superuser == null) return;
+
+        for (Player player : playerRepository.findAll()) {
+            if (portfolioRepository.findByUserAndPlayer(superuser, player).isEmpty()) {
+                Portfolio portfolio = Portfolio.builder()
+                        .user(superuser)
+                        .player(player)
+                        .tokenQty(player.getTotalTokens())
+                        .avgBuyPrice(BigDecimal.ZERO)
+                        .build();
+                portfolioRepository.save(portfolio);
+                log.info("Seeded superuser portfolio for player {} with {} tokens", player.getName(), player.getTotalTokens());
             }
         }
     }

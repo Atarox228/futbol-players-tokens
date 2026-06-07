@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -24,19 +25,31 @@ public class OrderControllerREST {
     @PostMapping("/buy")
     public OrderDTO buy(@RequestBody BuyRequest req) {
         Long userId = currentUserId();
-        return orderService.buy(userId, req.playerId, req.quantity, req.idempotencyKey);
+        return orderService.buy(userId, req.playerId, req.quantity, req.idempotencyKey, req.maxPrice);
     }
 
     @PostMapping("/sell")
     public OrderDTO sell(@RequestBody SellRequest req) {
         Long userId = currentUserId();
-        return orderService.sell(userId, req.playerId, req.quantity, req.idempotencyKey);
+        return orderService.sell(userId, req.playerId, req.quantity, req.idempotencyKey, req.minPrice);
     }
 
     @GetMapping("/transactions")
     public List<OrderDTO> transactions() {
         Long userId = currentUserId();
         return orderService.getTransactionsByUserId(userId);
+    }
+
+    @GetMapping("/pending")
+    public List<OrderDTO> pendingOrders() {
+        Long userId = currentUserId();
+        return orderService.getPendingOrdersByUserId(userId);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public OrderDTO cancelOrder(@PathVariable Long id) {
+        Long userId = currentUserId();
+        return orderService.cancelOrder(userId, id);
     }
 
     private Long currentUserId() {
@@ -48,13 +61,15 @@ public class OrderControllerREST {
     public record BuyRequest(
             Long playerId,
             int quantity,
-            String idempotencyKey
+            String idempotencyKey,
+            BigDecimal maxPrice
     ) {}
 
     public record SellRequest(
             Long playerId,
             int quantity,
-            String idempotencyKey
+            String idempotencyKey,
+            BigDecimal minPrice
     ) {}
 
 }

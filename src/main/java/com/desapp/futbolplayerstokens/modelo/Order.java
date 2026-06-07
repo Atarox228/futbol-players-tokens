@@ -46,12 +46,26 @@ public class Order {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
+
+    @Column(nullable = false)
+    private int remainingQuantity;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
+        if (status == null) {
+            status = OrderStatus.PENDING;
+        }
+        if (remainingQuantity == 0) {
+            remainingQuantity = quantity;
+        }
     }
 
     public enum OrderType { BUY, SELL }
+    public enum OrderStatus { PENDING, PARTIALLY_FILLED, FILLED, CANCELLED }
 }
