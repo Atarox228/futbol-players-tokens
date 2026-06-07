@@ -7,6 +7,7 @@ import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.Quote;
 import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
+import com.desapp.futbolplayerstokens.modelo.StrategyConfig.StrategyType;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.repository.QuoteRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
@@ -67,13 +68,13 @@ class QuoteServiceImplTest {
                 .name("Messi")
                 .team("Barcelona")
                 .league("LaLiga")
-                .position("RW")
                 .rating(9.5)
                 .build();
 
         testStrategyConfig = StrategyConfig.builder()
                 .id(1L)
                 .version(1)
+                .type(StrategyType.GENERAL)
                 .build();
 
         testQuote = Quote.builder()
@@ -118,7 +119,7 @@ class QuoteServiceImplTest {
         Long playerId = 1L;
         when(quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId)).thenReturn(List.of());
         when(playerRepository.findById(playerId)).thenReturn(Optional.of(testPlayer));
-        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)).thenReturn(Optional.of(testStrategyConfig));
         when(valuationService.evaluatePlayer(eq(playerId), eq(testStrategyConfig.getId()), isNull()))
                 .thenReturn(testValuationResult);
         when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> {
@@ -153,7 +154,7 @@ class QuoteServiceImplTest {
         Long playerId = 1L;
         when(quoteRepository.findTopByPlayerIdOrderByTimestampDesc(playerId)).thenReturn(Optional.empty());
         when(playerRepository.findById(playerId)).thenReturn(Optional.of(testPlayer));
-        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)).thenReturn(Optional.of(testStrategyConfig));
         when(valuationService.evaluatePlayer(eq(playerId), eq(testStrategyConfig.getId()), isNull()))
                 .thenReturn(testValuationResult);
         when(quoteRepository.save(any(Quote.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -172,7 +173,7 @@ class QuoteServiceImplTest {
         Player p3 = Player.builder().id(3L).build();
         List<Player> players = List.of(p1, p2, p3);
 
-        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)).thenReturn(Optional.of(testStrategyConfig));
         when(playerRepository.findAll()).thenReturn(players);
         when(valuationService.evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull()))
                 .thenReturn(testValuationResult);
@@ -191,11 +192,11 @@ class QuoteServiceImplTest {
     }
 
     @Test
-    void recalculateAll_whenManual_queuesAsyncExecution_andSavesQuotesWithManualTrigger() {
+    void recalculateAll_whenManual_savesQuotesWithManualTrigger() {
         Player p1 = Player.builder().id(1L).build();
         Player p2 = Player.builder().id(2L).build();
 
-        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.of(testStrategyConfig));
+        when(strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)).thenReturn(Optional.of(testStrategyConfig));
         when(playerRepository.findAll()).thenReturn(List.of(p1, p2));
         when(valuationService.evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull()))
                 .thenReturn(testValuationResult);
@@ -203,14 +204,14 @@ class QuoteServiceImplTest {
 
         quoteService.recalculateAll(QuoteTrigger.MANUAL);
 
-        verify(valuationService, timeout(1000).times(2)).evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull());
-        verify(quoteRepository, timeout(1000).times(2)).save(quoteCaptor.capture());
+        verify(valuationService, times(2)).evaluatePlayer(anyLong(), eq(testStrategyConfig.getId()), isNull());
+        verify(quoteRepository, times(2)).save(quoteCaptor.capture());
         assertTrue(quoteCaptor.getAllValues().stream().allMatch(q -> q.getTrigger() == QuoteTrigger.MANUAL));
     }
 
     @Test
     void recalculateAll_whenNoStrategyConfig_throwsConfigurationException() {
-        when(strategyConfigRepository.findTopByOrderByVersionDesc()).thenReturn(Optional.empty());
+        when(strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)).thenReturn(Optional.empty());
 
         assertThrows(ConfigurationException.class, () -> quoteService.recalculateAll(QuoteTrigger.SCHEDULED));
         verify(playerRepository, never()).findAll();

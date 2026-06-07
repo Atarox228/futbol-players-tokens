@@ -26,6 +26,14 @@ public class DataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
 
+    private static final String ASSISTS = "assists";
+    private static final String RATING = "rating";
+    private static final String KEY_PASSES = "keyPasses";
+    private static final String DRIBBLES = "dribbles";
+    private static final String TACKLES = "tackles";
+    private static final String YELLOW_CARDS = "yellowCards";
+    private static final String RED_CARDS = "redCards";
+
     private final UserService userService;
     private final PlayerScraperService scraperService;
     private final PlayerRepository playerRepository;
@@ -98,72 +106,117 @@ public class DataLoader implements ApplicationRunner {
     }
 
     private void createDefaultStrategyIfMissing() {
-        if (strategyConfigRepository.findTopByOrderByVersionDesc().isEmpty()) {
-            StrategyConfig cfg = StrategyConfig.builder()
-                    .valorBase(new BigDecimal("1"))
-                    .factorEscala(new BigDecimal("10"))
-                    .version(1)
-                    .weights(defaultStrategyWeights())
-                    .build();
-            strategyConfigRepository.save(cfg);
+        if (strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyConfig.StrategyType.GENERAL).isEmpty()) {
+            createGeneralStrategy();
+            createForwardStrategy();
+            createMidfielderStrategy();
+            createDefenderStrategy();
+            createGoalkeeperStrategy();
         }
     }
 
-    private Map<String, BigDecimal> defaultStrategyWeights() {
+    private void createGeneralStrategy() {
         Map<String, BigDecimal> weights = new LinkedHashMap<>();
+        weights.put("goals", new BigDecimal("0.25"));
+        weights.put(ASSISTS, new BigDecimal("0.15"));
+        weights.put(RATING, new BigDecimal("0.20"));
+        weights.put("minutes", BigDecimal.ZERO);
+        weights.put(KEY_PASSES, new BigDecimal("0.10"));
+        weights.put(DRIBBLES, new BigDecimal("0.10"));
+        weights.put(TACKLES, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
+        weights.put(RED_CARDS, new BigDecimal("0.05"));
 
-        addGeneralStrategyWeights(weights);
-        addPositionStrategyWeights(weights);
-
-        return weights;
+        StrategyConfig cfg = StrategyConfig.builder()
+                .type(StrategyConfig.StrategyType.GENERAL)
+                .valorBase(new BigDecimal("1"))
+                .factorEscala(new BigDecimal("10"))
+                .version(1)
+                .weights(weights)
+                .build();
+        strategyConfigRepository.save(cfg);
     }
 
-    private void addGeneralStrategyWeights(Map<String, BigDecimal> weights) {
-        weights.put("goals", BigDecimal.ZERO);
-        weights.put("assists", BigDecimal.ZERO);
-        weights.put("keyPasses", BigDecimal.ZERO);
-        weights.put("dribbles", BigDecimal.ZERO);
-        weights.put("tackles", BigDecimal.ZERO);
-        weights.put("minutes", new BigDecimal("0.50"));
-        weights.put("rating", new BigDecimal("0.50"));
-        weights.put("yellowCards", new BigDecimal("0.20"));
-        weights.put("redCards", new BigDecimal("0.40"));
+    private void createForwardStrategy() {
+        Map<String, BigDecimal> weights = new LinkedHashMap<>();
+        weights.put("goals", new BigDecimal("0.35"));
+        weights.put("ownGoals", BigDecimal.ZERO);
+        weights.put("shots", new BigDecimal("0.20"));
+        weights.put(DRIBBLES, new BigDecimal("0.20"));
+        weights.put(ASSISTS, new BigDecimal("0.15"));
+        weights.put(KEY_PASSES, new BigDecimal("0.10"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
+
+        StrategyConfig cfg = StrategyConfig.builder()
+                .type(StrategyConfig.StrategyType.FORWARD)
+                .valorBase(new BigDecimal("1"))
+                .factorEscala(new BigDecimal("10"))
+                .version(1)
+                .weights(weights)
+                .build();
+        strategyConfigRepository.save(cfg);
     }
 
-    private void addPositionStrategyWeights(Map<String, BigDecimal> weights) {
-        weights.put("gk_clears", BigDecimal.ONE);
-        weights.put("gk_blocks", BigDecimal.ZERO);
-        weights.put("gk_interceptions", BigDecimal.ZERO);
-        weights.put("gk_rating", BigDecimal.ZERO);
-        weights.put("gk_redCards", BigDecimal.ZERO);
+    private void createMidfielderStrategy() {
+        Map<String, BigDecimal> weights = new LinkedHashMap<>();
+        weights.put(KEY_PASSES, new BigDecimal("0.30"));
+        weights.put("passAccuracy", BigDecimal.ZERO);
+        weights.put(ASSISTS, new BigDecimal("0.25"));
+        weights.put(DRIBBLES, new BigDecimal("0.20"));
+        weights.put(TACKLES, new BigDecimal("0.15"));
+        weights.put(RATING, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
 
-        weights.put("df_interceptions", new BigDecimal("0.35"));
-        weights.put("df_tackles", new BigDecimal("0.35"));
-        weights.put("df_ownGoals", new BigDecimal("0.15"));
-        weights.put("df_faults", new BigDecimal("0.15"));
-        weights.put("df_clears", BigDecimal.ZERO);
-        weights.put("df_blocks", BigDecimal.ZERO);
-        weights.put("df_rating", BigDecimal.ZERO);
-        weights.put("df_redCards", BigDecimal.ZERO);
-        weights.put("df_yellowCards", BigDecimal.ZERO);
+        StrategyConfig cfg = StrategyConfig.builder()
+                .type(StrategyConfig.StrategyType.MIDFIELDER)
+                .valorBase(new BigDecimal("1"))
+                .factorEscala(new BigDecimal("10"))
+                .version(1)
+                .weights(weights)
+                .build();
+        strategyConfigRepository.save(cfg);
+    }
 
-        weights.put("mf_keyPasses", new BigDecimal("0.50"));
-        weights.put("mf_passAccuracy", new BigDecimal("0.50"));
-        weights.put("mf_assists", BigDecimal.ZERO);
-        weights.put("mf_dribbles", BigDecimal.ZERO);
-        weights.put("mf_tackles", BigDecimal.ZERO);
-        weights.put("mf_rating", BigDecimal.ZERO);
-        weights.put("mf_yellowCards", BigDecimal.ZERO);
-        weights.put("mf_redCards", BigDecimal.ZERO);
+    private void createDefenderStrategy() {
+        Map<String, BigDecimal> weights = new LinkedHashMap<>();
+        weights.put(TACKLES, new BigDecimal("0.30"));
+        weights.put("interceptions", new BigDecimal("0.25"));
+        weights.put("clears", new BigDecimal("0.20"));
+        weights.put("blocks", new BigDecimal("0.15"));
+        weights.put(RATING, new BigDecimal("0.10"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
+        weights.put(YELLOW_CARDS, new BigDecimal("0.05"));
+        weights.put("ownGoals", BigDecimal.ZERO);
+        weights.put("faults", BigDecimal.ZERO);
 
-        weights.put("fw_ownGoals", new BigDecimal("0.50"));
-        weights.put("fw_shots", new BigDecimal("0.50"));
-        weights.put("fw_goals", BigDecimal.ZERO);
-        weights.put("fw_dribbles", BigDecimal.ZERO);
-        weights.put("fw_assists", BigDecimal.ZERO);
-        weights.put("fw_keyPasses", BigDecimal.ZERO);
-        weights.put("fw_redCards", BigDecimal.ZERO);
-        weights.put("fw_yellowCards", BigDecimal.ZERO);
+        StrategyConfig cfg = StrategyConfig.builder()
+                .type(StrategyConfig.StrategyType.DEFENDER)
+                .valorBase(new BigDecimal("1"))
+                .factorEscala(new BigDecimal("10"))
+                .version(1)
+                .weights(weights)
+                .build();
+        strategyConfigRepository.save(cfg);
+    }
+
+    private void createGoalkeeperStrategy() {
+        Map<String, BigDecimal> weights = new LinkedHashMap<>();
+        weights.put("clears", new BigDecimal("0.40"));
+        weights.put("blocks", new BigDecimal("0.30"));
+        weights.put("interceptions", new BigDecimal("0.20"));
+        weights.put(RATING, new BigDecimal("0.10"));
+        weights.put(RED_CARDS, new BigDecimal("0.10"));
+
+        StrategyConfig cfg = StrategyConfig.builder()
+                .type(StrategyConfig.StrategyType.GOALKEEPER)
+                .valorBase(new BigDecimal("1"))
+                .factorEscala(new BigDecimal("10"))
+                .version(1)
+                .weights(weights)
+                .build();
+        strategyConfigRepository.save(cfg);
     }
 }
 

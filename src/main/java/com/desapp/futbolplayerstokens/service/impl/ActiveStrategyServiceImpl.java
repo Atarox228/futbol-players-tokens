@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
+import com.desapp.futbolplayerstokens.modelo.StrategyConfig.StrategyType;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.service.ActiveStrategyService;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class ActiveStrategyServiceImpl implements ActiveStrategyService {
 
     @Override
     public StrategyConfig getActiveStrategyConfig() {
-        return strategyConfigRepository.findTopByOrderByVersionDesc()
+        return strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
                 .orElseThrow(() -> new RuntimeException("No active strategy config found"));
     }
 }

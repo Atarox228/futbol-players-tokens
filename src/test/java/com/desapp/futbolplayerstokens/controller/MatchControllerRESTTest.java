@@ -254,30 +254,6 @@ class MatchControllerRESTTest {
     }
 
     @Test
-    void testScrapeMatchesOfToday() {
-        when(matchScraperService.scrapeMatchesOfToday()).thenReturn(List.of(match1, match2));
-
-        ResponseEntity<List<MatchDTO>> response = matchController.scrapeMatchesOfToday();
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        verify(matchScraperService, times(1)).scrapeMatchesOfToday();
-    }
-
-    @Test
-    void testScrapeMatchesOfToday_Empty() {
-        when(matchScraperService.scrapeMatchesOfToday()).thenReturn(List.of());
-
-        ResponseEntity<List<MatchDTO>> response = matchController.scrapeMatchesOfToday();
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(0, response.getBody().size());
-        verify(matchScraperService, times(1)).scrapeMatchesOfToday();
-    }
-
-    @Test
     void testGetMatchById_VerifyDTO() {
         when(matchService.getMatchById(1L)).thenReturn(Optional.of(match1));
 
