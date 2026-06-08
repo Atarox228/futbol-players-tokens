@@ -266,6 +266,8 @@ public class OrderServiceImpl implements OrderService {
 
         if (buyOrder.getRemainingQuantity() == 0) {
             buyOrder.setStatus(Order.OrderStatus.FILLED);
+        } else if (buyOrder.getRemainingQuantity() < buyOrder.getQuantity()) {
+            buyOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
         }
         orderRepository.save(buyOrder);
     }
