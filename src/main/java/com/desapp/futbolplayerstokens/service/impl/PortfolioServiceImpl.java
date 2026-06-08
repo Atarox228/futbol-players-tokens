@@ -14,6 +14,8 @@ import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.PortfolioService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,19 @@ public class PortfolioServiceImpl implements PortfolioService {
                     return PortfolioDTO.of(portfolio, currentPrice);
                 })
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PortfolioDTO> getPortfolio(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return portfolioRepository.findByUser(user, pageable)
+                .map(portfolio -> {
+                    BigDecimal currentPrice = quoteService.getCurrentQuote(portfolio.getPlayer().getId()).getPrice();
+                    return PortfolioDTO.of(portfolio, currentPrice);
+                });
     }
 
     @Override

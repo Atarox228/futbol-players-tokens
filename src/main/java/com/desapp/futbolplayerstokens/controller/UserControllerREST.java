@@ -6,6 +6,9 @@ import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.service.OrderService;
 import com.desapp.futbolplayerstokens.service.PortfolioService;
 import com.desapp.futbolplayerstokens.service.UserService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,8 +33,10 @@ public class UserControllerREST {
     }
 
     @GetMapping("/{id}/portfolio")
-    public List<PortfolioDTO> getPortfolio(@PathVariable("id") Long id) {
-        return portfolioService.getPortfolio(id);
+    public Page<PortfolioDTO> getPortfolio(
+            @PathVariable("id") Long id,
+            @PageableDefault(size = 20, sort = "id") Pageable pageable) {
+        return portfolioService.getPortfolio(id, pageable);
     }
 
     @GetMapping("/{id}/transactions")
