@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.5'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
+    id 'org.sonarqube' version '4.4.1.3373'
 }
 
 group = 'com.DesApp'
@@ -53,4 +55,67 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+def coverageExclusions = [
+        '**/config/**',
+        '**/modelo/**',
+        '**/exception/**',
+        '**/controller/dto/**',
+        '**/security/**',
+        '**/scheduler/**'
+]
+
+jacocoTestReport {
+    dependsOn test
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: coverageExclusions)
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.70
+            }
+
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.60
+            }
+        }
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: coverageExclusions)
+        }))
+    }
+}
+
+sonar {
+    properties {
+        property 'sonar.projectKey', System.getenv('SONAR_PROJECT_KEY')
+        property 'sonar.organization', System.getenv('SONAR_ORGANIZATION')
+        property 'sonar.host.url', 'https://sonarcloud.io'
+        property 'sonar.coverage.jacoco.xmlReportPaths', layout.buildDirectory.file('reports/jacoco/test/jacocoTestReport.xml').get().asFile.absolutePath
+        property 'sonar.exclusions', coverageExclusions.join(',')
+        property 'sonar.qualitygate.wait', 'true'
+        property 'sonar.gradle.skipCompile', 'true'
+    }
 }

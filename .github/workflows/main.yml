@@ -45,6 +45,26 @@ jobs:
       env:
         FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
 
+    - name: Generate Coverage Report
+      run: ./gradlew jacocoTestReport
+
+    - name: Enforce Coverage Thresholds
+      run: ./gradlew jacocoTestCoverageVerification
+
+    - name: SonarCloud Analysis
+      run: ./gradlew sonar
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+        SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Coverage Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: jacoco-html-report
+        path: build/reports/jacoco/test/html
+
     - name: Build Docker Image with Docker Compose
       # Aquí usamos tu config de docker-compose para el empaquetado final
       run: docker compose build
