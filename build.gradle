@@ -70,12 +70,17 @@ sourceSets {
         resources {
             srcDirs = ['src/e2e/resources']
         }
+        compileClasspath += sourceSets.main.output + configurations.e2eCompileClasspath
+        runtimeClasspath += output + compileClasspath + sourceSets.main.output + configurations.e2eRuntimeClasspath
     }
 }
 
 configurations {
+    e2eImplementation.extendsFrom implementation
     e2eImplementation.extendsFrom testImplementation
+    e2eRuntimeOnly.extendsFrom runtimeOnly
     e2eRuntimeOnly.extendsFrom testRuntimeOnly
+    e2eCompileOnly.extendsFrom compileOnly
     e2eCompileOnly.extendsFrom testCompileOnly
     e2eAnnotationProcessor.extendsFrom testAnnotationProcessor
 }
@@ -170,7 +175,7 @@ tasks.named('check') {
 tasks.register('jacocoUnitTestReport', JacocoReport) {
     dependsOn tasks.named('unitTest')
 
-    executionData(tasks.named('unitTest'))
+    executionData(file("${buildDir}/jacoco/unitTest.exec"))
     sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
     classDirectories.setFrom(filteredMainClasses())
 
@@ -184,7 +189,7 @@ tasks.register('jacocoUnitTestReport', JacocoReport) {
 tasks.register('jacocoE2eTestReport', JacocoReport) {
     dependsOn tasks.named('e2eTest')
 
-    executionData(tasks.named('e2eTest'))
+    executionData(file("${buildDir}/jacoco/e2eTest.exec"))
     sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
     classDirectories.setFrom(filteredMainClasses())
 
@@ -199,7 +204,7 @@ tasks.register('jacocoAggregateReport', JacocoReport) {
     dependsOn tasks.named('unitTest')
     dependsOn tasks.named('e2eTest')
 
-    executionData(tasks.named('unitTest'), tasks.named('e2eTest'))
+    executionData(file("${buildDir}/jacoco/unitTest.exec"), file("${buildDir}/jacoco/e2eTest.exec"))
     sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
     classDirectories.setFrom(filteredMainClasses())
 
