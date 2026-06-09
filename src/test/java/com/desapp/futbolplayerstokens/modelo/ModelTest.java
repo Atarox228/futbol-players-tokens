@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -94,7 +95,7 @@ class ModelTest {
         User u = User.builder().id(1L).username("u").email("e").password("p")
                 .role(User.Role.USER).balance(BigDecimal.ZERO).build();
         Player p = Player.builder().name("P1").team("T").build();
-        LocalDateTime now = LocalDateTime.of(2026, 6, 9, 12, 0);
+        LocalDateTime now = LocalDateTime.of(2026, Month.JUNE, 9, 12, 0);
         Order o = Order.builder()
                 .user(u).player(p).type(Order.OrderType.SELL)
                 .quantity(5).priceAtOrder(new BigDecimal("50")).total(new BigDecimal("250"))

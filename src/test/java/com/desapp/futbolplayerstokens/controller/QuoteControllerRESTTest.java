@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Month;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -39,13 +40,12 @@ class QuoteControllerRESTTest {
 
     @Test
     void getCurrentQuote_returnsQuote() {
-        String today = "2026-06-09";
 
         QuoteDTO dto = QuoteDTO.builder()
                 .id(1L)
                 .playerId(10L)
                 .price(new BigDecimal("85.50"))
-                .timestamp(LocalDateTime.of(2026, 6, 9, 12, 0))
+                .timestamp(LocalDateTime.of(2026, Month.JUNE, 9, 12, 0))
                 .trigger("MANUAL")
                 .build();
         when(quoteService.getCurrentQuote(10L)).thenReturn(dto);
