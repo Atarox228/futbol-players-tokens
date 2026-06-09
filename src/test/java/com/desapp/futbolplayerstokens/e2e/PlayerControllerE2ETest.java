@@ -1,26 +1,39 @@
 package com.desapp.futbolplayerstokens.e2e;
 
 import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.repository.OrderRepository;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@WithMockUser
+@Transactional
 class PlayerControllerE2ETest extends AbstractE2ETest {
 
     @Autowired
     private PlayerRepository playerRepository;
 
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private EntityManager entityManager;
+
     private Long playerId;
 
     @BeforeEach
     void setUp() {
+        orderRepository.deleteAll();
         playerRepository.deleteAll();
+        entityManager.flush();
         playerId = playerRepository.save(Player.builder()
                 .name("E2E Player One")
                 .team("Team A")
@@ -35,6 +48,7 @@ class PlayerControllerE2ETest extends AbstractE2ETest {
                 .position("Midfielder")
                 .score(new BigDecimal("75.00"))
                 .build());
+        entityManager.flush();
     }
 
     @Test

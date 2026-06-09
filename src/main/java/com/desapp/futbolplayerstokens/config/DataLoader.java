@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
-@Profile("!test")
+@Profile("!test & !e2e")
 public class DataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
