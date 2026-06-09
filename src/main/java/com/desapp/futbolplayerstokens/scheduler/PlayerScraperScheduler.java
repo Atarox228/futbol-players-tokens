@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
-@Profile("!test")
+@Profile("!test & !e2e")
 public class PlayerScraperScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(PlayerScraperScheduler.class);

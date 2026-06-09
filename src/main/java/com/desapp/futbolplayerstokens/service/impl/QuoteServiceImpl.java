@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 public class QuoteServiceImpl implements QuoteService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(QuoteServiceImpl.class);
+    private static final String ESTRATEGIAINACTIVA = "No active strategy config";
+    private static final String JUGADOR_NOENCONTRADO = "Player not found with id: ";
 
     private final QuoteRepository quoteRepository;
     private final PlayerRepository playerRepository;
@@ -36,8 +38,6 @@ public class QuoteServiceImpl implements QuoteService {
     private final ValuationService valuationService;
     private final TransactionTemplate transactionTemplate;
 
-    private static final String ESTRATEGIAINACTIVA = "No active strategy config";
-    private static final String JUGADOR_NOENCONTRADO = "Player not found with id: ";
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
                             PlayerRepository playerRepository,

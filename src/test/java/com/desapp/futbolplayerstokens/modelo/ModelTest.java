@@ -15,6 +15,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ModelTest {
 
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, Month.JUNE, 9, 12, 0);
+
     // ── User ──
 
     @Test
@@ -95,15 +97,14 @@ class ModelTest {
         User u = User.builder().id(1L).username("u").email("e").password("p")
                 .role(User.Role.USER).balance(BigDecimal.ZERO).build();
         Player p = Player.builder().name("P1").team("T").build();
-        LocalDateTime now = LocalDateTime.of(2026, Month.JUNE, 9, 12, 0);
         Order o = Order.builder()
                 .user(u).player(p).type(Order.OrderType.SELL)
                 .quantity(5).priceAtOrder(new BigDecimal("50")).total(new BigDecimal("250"))
                 .idempotencyKey("key-2")
-                .createdAt(now).status(Order.OrderStatus.PARTIALLY_FILLED).remainingQuantity(2)
+                .createdAt(FIXED_NOW).status(Order.OrderStatus.PARTIALLY_FILLED).remainingQuantity(2)
                 .build();
         o.prePersist();
-        assertEquals(now, o.getCreatedAt());
+        assertEquals(FIXED_NOW, o.getCreatedAt());
         assertEquals(Order.OrderStatus.PARTIALLY_FILLED, o.getStatus());
         assertEquals(2, o.getRemainingQuantity());
     }

@@ -20,6 +20,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -136,18 +137,14 @@ class OrderControllerRESTTest {
 
     @Test
     void sellAll_sellsAllTokens() {
-        String today = "2026-06-09";
-
-        when(orderService.sellAll(1L, "sell-all-" + today))
-                .thenReturn(List.of());
+        String today = LocalDate.of(2026, 6, 9).toString();
+        when(orderService.sellAll(1L, "sell-all-" + today)).thenReturn(List.of());
 
         List<OrderDTO> result = orderController.sellAll();
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-
-        verify(orderService)
-                .sellAll(1L, "sell-all-" + today);
+        verify(orderService).sellAll(1L, "sell-all-" + today);
     }
 
     @Test
