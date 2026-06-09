@@ -2,9 +2,13 @@ package com.desapp.futbolplayerstokens.scheduler;
 
 import com.desapp.futbolplayerstokens.controller.dto.MatchApiDTO;
 import com.desapp.futbolplayerstokens.modelo.Match;
+import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
+import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
+import com.desapp.futbolplayerstokens.service.QuoteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
@@ -35,17 +39,22 @@ public class DynamicMatchScheduler {
     private final MatchRepository matchRepository;
     private final RestTemplate restTemplate;
     private final PlayerScraperService playerScraperService;
+    private final QuoteService quoteService;
+    private final PlayerRepository playerRepository;
     private final ExecutorService sequentialExecutor;
 
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> scheduledMatches = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, MatchScheduleInfo> scheduleInfo = new ConcurrentHashMap<>();
 
     public DynamicMatchScheduler(TaskScheduler taskScheduler, MatchRepository matchRepository,
-                                  RestTemplate restTemplate, PlayerScraperService playerScraperService) {
+                                  RestTemplate restTemplate, PlayerScraperService playerScraperService,
+                                  QuoteService quoteService, PlayerRepository playerRepository) {
         this.taskScheduler = taskScheduler;
         this.matchRepository = matchRepository;
         this.restTemplate = restTemplate;
         this.playerScraperService = playerScraperService;
+        this.quoteService = quoteService;
+        this.playerRepository = playerRepository;
         this.sequentialExecutor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "MatchTaskExecutor");
             t.setDaemon(false);
@@ -142,6 +151,9 @@ public class DynamicMatchScheduler {
                 logger.info("🎯 Scrapeando Team2: {}", team2Name);
                 playerScraperService.scrapeTeamPlayersByName(team2Name, league);
                 logger.info("✅ Team2 scraped");
+
+                recalculateQuotesForTeam(team1Name);
+                recalculateQuotesForTeam(team2Name);
             } else {
                 logger.error("❌ No se pudieron obtener nombres/liga para el partido {}", match.getId());
             }
@@ -220,6 +232,16 @@ public class DynamicMatchScheduler {
         } catch (Exception e) {
             logger.error("❌ Error verificando estado del partido: {}", e.getMessage());
             return false;
+        }
+    }
+
+    private void recalculateQuotesForTeam(String teamName) {
+        if (teamName == null) return;
+        List<Player> players = playerRepository.findByTeamIgnoreCase(teamName);
+        List<Long> playerIds = players.stream().map(Player::getId).toList();
+        if (!playerIds.isEmpty()) {
+            quoteService.recalculatePlayers(playerIds, QuoteTrigger.SCHEDULED);
+            logger.info("📊 Cuotas recalculadas para {} jugadores de {}", playerIds.size(), teamName);
         }
     }
 

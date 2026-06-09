@@ -112,6 +112,27 @@ public class QuoteServiceImpl implements QuoteService {
         LOGGER.info("Recalculation finished. Total players processed: {}", total);
     }
 
+    @Override
+    @Transactional
+    public void recalculatePlayers(List<Long> playerIds, QuoteTrigger trigger) {
+        if (playerIds.isEmpty()) return;
+
+        StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
+                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
+
+        for (Long playerId : playerIds) {
+            Player player = playerRepository.findById(playerId)
+                    .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+            StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
+            StrategyConfig config = type == StrategyType.GENERAL
+                    ? general
+                    : strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
+            recalculateSingle(player, config, trigger);
+        }
+
+        LOGGER.info("Recalculation finished for {} players", playerIds.size());
+    }
+
     private Quote recalculateSingle(Player player, StrategyConfig config, QuoteTrigger trigger) {
         String strategyKey = config.getType() == StrategyType.GENERAL ? null : "POSITION";
         ValuationResult result = valuationService.evaluatePlayer(player.getId(), config.getId(), strategyKey);
