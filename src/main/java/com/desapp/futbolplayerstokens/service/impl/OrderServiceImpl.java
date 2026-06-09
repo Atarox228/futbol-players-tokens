@@ -35,6 +35,8 @@ public class OrderServiceImpl implements OrderService {
     private final PortfolioService portfolioService;
     private final QuoteService quoteService;
 
+    private static final String sinUsuario = "User not found";
+
     public OrderServiceImpl(OrderRepository orderRepository,
                             PortfolioRepository portfolioRepository,
                             PlayerRepository playerRepository,
@@ -96,7 +98,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<OrderDTO> getTransactionsByUserId(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
         return orderRepository.findByUser(user).stream()
                 .map(OrderDTO::toDTO)
                 .toList();
@@ -106,7 +108,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderDTO> getTransactionsByUserId(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
         return orderRepository.findByUser(user, pageable).map(OrderDTO::toDTO);
     }
 
@@ -120,7 +122,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderDTO> getPendingOrdersByUserId(Long userId, Order.OrderType type, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
         return (type == null
                 ? orderRepository.findByUserAndStatus(user, Order.OrderStatus.PENDING, pageable)
                 : orderRepository.findByUserAndStatusAndType(user, Order.OrderStatus.PENDING, type, pageable))
@@ -227,41 +229,60 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void matchBuyOrder(Order buyOrder) {
-        List<Order> sellOrders = orderRepository.findPendingSellOrdersForBuy(
-                buyOrder.getPlayer(), buyOrder.getPriceAtOrder());
+        List<Order> sellOrders = orderRepository
+                .findPendingSellOrdersForBuy(
+                        buyOrder.getPlayer(),
+                        buyOrder.getPriceAtOrder())
+                .stream()
+                .filter(order -> order.getRemainingQuantity() > 0)
+                .toList();
 
         for (Order sellOrder : sellOrders) {
-            if (buyOrder.getRemainingQuantity() <= 0) break;
-            if (sellOrder.getRemainingQuantity() <= 0) continue;
+            if (buyOrder.getRemainingQuantity() <= 0) {
+                break;
+            }
 
-            int matchedQty = Math.min(buyOrder.getRemainingQuantity(), sellOrder.getRemainingQuantity());
+            int matchedQty = Math.min(
+                    buyOrder.getRemainingQuantity(),
+                    sellOrder.getRemainingQuantity());
+
             BigDecimal sellPrice = sellOrder.getPriceAtOrder();
             BigDecimal cost = sellPrice.multiply(BigDecimal.valueOf(matchedQty));
 
-            portfolioService.transferTokens(sellOrder.getUser().getId(), buyOrder.getUser().getId(),
-                    buyOrder.getPlayer().getId(), matchedQty, sellPrice);
+            portfolioService.transferTokens(
+                    sellOrder.getUser().getId(),
+                    buyOrder.getUser().getId(),
+                    buyOrder.getPlayer().getId(),
+                    matchedQty,
+                    sellPrice);
 
             User seller = sellOrder.getUser();
             seller.setBalance(seller.getBalance().add(cost));
             userRepository.save(seller);
 
             if (buyOrder.getPriceAtOrder().compareTo(sellPrice) > 0) {
-                BigDecimal refund = buyOrder.getPriceAtOrder().subtract(sellPrice)
+                BigDecimal refund = buyOrder.getPriceAtOrder()
+                        .subtract(sellPrice)
                         .multiply(BigDecimal.valueOf(matchedQty));
+
                 User buyer = buyOrder.getUser();
                 buyer.setBalance(buyer.getBalance().add(refund));
                 userRepository.save(buyer);
             }
 
-            sellOrder.setRemainingQuantity(sellOrder.getRemainingQuantity() - matchedQty);
+            sellOrder.setRemainingQuantity(
+                    sellOrder.getRemainingQuantity() - matchedQty);
+
             if (sellOrder.getRemainingQuantity() == 0) {
                 sellOrder.setStatus(Order.OrderStatus.FILLED);
             } else {
                 sellOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
             }
+
             orderRepository.save(sellOrder);
 
-            buyOrder.setRemainingQuantity(buyOrder.getRemainingQuantity() - matchedQty);
+            buyOrder.setRemainingQuantity(
+                    buyOrder.getRemainingQuantity() - matchedQty);
         }
 
         if (buyOrder.getRemainingQuantity() == 0) {
@@ -269,45 +290,65 @@ public class OrderServiceImpl implements OrderService {
         } else if (buyOrder.getRemainingQuantity() < buyOrder.getQuantity()) {
             buyOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
         }
+
         orderRepository.save(buyOrder);
     }
 
     private void matchSellOrder(Order sellOrder) {
-        List<Order> buyOrders = orderRepository.findPendingBuyOrdersForSell(
-                sellOrder.getPlayer(), sellOrder.getPriceAtOrder());
+        List<Order> buyOrders = orderRepository
+                .findPendingBuyOrdersForSell(
+                        sellOrder.getPlayer(),
+                        sellOrder.getPriceAtOrder())
+                .stream()
+                .filter(order -> order.getRemainingQuantity() > 0)
+                .toList();
 
         for (Order buyOrder : buyOrders) {
-            if (sellOrder.getRemainingQuantity() <= 0) break;
-            if (buyOrder.getRemainingQuantity() <= 0) continue;
+            if (sellOrder.getRemainingQuantity() <= 0) {
+                break;
+            }
 
-            int matchedQty = Math.min(sellOrder.getRemainingQuantity(), buyOrder.getRemainingQuantity());
+            int matchedQty = Math.min(
+                    sellOrder.getRemainingQuantity(),
+                    buyOrder.getRemainingQuantity());
+
             BigDecimal sellPrice = sellOrder.getPriceAtOrder();
             BigDecimal cost = sellPrice.multiply(BigDecimal.valueOf(matchedQty));
 
-            portfolioService.transferTokens(sellOrder.getUser().getId(), buyOrder.getUser().getId(),
-                    sellOrder.getPlayer().getId(), matchedQty, sellPrice);
+            portfolioService.transferTokens(
+                    sellOrder.getUser().getId(),
+                    buyOrder.getUser().getId(),
+                    sellOrder.getPlayer().getId(),
+                    matchedQty,
+                    sellPrice);
 
             User seller = sellOrder.getUser();
             seller.setBalance(seller.getBalance().add(cost));
             userRepository.save(seller);
 
             if (buyOrder.getPriceAtOrder().compareTo(sellPrice) > 0) {
-                BigDecimal refund = buyOrder.getPriceAtOrder().subtract(sellPrice)
+                BigDecimal refund = buyOrder.getPriceAtOrder()
+                        .subtract(sellPrice)
                         .multiply(BigDecimal.valueOf(matchedQty));
+
                 User buyer = buyOrder.getUser();
                 buyer.setBalance(buyer.getBalance().add(refund));
                 userRepository.save(buyer);
             }
 
-            buyOrder.setRemainingQuantity(buyOrder.getRemainingQuantity() - matchedQty);
+            buyOrder.setRemainingQuantity(
+                    buyOrder.getRemainingQuantity() - matchedQty);
+
             if (buyOrder.getRemainingQuantity() == 0) {
                 buyOrder.setStatus(Order.OrderStatus.FILLED);
             } else {
                 buyOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
             }
+
             orderRepository.save(buyOrder);
 
-            sellOrder.setRemainingQuantity(sellOrder.getRemainingQuantity() - matchedQty);
+            sellOrder.setRemainingQuantity(
+                    sellOrder.getRemainingQuantity() - matchedQty);
         }
 
         if (sellOrder.getRemainingQuantity() == 0) {
@@ -315,6 +356,7 @@ public class OrderServiceImpl implements OrderService {
         } else if (sellOrder.getRemainingQuantity() < sellOrder.getQuantity()) {
             sellOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
         }
+
         orderRepository.save(sellOrder);
     }
 
@@ -331,7 +373,7 @@ public class OrderServiceImpl implements OrderService {
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
     }
 
     private Player findPlayer(Long playerId) {

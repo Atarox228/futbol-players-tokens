@@ -33,6 +33,8 @@ public class PortfolioServiceImpl implements PortfolioService {
     private final QuoteRepository quoteRepository;
     private final QuoteService quoteService;
 
+    private static final String sinUsuario = "User not found";
+
     public PortfolioServiceImpl(PortfolioRepository portfolioRepository,
                                 PlayerRepository playerRepository,
                                 UserRepository userRepository,
@@ -49,7 +51,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Transactional(readOnly = true)
     public List<PortfolioDTO> getPortfolio(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
 
         return portfolioRepository.findByUser(user).stream()
                 .map(portfolio -> {
@@ -63,7 +65,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Transactional(readOnly = true)
     public Page<PortfolioDTO> getPortfolio(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
 
         return portfolioRepository.findByUser(user, pageable)
                 .map(portfolio -> {
@@ -76,7 +78,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Transactional
     public void updatePosition(Long userId, Long playerId, int qty, BigDecimal price, Order.OrderType type) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
 

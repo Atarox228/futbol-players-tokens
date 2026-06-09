@@ -36,7 +36,8 @@ public class QuoteServiceImpl implements QuoteService {
     private final ValuationService valuationService;
     private final TransactionTemplate transactionTemplate;
 
-    private final String estrategiaInactiva = "No active strategy config";
+    private static final String estrategiaInactiva = "No active strategy config";
+    private static final String jugador_NoEncontrado = "Player not found with id: ";
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
                             PlayerRepository playerRepository,
@@ -55,14 +56,14 @@ public class QuoteServiceImpl implements QuoteService {
         List<Quote> quotes = quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId);
         if (quotes.isEmpty()) {
             Player player = playerRepository.findById(playerId)
-                    .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                    .orElseThrow(() -> new RuntimeException(jugador_NoEncontrado + playerId));
 
             StrategyConfig config = resolveConfigForPlayer(player);
             Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
             return List.of(QuoteDTO.toDTO(q));
         }
 
-        return quotes.stream().map(QuoteDTO::toDTO).collect(Collectors.toList());
+        return quotes.stream().map(QuoteDTO::toDTO).toList();
     }
 
     @Override
@@ -73,7 +74,7 @@ public class QuoteServiceImpl implements QuoteService {
         }
 
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                .orElseThrow(() -> new RuntimeException(jugador_NoEncontrado + playerId));
 
         StrategyConfig config = resolveConfigForPlayer(player);
         Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
@@ -122,7 +123,7 @@ public class QuoteServiceImpl implements QuoteService {
 
         for (Long playerId : playerIds) {
             Player player = playerRepository.findById(playerId)
-                    .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                    .orElseThrow(() -> new RuntimeException(jugador_NoEncontrado + playerId));
             StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
             StrategyConfig config = type == StrategyType.GENERAL
                     ? general

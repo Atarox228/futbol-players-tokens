@@ -310,7 +310,8 @@ class OrderServiceImplTest {
                 .quantity(5).priceAtOrder(new BigDecimal("100")).total(new BigDecimal("500"))
                 .idempotencyKey("sell-mid").status(Order.OrderStatus.PENDING).remainingQuantity(5)
                 .build();
-        Order sellExpensive = Order.builder()
+
+                Order.builder()
                 .id(212L).user(seller).player(player).type(Order.OrderType.SELL)
                 .quantity(10).priceAtOrder(new BigDecimal("110")).total(new BigDecimal("1100"))
                 .idempotencyKey("sell-expensive").status(Order.OrderStatus.PENDING).remainingQuantity(10)

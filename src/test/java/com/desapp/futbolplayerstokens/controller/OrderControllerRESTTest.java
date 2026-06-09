@@ -136,14 +136,18 @@ class OrderControllerRESTTest {
 
     @Test
     void sellAll_sellsAllTokens() {
-        String today = java.time.LocalDate.now().toString();
-        when(orderService.sellAll(1L, "sell-all-" + today)).thenReturn(List.of());
+        String today = "2026-06-09";
+
+        when(orderService.sellAll(1L, "sell-all-" + today))
+                .thenReturn(List.of());
 
         List<OrderDTO> result = orderController.sellAll();
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(orderService).sellAll(1L, "sell-all-" + today);
+
+        verify(orderService)
+                .sellAll(1L, "sell-all-" + today);
     }
 
     @Test
