@@ -291,7 +291,7 @@ class OrderServiceImplTest {
 
         assertEquals("PARTIALLY_FILLED", result.getStatus());
         assertEquals(5, result.getRemainingQuantity());
-        verify(portfolioService).transferTokens(2L, 1L, 10L, 5);
+        verify(portfolioService).transferTokens(2L, 1L, 10L, 5, new BigDecimal("100"));
         verify(userRepository, atLeastOnce()).save(seller);
     }
 
@@ -338,8 +338,8 @@ class OrderServiceImplTest {
 
         assertEquals("PARTIALLY_FILLED", result.getStatus());
         assertEquals(2, result.getRemainingQuantity()); // 10 - 3 - 5 = 2
-        verify(portfolioService).transferTokens(2L, 1L, 10L, 3);
-        verify(portfolioService).transferTokens(2L, 1L, 10L, 5);
+        verify(portfolioService).transferTokens(2L, 1L, 10L, 3, new BigDecimal("90"));
+        verify(portfolioService).transferTokens(2L, 1L, 10L, 5, new BigDecimal("100"));
     }
 
     @Test
@@ -378,7 +378,7 @@ class OrderServiceImplTest {
 
         assertEquals("PARTIALLY_FILLED", result.getStatus());
         assertEquals(3, result.getRemainingQuantity()); // 8 - 5 = 3
-        verify(portfolioService).transferTokens(1L, 2L, 10L, 5);
+        verify(portfolioService).transferTokens(1L, 2L, 10L, 5, new BigDecimal("100"));
     }
 
     @Test

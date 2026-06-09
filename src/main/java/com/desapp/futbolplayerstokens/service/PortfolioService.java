@@ -11,6 +11,6 @@ public interface PortfolioService {
     List<PortfolioDTO> getPortfolio(Long userId);
     Page<PortfolioDTO> getPortfolio(Long userId, Pageable pageable);
     void updatePosition(Long userId, Long playerId, int qty, BigDecimal price, com.desapp.futbolplayerstokens.modelo.Order.OrderType type);
-    void transferTokens(Long fromUserId, Long toUserId, Long playerId, int quantity);
+    void transferTokens(Long fromUserId, Long toUserId, Long playerId, int quantity, BigDecimal buyPrice);
 }
 

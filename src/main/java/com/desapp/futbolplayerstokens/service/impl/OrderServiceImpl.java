@@ -239,7 +239,7 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal cost = sellPrice.multiply(BigDecimal.valueOf(matchedQty));
 
             portfolioService.transferTokens(sellOrder.getUser().getId(), buyOrder.getUser().getId(),
-                    buyOrder.getPlayer().getId(), matchedQty);
+                    buyOrder.getPlayer().getId(), matchedQty, sellPrice);
 
             User seller = sellOrder.getUser();
             seller.setBalance(seller.getBalance().add(cost));
@@ -285,7 +285,7 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal cost = sellPrice.multiply(BigDecimal.valueOf(matchedQty));
 
             portfolioService.transferTokens(sellOrder.getUser().getId(), buyOrder.getUser().getId(),
-                    sellOrder.getPlayer().getId(), matchedQty);
+                    sellOrder.getPlayer().getId(), matchedQty, sellPrice);
 
             User seller = sellOrder.getUser();
             seller.setBalance(seller.getBalance().add(cost));

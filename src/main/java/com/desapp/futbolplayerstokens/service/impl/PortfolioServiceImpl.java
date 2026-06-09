@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PortfolioServiceImpl implements PortfolioService {
@@ -128,7 +129,7 @@ public class PortfolioServiceImpl implements PortfolioService {
 
     @Override
     @Transactional
-    public void transferTokens(Long fromUserId, Long toUserId, Long playerId, int quantity) {
+    public void transferTokens(Long fromUserId, Long toUserId, Long playerId, int quantity, BigDecimal buyPrice) {
         User fromUser = userRepository.findById(fromUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("From user not found"));
         User toUser = userRepository.findById(toUserId)
@@ -145,17 +146,25 @@ public class PortfolioServiceImpl implements PortfolioService {
 
         updateSellPosition(fromPortfolio, quantity);
 
+        BigDecimal price = Objects.requireNonNullElseGet(buyPrice, () -> BigDecimal.ZERO);
+        BigDecimal newCost = price.multiply(BigDecimal.valueOf(quantity));
+
         Portfolio toPortfolio = portfolioRepository.findByUserAndPlayer(toUser, player).orElse(null);
         if (toPortfolio == null) {
             Portfolio newPortfolio = Portfolio.builder()
                     .user(toUser)
                     .player(player)
                     .tokenQty(quantity)
-                    .avgBuyPrice(BigDecimal.ZERO)
+                    .avgBuyPrice(price)
                     .build();
             portfolioRepository.save(newPortfolio);
         } else {
-            toPortfolio.setTokenQty(toPortfolio.getTokenQty() + quantity);
+            BigDecimal existingCost = toPortfolio.getAvgBuyPrice()
+                    .multiply(BigDecimal.valueOf(toPortfolio.getTokenQty()));
+            int newQty = toPortfolio.getTokenQty() + quantity;
+            toPortfolio.setAvgBuyPrice(existingCost.add(newCost)
+                    .divide(BigDecimal.valueOf(newQty), 8, RoundingMode.HALF_UP));
+            toPortfolio.setTokenQty(newQty);
             portfolioRepository.save(toPortfolio);
         }
     }
