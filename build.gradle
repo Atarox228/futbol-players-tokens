@@ -7,6 +7,26 @@ plugins {
 
 def MIN_COVERAGE = 0.80
 
+def COVERAGE_EXCLUSIONS = [
+        // Spring Boot
+        'com/desapp/futbolplayerstokens/FutbolPlayersTokensApplication.class',
+
+        // Configuración e infraestructura
+        'com/desapp/futbolplayerstokens/config/**',
+        'com/desapp/futbolplayerstokens/exception/**',
+
+        // DTOs y entidades
+        'com/desapp/futbolplayerstokens/controller/dto/**',
+        'com/desapp/futbolplayerstokens/modelo/**',
+
+        // Schedulers
+        'com/desapp/futbolplayerstokens/scheduler/**',
+
+        // Scrapers Selenium
+        'com/desapp/futbolplayerstokens/service/impl/PlayerScraperServiceImpl*',
+        'com/desapp/futbolplayerstokens/service/impl/MatchScraperServiceImpl*'
+]
+
 group = 'com.DesApp'
 version = '0.0.1-SNAPSHOT'
 description = 'futbol-players-tokens'
@@ -31,15 +51,18 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
     implementation 'org.postgresql:postgresql'
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+
     compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    testRuntimeOnly 'com.h2database:h2'
     annotationProcessor 'org.projectlombok:lombok'
+
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
     // Selenium
     implementation 'org.seleniumhq.selenium:selenium-java:4.15.0'
@@ -48,36 +71,50 @@ dependencies {
     // Swagger / OpenAPI
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
 
+    // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
     testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-    testCompileOnly 'org.projectlombok:lombok'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testAnnotationProcessor 'org.projectlombok:lombok'
+
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
+
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.testcontainers:junit-jupiter'
+
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    testRuntimeOnly 'com.h2database:h2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jacoco {
+    toolVersion = "0.8.14"
 }
 
 tasks.named('test') {
     useJUnitPlatform {
         excludeTags 'e2e'
     }
+
+    finalizedBy(tasks.named('jacocoTestReport'))
 }
 
 tasks.register('e2eTest', Test) {
     dependsOn testClasses
+
     useJUnitPlatform {
         includeTags 'e2e'
     }
+
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
+
     shouldRunAfter test
-    finalizedBy(tasks.named('jacocoTestReport'))
 }
 
 tasks.named('jacocoTestReport', JacocoReport) {
@@ -89,16 +126,21 @@ tasks.named('jacocoTestReport', JacocoReport) {
     }
 
     classDirectories.setFrom(
-        files(classDirectories.files.collect { fileTree(dir: it, exclude: [
-            'com/desapp/futbolplayerstokens/config/**',
-            'com/desapp/futbolplayerstokens/controller/dto/**',
-            'com/desapp/futbolplayerstokens/modelo/**',
-            'com/desapp/futbolplayerstokens/exception/**',
-            'com/desapp/futbolplayerstokens/FutbolPlayersTokensApplication.class'
-        ]) }))
+            files(classDirectories.files.collect {
+                fileTree(dir: it, exclude: COVERAGE_EXCLUSIONS)
+            })
+    )
 }
 
 tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
+    dependsOn(tasks.named('test'))
+
+    classDirectories.setFrom(
+            files(classDirectories.files.collect {
+                fileTree(dir: it, exclude: COVERAGE_EXCLUSIONS)
+            })
+    )
+
     violationRules {
         rule {
             limit {
