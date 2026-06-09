@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 public class QuoteServiceImpl implements QuoteService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(QuoteServiceImpl.class);
+    private static final String PLAYER_NOT_FOUND = "Player not found with id: ";
 
     private final QuoteRepository quoteRepository;
     private final PlayerRepository playerRepository;
@@ -55,7 +56,7 @@ public class QuoteServiceImpl implements QuoteService {
         List<Quote> quotes = quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId);
         if (quotes.isEmpty()) {
             Player player = playerRepository.findById(playerId)
-                    .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                    .orElseThrow(() -> new RuntimeException(PLAYER_NOT_FOUND + playerId));
 
             StrategyConfig config = resolveConfigForPlayer(player);
             Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
@@ -73,7 +74,7 @@ public class QuoteServiceImpl implements QuoteService {
         }
 
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                .orElseThrow(() -> new RuntimeException(PLAYER_NOT_FOUND + playerId));
 
         StrategyConfig config = resolveConfigForPlayer(player);
         Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
@@ -122,7 +123,7 @@ public class QuoteServiceImpl implements QuoteService {
 
         for (Long playerId : playerIds) {
             Player player = playerRepository.findById(playerId)
-                    .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                    .orElseThrow(() -> new RuntimeException(PLAYER_NOT_FOUND + playerId));
             StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
             StrategyConfig config = type == StrategyType.GENERAL
                     ? general

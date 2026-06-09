@@ -20,6 +20,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class QuoteControllerRESTTest {
 
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2026, 6, 9, 12, 0);
+
     @Mock
     private QuoteService quoteService;
 
@@ -43,7 +45,7 @@ class QuoteControllerRESTTest {
                 .id(1L)
                 .playerId(10L)
                 .price(new BigDecimal("85.50"))
-                .timestamp(LocalDateTime.now())
+                .timestamp(FIXED_NOW)
                 .trigger("MANUAL")
                 .build();
         when(quoteService.getCurrentQuote(10L)).thenReturn(dto);

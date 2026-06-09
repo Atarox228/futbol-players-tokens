@@ -27,6 +27,8 @@ import java.util.Objects;
 @Service
 public class PortfolioServiceImpl implements PortfolioService {
 
+    private static final String USER_NOT_FOUND = "User not found";
+
     private final PortfolioRepository portfolioRepository;
     private final PlayerRepository playerRepository;
     private final UserRepository userRepository;
@@ -49,7 +51,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Transactional(readOnly = true)
     public List<PortfolioDTO> getPortfolio(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
 
         return portfolioRepository.findByUser(user).stream()
                 .map(portfolio -> {
@@ -63,7 +65,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Transactional(readOnly = true)
     public Page<PortfolioDTO> getPortfolio(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
 
         return portfolioRepository.findByUser(user, pageable)
                 .map(portfolio -> {
@@ -76,7 +78,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Transactional
     public void updatePosition(Long userId, Long playerId, int qty, BigDecimal price, Order.OrderType type) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
 

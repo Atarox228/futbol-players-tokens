@@ -28,6 +28,8 @@ import java.util.List;
 @Service
 public class OrderServiceImpl implements OrderService {
 
+    private static final String USER_NOT_FOUND = "User not found";
+
     private final OrderRepository orderRepository;
     private final PortfolioRepository portfolioRepository;
     private final PlayerRepository playerRepository;
@@ -96,7 +98,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<OrderDTO> getTransactionsByUserId(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
         return orderRepository.findByUser(user).stream()
                 .map(OrderDTO::toDTO)
                 .toList();
@@ -106,7 +108,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderDTO> getTransactionsByUserId(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
         return orderRepository.findByUser(user, pageable).map(OrderDTO::toDTO);
     }
 
@@ -120,7 +122,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderDTO> getPendingOrdersByUserId(Long userId, Order.OrderType type, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
         return (type == null
                 ? orderRepository.findByUserAndStatus(user, Order.OrderStatus.PENDING, pageable)
                 : orderRepository.findByUserAndStatusAndType(user, Order.OrderStatus.PENDING, type, pageable))
@@ -331,7 +333,7 @@ public class OrderServiceImpl implements OrderService {
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
     }
 
     private Player findPlayer(Long playerId) {

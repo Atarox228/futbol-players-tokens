@@ -35,6 +35,7 @@ public class DataLoader implements ApplicationRunner {
     private static final String TACKLES = "tackles";
     private static final String YELLOW_CARDS = "yellowCards";
     private static final String RED_CARDS = "redCards";
+    private static final String SUPERUSER = "superuser";
 
     private final UserService userService;
     private final PlayerScraperService scraperService;
@@ -89,9 +90,9 @@ public class DataLoader implements ApplicationRunner {
     }
 
     private void createSuperuserIfMissing() {
-        userRepository.findByUsername("superuser").orElseGet(() -> {
+        userRepository.findByUsername(SUPERUSER).orElseGet(() -> {
             User u = User.builder()
-                    .username("superuser")
+                    .username(SUPERUSER)
                     .password(new BCryptPasswordEncoder().encode("superpass"))
                     .email("superuser@example.com")
                     .role(User.Role.SUPERUSER)
@@ -112,7 +113,7 @@ public class DataLoader implements ApplicationRunner {
     }
 
     private void seedSuperuserPortfolio() {
-        User superuser = userRepository.findByUsername("superuser").orElse(null);
+        User superuser = userRepository.findByUsername(SUPERUSER).orElse(null);
         if (superuser == null) return;
 
         for (Player player : playerRepository.findAll()) {
