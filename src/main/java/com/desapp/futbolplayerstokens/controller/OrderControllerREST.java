@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @RestController
@@ -65,7 +66,7 @@ public class OrderControllerREST {
     @PostMapping("/sell-all")
     public List<OrderDTO> sellAll() {
         Long userId = currentUserId();
-        return orderService.sellAll(userId, "sell-all-" + LocalDate.now());
+        return orderService.sellAll(userId, "sell-all-" + LocalDate.now(ZoneId.of("America/Argentina/Buenos_Aires")));
     }
 
     @GetMapping("/player/{playerId}")

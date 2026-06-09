@@ -39,11 +39,13 @@ class QuoteControllerRESTTest {
 
     @Test
     void getCurrentQuote_returnsQuote() {
+        String today = "2026-06-09";
+
         QuoteDTO dto = QuoteDTO.builder()
                 .id(1L)
                 .playerId(10L)
                 .price(new BigDecimal("85.50"))
-                .timestamp(LocalDateTime.now())
+                .timestamp(LocalDateTime.of(2026, 6, 9, 12, 0))
                 .trigger("MANUAL")
                 .build();
         when(quoteService.getCurrentQuote(10L)).thenReturn(dto);

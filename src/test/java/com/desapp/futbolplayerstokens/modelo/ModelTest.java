@@ -94,7 +94,7 @@ class ModelTest {
         User u = User.builder().id(1L).username("u").email("e").password("p")
                 .role(User.Role.USER).balance(BigDecimal.ZERO).build();
         Player p = Player.builder().name("P1").team("T").build();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.of(2026, 6, 9, 12, 0);
         Order o = Order.builder()
                 .user(u).player(p).type(Order.OrderType.SELL)
                 .quantity(5).priceAtOrder(new BigDecimal("50")).total(new BigDecimal("250"))

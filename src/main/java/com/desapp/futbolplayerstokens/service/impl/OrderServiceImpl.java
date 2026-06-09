@@ -35,7 +35,7 @@ public class OrderServiceImpl implements OrderService {
     private final PortfolioService portfolioService;
     private final QuoteService quoteService;
 
-    private static final String sinUsuario = "User not found";
+    private static final String SINUSUARIO = "User not found";
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             PortfolioRepository portfolioRepository,
@@ -98,7 +98,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<OrderDTO> getTransactionsByUserId(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
+                .orElseThrow(() -> new ResourceNotFoundException(SINUSUARIO));
         return orderRepository.findByUser(user).stream()
                 .map(OrderDTO::toDTO)
                 .toList();
@@ -108,7 +108,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderDTO> getTransactionsByUserId(Long userId, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
+                .orElseThrow(() -> new ResourceNotFoundException(SINUSUARIO));
         return orderRepository.findByUser(user, pageable).map(OrderDTO::toDTO);
     }
 
@@ -122,7 +122,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderDTO> getPendingOrdersByUserId(Long userId, Order.OrderType type, Pageable pageable) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
+                .orElseThrow(() -> new ResourceNotFoundException(SINUSUARIO));
         return (type == null
                 ? orderRepository.findByUserAndStatus(user, Order.OrderStatus.PENDING, pageable)
                 : orderRepository.findByUserAndStatusAndType(user, Order.OrderStatus.PENDING, type, pageable))
@@ -373,7 +373,7 @@ public class OrderServiceImpl implements OrderService {
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException(sinUsuario));
+                .orElseThrow(() -> new ResourceNotFoundException(SINUSUARIO));
     }
 
     private Player findPlayer(Long playerId) {

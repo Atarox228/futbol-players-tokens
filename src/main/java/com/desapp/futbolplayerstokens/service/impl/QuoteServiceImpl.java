@@ -36,8 +36,8 @@ public class QuoteServiceImpl implements QuoteService {
     private final ValuationService valuationService;
     private final TransactionTemplate transactionTemplate;
 
-    private static final String estrategiaInactiva = "No active strategy config";
-    private static final String jugador_NoEncontrado = "Player not found with id: ";
+    private static final String ESTRATEGIAINACTIVA = "No active strategy config";
+    private static final String JUGADOR_NOENCONTRADO = "Player not found with id: ";
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
                             PlayerRepository playerRepository,
@@ -56,7 +56,7 @@ public class QuoteServiceImpl implements QuoteService {
         List<Quote> quotes = quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId);
         if (quotes.isEmpty()) {
             Player player = playerRepository.findById(playerId)
-                    .orElseThrow(() -> new RuntimeException(jugador_NoEncontrado + playerId));
+                    .orElseThrow(() -> new RuntimeException(JUGADOR_NOENCONTRADO + playerId));
 
             StrategyConfig config = resolveConfigForPlayer(player);
             Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
@@ -74,7 +74,7 @@ public class QuoteServiceImpl implements QuoteService {
         }
 
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new RuntimeException(jugador_NoEncontrado + playerId));
+                .orElseThrow(() -> new RuntimeException(JUGADOR_NOENCONTRADO + playerId));
 
         StrategyConfig config = resolveConfigForPlayer(player);
         Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
@@ -83,7 +83,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     private StrategyConfig resolveConfigForPlayer(Player player) {
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
-                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
+                .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
         StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
         if (type == StrategyType.GENERAL) return general;
         return strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
@@ -97,7 +97,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     private void doRecalculateAll(QuoteTrigger trigger) {
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
-                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
+                .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
 
         List<Player> players = playerRepository.findAll();
         int total = 0;
@@ -119,11 +119,11 @@ public class QuoteServiceImpl implements QuoteService {
         if (playerIds.isEmpty()) return;
 
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
-                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
+                .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
 
         for (Long playerId : playerIds) {
             Player player = playerRepository.findById(playerId)
-                    .orElseThrow(() -> new RuntimeException(jugador_NoEncontrado + playerId));
+                    .orElseThrow(() -> new RuntimeException(JUGADOR_NOENCONTRADO + playerId));
             StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
             StrategyConfig config = type == StrategyType.GENERAL
                     ? general
