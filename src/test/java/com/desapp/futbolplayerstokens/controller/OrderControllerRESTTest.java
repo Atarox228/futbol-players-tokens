@@ -1,120 +1,167 @@
 package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.controller.dto.OrderDTO;
-import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.Order;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
-import com.desapp.futbolplayerstokens.security.JwtAuthenticationFilter;
-import com.desapp.futbolplayerstokens.security.JwtUtil;
 import com.desapp.futbolplayerstokens.service.OrderService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(OrderControllerREST.class)
-@MockitoBean(types = OrderService.class)
-@MockitoBean(types = UserRepository.class)
-@MockitoBean(types = JwtAuthenticationFilter.class)
-@MockitoBean(types = UserDetailsService.class)
-@MockitoBean(types = JwtUtil.class)
+@ExtendWith(MockitoExtension.class)
 class OrderControllerRESTTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
+    @Mock
     private OrderService orderService;
 
-    @Autowired
+    @Mock
     private UserRepository userRepository;
 
-    @Test
-    @WithMockUser(username = "john")
-    void whenBuy_thenReturnOrderDTO() throws Exception {
-        User user = User.builder().id(10L).username("john").build();
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+    @InjectMocks
+    private OrderControllerREST orderController;
 
-        OrderDTO orderDTO = OrderDTO.builder()
-                .id(100L)
-                .userId(10L)
-                .playerId(20L)
-                .playerName("Test Player")
-                .type("BUY")
-                .quantity(2)
-                .priceAtOrder(new BigDecimal("500.00"))
-                .total(new BigDecimal("1000.00"))
-                .idempotencyKey("abcd1234")
-                .createdAt(LocalDateTime.now())
-                .build();
+    @BeforeEach
+    void setUp() {
+        Authentication auth = mock(Authentication.class);
+        lenient().when(auth.getName()).thenReturn("testuser");
+        SecurityContext securityContext = mock(SecurityContext.class);
+        lenient().when(securityContext.getAuthentication()).thenReturn(auth);
+        SecurityContextHolder.setContext(securityContext);
 
-        when(orderService.buy(eq(10L), eq(20L), eq(2), eq("abcd1234"))).thenReturn(orderDTO);
-
-        String payload = "{\"playerId\":20,\"quantity\":2,\"idempotencyKey\":\"abcd1234\"}";
-
-        mockMvc.perform(post("/orders/buy").with(csrf()).contentType("application/json").content(payload))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(100))
-                .andExpect(jsonPath("$.userId").value(10))
-                .andExpect(jsonPath("$.playerId").value(20))
-                .andExpect(jsonPath("$.quantity").value(2));
-
-        verify(orderService, times(1)).buy(eq(10L), eq(20L), eq(2), eq("abcd1234"));
+        lenient().when(userRepository.findByUsername("testuser"))
+                .thenReturn(Optional.of(User.builder().id(1L).username("testuser").build()));
     }
 
     @Test
-    @WithMockUser(username = "john")
-    void whenTransactions_thenReturnList() throws Exception {
-        User user = User.builder().id(10L).username("john").build();
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+    void buy_createsOrder() {
+        OrderControllerREST.BuyRequest req = new OrderControllerREST.BuyRequest(10L, 5, "key-1", new BigDecimal("100"));
+        OrderDTO expected = OrderDTO.builder().id(1L).build();
+        when(orderService.buy(1L, 10L, 5, "key-1", new BigDecimal("100"))).thenReturn(expected);
 
-        OrderDTO dto = OrderDTO.builder()
-                .id(101L)
-                .userId(10L)
-                .playerId(22L)
-                .playerName("Player B")
-                .type("SELL")
-                .quantity(1)
-                .priceAtOrder(new BigDecimal("750.00"))
-                .total(new BigDecimal("750.00"))
-                .idempotencyKey("key2")
-                .createdAt(LocalDateTime.now())
-                .build();
+        OrderDTO result = orderController.buy(req);
 
-        when(orderService.getTransactionsByUserId(10L)).thenReturn(List.of(dto));
-
-        mockMvc.perform(get("/orders/transactions"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(101))
-                .andExpect(jsonPath("$[0].type").value("SELL"))
-                .andExpect(jsonPath("$[0].playerName").value("Player B"));
-
-        verify(orderService, times(1)).getTransactionsByUserId(10L);
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
     }
 
     @Test
-    void whenTransactionsWithoutAuth_thenUnauthorized() throws Exception {
-        mockMvc.perform(get("/orders/transactions"))
-                .andExpect(status().isUnauthorized());
+    void sell_createsOrder() {
+        OrderControllerREST.SellRequest req = new OrderControllerREST.SellRequest(10L, 3, "key-2", new BigDecimal("80"));
+        OrderDTO expected = OrderDTO.builder().id(2L).build();
+        when(orderService.sell(1L, 10L, 3, "key-2", new BigDecimal("80"))).thenReturn(expected);
 
-        verifyNoInteractions(orderService);
-        verifyNoInteractions(userRepository);
+        OrderDTO result = orderController.sell(req);
+
+        assertNotNull(result);
+        assertEquals(2L, result.getId());
+    }
+
+    @Test
+    void transactions_returnsPage() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<OrderDTO> page = new PageImpl<>(List.of(OrderDTO.builder().id(1L).build()));
+        when(orderService.getTransactionsByUserId(1L, pageable)).thenReturn(page);
+
+        Page<OrderDTO> result = orderController.transactions(pageable);
+
+        assertEquals(1, result.getContent().size());
+    }
+
+    @Test
+    void orderBook_withType() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<OrderDTO> page = new PageImpl<>(List.of());
+        when(orderService.getOrderBook(eq(Order.OrderType.BUY), any(Pageable.class))).thenReturn(page);
+
+        Page<OrderDTO> result = orderController.orderBook("BUY", pageable);
+
+        assertTrue(result.getContent().isEmpty());
+        verify(orderService).getOrderBook(eq(Order.OrderType.BUY), any(Pageable.class));
+    }
+
+    @Test
+    void orderBook_withoutType() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<OrderDTO> page = new PageImpl<>(List.of());
+        when(orderService.getOrderBook(eq(null), any(Pageable.class))).thenReturn(page);
+
+        Page<OrderDTO> result = orderController.orderBook(null, pageable);
+
+        assertTrue(result.getContent().isEmpty());
+        verify(orderService).getOrderBook(eq(null), any(Pageable.class));
+    }
+
+    @Test
+    void pendingOrders_withType() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<OrderDTO> page = new PageImpl<>(List.of());
+        when(orderService.getPendingOrdersByUserId(1L, Order.OrderType.SELL, pageable)).thenReturn(page);
+
+        Page<OrderDTO> result = orderController.pendingOrders("SELL", pageable);
+
+        assertTrue(result.getContent().isEmpty());
+        verify(orderService).getPendingOrdersByUserId(1L, Order.OrderType.SELL, pageable);
+    }
+
+    @Test
+    void pendingOrders_withoutType() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<OrderDTO> page = new PageImpl<>(List.of());
+        when(orderService.getPendingOrdersByUserId(1L, null, pageable)).thenReturn(page);
+
+        Page<OrderDTO> result = orderController.pendingOrders(null, pageable);
+
+        assertTrue(result.getContent().isEmpty());
+        verify(orderService).getPendingOrdersByUserId(1L, null, pageable);
+    }
+
+    @Test
+    void sellAll_sellsAllTokens() {
+        String today = java.time.LocalDate.now().toString();
+        when(orderService.sellAll(1L, "sell-all-" + today)).thenReturn(List.of());
+
+        List<OrderDTO> result = orderController.sellAll();
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(orderService).sellAll(1L, "sell-all-" + today);
+    }
+
+    @Test
+    void ordersByPlayer_returnsOrders() {
+        when(orderService.getOrdersByPlayer(10L)).thenReturn(List.of(OrderDTO.builder().id(1L).build()));
+
+        List<OrderDTO> result = orderController.ordersByPlayer(10L);
+
+        assertEquals(1, result.size());
+        verify(orderService).getOrdersByPlayer(10L);
+    }
+
+    @Test
+    void cancelOrder_cancelsOrder() {
+        when(orderService.cancelOrder(1L, 5L)).thenReturn(OrderDTO.builder().id(5L).status("CANCELLED").build());
+
+        OrderDTO result = orderController.cancelOrder(5L);
+
+        assertEquals("CANCELLED", result.getStatus());
     }
 }

@@ -203,39 +203,23 @@ class ScoreByPositionStrategyTest {
     @Test
     void configuredPositionWeightsUseRequestedMetrics() {
         HashMap<String, BigDecimal> weights = new HashMap<>();
-        weights.put("fw_ownGoals", new BigDecimal("0.50"));
-        weights.put("fw_shots", new BigDecimal("0.50"));
-        weights.put("fw_goals", BigDecimal.ZERO);
-        weights.put("fw_dribbles", BigDecimal.ZERO);
-        weights.put("fw_assists", BigDecimal.ZERO);
-        weights.put("fw_keyPasses", BigDecimal.ZERO);
-        weights.put("fw_redCards", BigDecimal.ZERO);
-        weights.put("fw_yellowCards", BigDecimal.ZERO);
+        weights.put("shots", new BigDecimal("0.40"));
+        weights.put("goals", BigDecimal.ZERO);
+        weights.put("ownGoals", BigDecimal.ZERO);
+        weights.put("dribbles", BigDecimal.ZERO);
+        weights.put("assists", BigDecimal.ZERO);
+        weights.put("keyPasses", new BigDecimal("0.40"));
+        weights.put("redCards", BigDecimal.ZERO);
+        weights.put("yellowCards", BigDecimal.ZERO);
 
-        weights.put("mf_keyPasses", new BigDecimal("0.50"));
-        weights.put("mf_passAccuracy", new BigDecimal("0.50"));
-        weights.put("mf_assists", BigDecimal.ZERO);
-        weights.put("mf_dribbles", BigDecimal.ZERO);
-        weights.put("mf_tackles", BigDecimal.ZERO);
-        weights.put("mf_rating", BigDecimal.ZERO);
-        weights.put("mf_yellowCards", BigDecimal.ZERO);
-        weights.put("mf_redCards", BigDecimal.ZERO);
+        weights.put("passAccuracy", BigDecimal.ZERO);
+        weights.put("tackles", new BigDecimal("0.20"));
+        weights.put("rating", BigDecimal.ZERO);
 
-        weights.put("df_interceptions", new BigDecimal("0.35"));
-        weights.put("df_tackles", new BigDecimal("0.35"));
-        weights.put("df_ownGoals", new BigDecimal("0.15"));
-        weights.put("df_faults", new BigDecimal("0.15"));
-        weights.put("df_clears", BigDecimal.ZERO);
-        weights.put("df_blocks", BigDecimal.ZERO);
-        weights.put("df_rating", BigDecimal.ZERO);
-        weights.put("df_redCards", BigDecimal.ZERO);
-        weights.put("df_yellowCards", BigDecimal.ZERO);
-
-        weights.put("gk_clears", BigDecimal.ONE);
-        weights.put("gk_blocks", BigDecimal.ZERO);
-        weights.put("gk_interceptions", BigDecimal.ZERO);
-        weights.put("gk_rating", BigDecimal.ZERO);
-        weights.put("gk_redCards", BigDecimal.ZERO);
+        weights.put("interceptions", new BigDecimal("0.20"));
+        weights.put("faults", new BigDecimal("0.15"));
+        weights.put("clears", new BigDecimal("0.40"));
+        weights.put("blocks", BigDecimal.ZERO);
 
         StrategyConfig cfg = StrategyConfig.builder()
                 .id(58L)
@@ -250,13 +234,13 @@ class ScoreByPositionStrategyTest {
         Player defender = Player.builder().position("Defensa").interceptions(60.0).tackles(80.0).ownGoals(5).faults(40.0).build();
         Player goalkeeper = Player.builder().position("Arquero").clears(40.0).build();
 
-        assertEquals(new BigDecimal("110.00000000"),
-                strategy.evaluate(ValuationContext.builder().player(forward).strategyConfig(cfg).build()).getPrice());
-        assertEquals(new BigDecimal("110.00000000"),
-                strategy.evaluate(ValuationContext.builder().player(midfielder).strategyConfig(cfg).build()).getPrice());
         assertEquals(new BigDecimal("104.00000000"),
+                strategy.evaluate(ValuationContext.builder().player(forward).strategyConfig(cfg).build()).getPrice());
+        assertEquals(new BigDecimal("104.00000000"),
+                strategy.evaluate(ValuationContext.builder().player(midfielder).strategyConfig(cfg).build()).getPrice());
+        assertEquals(new BigDecimal("102.50000000"),
                 strategy.evaluate(ValuationContext.builder().player(defender).strategyConfig(cfg).build()).getPrice());
-        assertEquals(new BigDecimal("110.00000000"),
+        assertEquals(new BigDecimal("104.00000000"),
                 strategy.evaluate(ValuationContext.builder().player(goalkeeper).strategyConfig(cfg).build()).getPrice());
     }
 }

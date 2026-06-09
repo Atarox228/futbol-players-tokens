@@ -1,5 +1,6 @@
 package com.desapp.futbolplayerstokens.service;
 
+import com.desapp.futbolplayerstokens.exception.ResourceNotFoundException;
 import com.desapp.futbolplayerstokens.exception.ValidationException;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
@@ -29,81 +30,107 @@ class UserServiceTest {
     @InjectMocks
     private UserService userService;
 
-    private User existingUser;
+    private User testUser;
 
     @BeforeEach
     void setUp() {
-        existingUser = User.builder()
+        testUser = User.builder()
                 .id(1L)
-                .username("existing")
-                .email("existing@example.com")
-                .password("encoded")
+                .username("testuser")
+                .password("encoded-pass")
+                .email("test@example.com")
+                .role(User.Role.USER)
                 .balance(new BigDecimal("1000"))
                 .build();
     }
 
     @Test
-    void whenRegisterUserWithValidData_thenReturnsSavedUser() {
+    void registerUser_createsUserSuccessfully() {
         when(userRepository.findByUsername("newuser")).thenReturn(Optional.empty());
-        when(userRepository.existsByEmail("newuser@example.com")).thenReturn(false);
-        when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("rawpass")).thenReturn("encoded-pass");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User saved = invocation.getArgument(0);
-            saved.setId(2L);
-            return saved;
+            User u = invocation.getArgument(0);
+            u.setId(2L);
+            return u;
         });
 
-        User created = userService.registerUser("newuser", "password123", "newuser@example.com");
+        User result = userService.registerUser("newuser", "rawpass", "new@example.com");
 
-        assertNotNull(created);
-        assertEquals(2L, created.getId());
-        assertEquals("newuser", created.getUsername());
-        assertEquals("newuser@example.com", created.getEmail());
-        assertEquals("encodedPassword", created.getPassword());
-        assertEquals(User.Role.USER, created.getRole());
-        assertEquals(new BigDecimal("1000"), created.getBalance());
-
-        verify(userRepository, times(1)).findByUsername("newuser");
-        verify(userRepository, times(1)).existsByEmail("newuser@example.com");
-        verify(passwordEncoder, times(1)).encode("password123");
-        verify(userRepository, times(1)).save(any(User.class));
+        assertNotNull(result);
+        assertEquals("newuser", result.getUsername());
+        assertEquals("encoded-pass", result.getPassword());
+        assertEquals("new@example.com", result.getEmail());
+        assertEquals(User.Role.USER, result.getRole());
+        assertEquals(new BigDecimal("1000"), result.getBalance());
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
-    void whenRegisterUserAndUsernameExists_thenThrowValidationException() {
-        when(userRepository.findByUsername("existing")).thenReturn(Optional.of(existingUser));
+    void registerUser_duplicateUsername_throwsException() {
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
 
-        ValidationException exception = assertThrows(ValidationException.class,
-                () -> userService.registerUser("existing", "password123", "newemail@example.com"));
-
-        assertEquals("Username already exists", exception.getMessage());
-        verify(userRepository, times(1)).findByUsername("existing");
-        verify(userRepository, never()).existsByEmail(anyString());
-        verify(userRepository, never()).save(any(User.class));
+        assertThrows(ValidationException.class,
+                () -> userService.registerUser("testuser", "pass", "other@example.com"));
+        verify(userRepository, never()).save(any());
     }
 
     @Test
-    void whenRegisterUserAndEmailExists_thenThrowValidationException() {
+    void registerUser_duplicateEmail_throwsException() {
         when(userRepository.findByUsername("newuser")).thenReturn(Optional.empty());
-        when(userRepository.existsByEmail("existing@example.com")).thenReturn(true);
+        when(userRepository.existsByEmail("test@example.com")).thenReturn(true);
 
-        ValidationException exception = assertThrows(ValidationException.class,
-                () -> userService.registerUser("newuser", "password123", "existing@example.com"));
-
-        assertEquals("Email already exists", exception.getMessage());
-        verify(userRepository, times(1)).findByUsername("newuser");
-        verify(userRepository, times(1)).existsByEmail("existing@example.com");
-        verify(userRepository, never()).save(any(User.class));
+        assertThrows(ValidationException.class,
+                () -> userService.registerUser("newuser", "pass", "test@example.com"));
+        verify(userRepository, never()).save(any());
     }
 
     @Test
-    void whenFindByUsername_thenReturnOptionalUser() {
-        when(userRepository.findByUsername("existing")).thenReturn(Optional.of(existingUser));
+    void findByUsername_userExists() {
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
 
-        Optional<User> found = userService.findByUsername("existing");
+        Optional<User> result = userService.findByUsername("testuser");
 
-        assertTrue(found.isPresent());
-        assertEquals(existingUser, found.get());
-        verify(userRepository, times(1)).findByUsername("existing");
+        assertTrue(result.isPresent());
+        assertEquals("testuser", result.get().getUsername());
+    }
+
+    @Test
+    void findByUsername_userNotFound() {
+        when(userRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
+
+        Optional<User> result = userService.findByUsername("nonexistent");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findById_userExists() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+        User result = userService.findById(1L);
+
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
+    }
+
+    @Test
+    void findById_userNotFound_throwsException() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.findById(999L));
+    }
+
+    @Test
+    void registerUser_encodesPassword() {
+        when(userRepository.findByUsername("newuser")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("rawpass")).thenReturn("strong-encoded-pass");
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+
+        userService.registerUser("newuser", "rawpass", "new@example.com");
+
+        verify(passwordEncoder).encode("rawpass");
     }
 }

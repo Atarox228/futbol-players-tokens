@@ -20,6 +20,8 @@ public class OrderDTO {
     private BigDecimal total;
     private String idempotencyKey;
     private LocalDateTime createdAt;
+    private String status;
+    private int remainingQuantity;
 
     public static OrderDTO toDTO(Order o) {
         if (o == null) return null;
@@ -34,6 +36,8 @@ public class OrderDTO {
                 .total(o.getTotal())
                 .idempotencyKey(o.getIdempotencyKey())
                 .createdAt(o.getCreatedAt())
+                .status(o.getStatus().name())
+                .remainingQuantity(o.getRemainingQuantity())
                 .build();
     }
 }

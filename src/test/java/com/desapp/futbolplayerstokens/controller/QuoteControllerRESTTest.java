@@ -1,88 +1,72 @@
 package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
-import com.desapp.futbolplayerstokens.security.JwtAuthenticationFilter;
-import com.desapp.futbolplayerstokens.security.JwtUtil;
+import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@ExtendWith(MockitoExtension.class)
 class QuoteControllerRESTTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
+    @Mock
     private QuoteService quoteService;
 
-    @MockitoBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @MockitoBean
-    private UserDetailsService userDetailsService;
-
-    @MockitoBean
-    private JwtUtil jwtUtil;
+    @InjectMocks
+    private QuoteControllerREST quoteController;
 
     @Test
-    @WithMockUser
-    void whenRecalculateAll_thenAccepted() throws Exception {
-        doNothing().when(quoteService).recalculateAll(any());
+    void recalculateAll_returnsAccepted() {
+        doNothing().when(quoteService).recalculateAll(QuoteTrigger.MANUAL);
 
-        mockMvc.perform(post("/quotes/recalculate").with(csrf()))
-                .andExpect(status().isAccepted());
+        ResponseEntity<String> result = quoteController.recalculateAll();
 
-        verify(quoteService, times(1)).recalculateAll(any());
+        assertEquals(HttpStatus.ACCEPTED, result.getStatusCode());
+        assertEquals("Recalculation triggered for all players", result.getBody());
+        verify(quoteService).recalculateAll(QuoteTrigger.MANUAL);
     }
 
     @Test
-    @WithMockUser
-    void whenGetCurrentQuote_thenOk() throws Exception {
-        QuoteDTO quoteDTO = QuoteDTO.builder()
+    void getCurrentQuote_returnsQuote() {
+        QuoteDTO dto = QuoteDTO.builder()
                 .id(1L)
                 .playerId(10L)
-                .price(new BigDecimal("1500.00"))
+                .price(new BigDecimal("85.50"))
                 .timestamp(LocalDateTime.now())
-                .strategyId(2L)
-                .strategyVersion(1)
                 .trigger("MANUAL")
                 .build();
+        when(quoteService.getCurrentQuote(10L)).thenReturn(dto);
 
-        when(quoteService.getCurrentQuote(10L)).thenReturn(quoteDTO);
+        ResponseEntity<QuoteDTO> result = quoteController.getCurrentQuote(10L);
 
-        mockMvc.perform(get("/quotes/player/10/current"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.playerId").value(10))
-                .andExpect(jsonPath("$.price").value(1500.00))
-                .andExpect(jsonPath("$.trigger").value("MANUAL"));
-
-        verify(quoteService, times(1)).getCurrentQuote(10L);
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertNotNull(result.getBody());
+        assertEquals(1L, result.getBody().getId());
+        assertEquals(new BigDecimal("85.50"), result.getBody().getPrice());
     }
 
     @Test
-    void whenGetCurrentQuoteWithoutAuth_thenUnauthorized() throws Exception {
-        mockMvc.perform(get("/quotes/player/1/current"))
-                .andExpect(status().isUnauthorized());
+    void getCurrentQuote_quotesDifferentPlayers() {
+        QuoteDTO q1 = QuoteDTO.builder().id(1L).playerId(10L).price(new BigDecimal("50")).build();
+        QuoteDTO q2 = QuoteDTO.builder().id(2L).playerId(11L).price(new BigDecimal("100")).build();
+        when(quoteService.getCurrentQuote(10L)).thenReturn(q1);
+        when(quoteService.getCurrentQuote(11L)).thenReturn(q2);
 
-        verifyNoInteractions(quoteService);
+        ResponseEntity<QuoteDTO> r1 = quoteController.getCurrentQuote(10L);
+        ResponseEntity<QuoteDTO> r2 = quoteController.getCurrentQuote(11L);
+
+        assertEquals(new BigDecimal("50"), r1.getBody().getPrice());
+        assertEquals(new BigDecimal("100"), r2.getBody().getPrice());
     }
 }

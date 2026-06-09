@@ -7,6 +7,9 @@ import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
 import com.desapp.futbolplayerstokens.controller.dto.PlayerRankingDTO;
+import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
+import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import com.desapp.futbolplayerstokens.service.RankingService;
@@ -38,15 +41,18 @@ public class PlayerControllerREST {
     private final PlayerScraperService scraperService;
     private final QuoteService quoteService;
     private final RankingService rankingService;
+    private final PlayerRepository playerRepository;
 
     public PlayerControllerREST(PlayerService playerService,
                                 PlayerScraperService scraperService,
                                 QuoteService quoteService,
-                                RankingService rankingService) {
+                                RankingService rankingService,
+                                PlayerRepository playerRepository) {
         this.playerService = playerService;
         this.scraperService = scraperService;
         this.quoteService = quoteService;
         this.rankingService = rankingService;
+        this.playerRepository = playerRepository;
     }
 
     @GetMapping("/hello")
@@ -142,6 +148,8 @@ public class PlayerControllerREST {
             // Delegate orchestration to the service which will clear DB and run the rich team-based scraper
             scraperService.scrapeAllPlayersForce();
 
+            quoteService.recalculateAll(QuoteTrigger.MANUAL);
+
             long duration = System.currentTimeMillis() - startTime;
             long minutes = duration / 60000;
             long seconds = (duration % 60000) / 1000;
@@ -220,6 +228,12 @@ public class PlayerControllerREST {
 
             scraperService.scrapeTeamPlayersByName(teamName, league);
 
+            List<Player> teamPlayers = playerRepository.findByTeamIgnoreCase(teamName);
+            List<Long> playerIds = teamPlayers.stream().map(Player::getId).toList();
+            if (!playerIds.isEmpty()) {
+                quoteService.recalculatePlayers(playerIds, QuoteTrigger.MANUAL);
+            }
+
             long duration = System.currentTimeMillis() - startTime;
             long minutes = duration / 60000;
             long seconds = (duration % 60000) / 1000;
@@ -248,6 +262,12 @@ public class PlayerControllerREST {
 
             long startTime = System.currentTimeMillis();
             scraperService.scrapeLeaguePlayersByStarterTeam(starterTeam, normalizedLeague);
+
+            List<Player> leaguePlayers = playerRepository.findByFilters(normalizedLeague, null, null);
+            List<Long> playerIds = leaguePlayers.stream().map(Player::getId).toList();
+            if (!playerIds.isEmpty()) {
+                quoteService.recalculatePlayers(playerIds, QuoteTrigger.MANUAL);
+            }
 
             long duration = System.currentTimeMillis() - startTime;
             long minutes = duration / 60000;
