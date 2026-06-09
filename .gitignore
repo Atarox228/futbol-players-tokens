@@ -37,3 +37,6 @@ out/
 .vscode/
 
 .env*
+
+# Build artifacts
+gradle_compile.log

@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 public class QuoteServiceImpl implements QuoteService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(QuoteServiceImpl.class);
+    private static final String ESTRATEGIAINACTIVA = "No active strategy config";
+    private static final String JUGADOR_NOENCONTRADO = "Player not found with id: ";
 
     private final QuoteRepository quoteRepository;
     private final PlayerRepository playerRepository;
@@ -36,7 +38,6 @@ public class QuoteServiceImpl implements QuoteService {
     private final ValuationService valuationService;
     private final TransactionTemplate transactionTemplate;
 
-    private final String estrategiaInactiva = "No active strategy config";
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
                             PlayerRepository playerRepository,
@@ -55,14 +56,14 @@ public class QuoteServiceImpl implements QuoteService {
         List<Quote> quotes = quoteRepository.findByPlayerIdOrderByTimestampDesc(playerId);
         if (quotes.isEmpty()) {
             Player player = playerRepository.findById(playerId)
-                    .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                    .orElseThrow(() -> new RuntimeException(JUGADOR_NOENCONTRADO + playerId));
 
             StrategyConfig config = resolveConfigForPlayer(player);
             Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
             return List.of(QuoteDTO.toDTO(q));
         }
 
-        return quotes.stream().map(QuoteDTO::toDTO).collect(Collectors.toList());
+        return quotes.stream().map(QuoteDTO::toDTO).toList();
     }
 
     @Override
@@ -73,7 +74,7 @@ public class QuoteServiceImpl implements QuoteService {
         }
 
         Player player = playerRepository.findById(playerId)
-                .orElseThrow(() -> new RuntimeException("Player not found with id: " + playerId));
+                .orElseThrow(() -> new RuntimeException(JUGADOR_NOENCONTRADO + playerId));
 
         StrategyConfig config = resolveConfigForPlayer(player);
         Quote q = recalculateSingle(player, config, QuoteTrigger.MANUAL);
@@ -82,7 +83,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     private StrategyConfig resolveConfigForPlayer(Player player) {
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
-                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
+                .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
         StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
         if (type == StrategyType.GENERAL) return general;
         return strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
@@ -96,7 +97,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     private void doRecalculateAll(QuoteTrigger trigger) {
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
-                .orElseThrow(() -> new ConfigurationException(estrategiaInactiva));
+                .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
 
         List<Player> players = playerRepository.findAll();
         int total = 0;
@@ -110,6 +111,27 @@ public class QuoteServiceImpl implements QuoteService {
         }
 
         LOGGER.info("Recalculation finished. Total players processed: {}", total);
+    }
+
+    @Override
+    @Transactional
+    public void recalculatePlayers(List<Long> playerIds, QuoteTrigger trigger) {
+        if (playerIds.isEmpty()) return;
+
+        StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
+                .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
+
+        for (Long playerId : playerIds) {
+            Player player = playerRepository.findById(playerId)
+                    .orElseThrow(() -> new RuntimeException(JUGADOR_NOENCONTRADO + playerId));
+            StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
+            StrategyConfig config = type == StrategyType.GENERAL
+                    ? general
+                    : strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
+            recalculateSingle(player, config, trigger);
+        }
+
+        LOGGER.info("Recalculation finished for {} players", playerIds.size());
     }
 
     private Quote recalculateSingle(Player player, StrategyConfig config, QuoteTrigger trigger) {

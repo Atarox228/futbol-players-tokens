@@ -1,6 +1,7 @@
 package com.desapp.futbolplayerstokens.service.impl;
 
 import com.desapp.futbolplayerstokens.controller.dto.PortfolioDTO;
+import com.desapp.futbolplayerstokens.exception.InsufficientTokensException;
 import com.desapp.futbolplayerstokens.exception.ResourceNotFoundException;
 import com.desapp.futbolplayerstokens.modelo.Order;
 import com.desapp.futbolplayerstokens.modelo.Player;
@@ -13,15 +14,20 @@ import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.PortfolioService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PortfolioServiceImpl implements PortfolioService {
+
+    private static final String USER_NOT_FOUND = "User not found";
 
     private final PortfolioRepository portfolioRepository;
     private final PlayerRepository playerRepository;
@@ -45,7 +51,7 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Transactional(readOnly = true)
     public List<PortfolioDTO> getPortfolio(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
 
         return portfolioRepository.findByUser(user).stream()
                 .map(portfolio -> {
@@ -56,10 +62,23 @@ public class PortfolioServiceImpl implements PortfolioService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<PortfolioDTO> getPortfolio(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
+
+        return portfolioRepository.findByUser(user, pageable)
+                .map(portfolio -> {
+                    BigDecimal currentPrice = quoteService.getCurrentQuote(portfolio.getPlayer().getId()).getPrice();
+                    return PortfolioDTO.of(portfolio, currentPrice);
+                });
+    }
+
+    @Override
     @Transactional
     public void updatePosition(Long userId, Long playerId, int qty, BigDecimal price, Order.OrderType type) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
 
@@ -108,5 +127,47 @@ public class PortfolioServiceImpl implements PortfolioService {
 
         portfolio.setTokenQty(newQty);
         portfolioRepository.save(portfolio);
+    }
+
+    @Override
+    @Transactional
+    public void transferTokens(Long fromUserId, Long toUserId, Long playerId, int quantity, BigDecimal buyPrice) {
+        User fromUser = userRepository.findById(fromUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("From user not found"));
+        User toUser = userRepository.findById(toUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("To user not found"));
+        Player player = playerRepository.findById(playerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
+
+        Portfolio fromPortfolio = portfolioRepository.findByUserAndPlayer(fromUser, player)
+                .orElseThrow(() -> new ResourceNotFoundException("From user has no portfolio for this player"));
+
+        if (fromPortfolio.getTokenQty() < quantity) {
+            throw new InsufficientTokensException(quantity, fromPortfolio.getTokenQty());
+        }
+
+        updateSellPosition(fromPortfolio, quantity);
+
+        BigDecimal price = Objects.requireNonNullElseGet(buyPrice, () -> BigDecimal.ZERO);
+        BigDecimal newCost = price.multiply(BigDecimal.valueOf(quantity));
+
+        Portfolio toPortfolio = portfolioRepository.findByUserAndPlayer(toUser, player).orElse(null);
+        if (toPortfolio == null) {
+            Portfolio newPortfolio = Portfolio.builder()
+                    .user(toUser)
+                    .player(player)
+                    .tokenQty(quantity)
+                    .avgBuyPrice(price)
+                    .build();
+            portfolioRepository.save(newPortfolio);
+        } else {
+            BigDecimal existingCost = toPortfolio.getAvgBuyPrice()
+                    .multiply(BigDecimal.valueOf(toPortfolio.getTokenQty()));
+            int newQty = toPortfolio.getTokenQty() + quantity;
+            toPortfolio.setAvgBuyPrice(existingCost.add(newCost)
+                    .divide(BigDecimal.valueOf(newQty), 8, RoundingMode.HALF_UP));
+            toPortfolio.setTokenQty(newQty);
+            portfolioRepository.save(toPortfolio);
+        }
     }
 }

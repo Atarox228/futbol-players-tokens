@@ -1,13 +1,14 @@
-package com.desapp.futbolplayerstokens.repository;
+package com.desapp.futbolplayerstokens.e2e;
 
 import com.desapp.futbolplayerstokens.modelo.Order;
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.User;
+import com.desapp.futbolplayerstokens.repository.OrderRepository;
+import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import com.desapp.futbolplayerstokens.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -16,10 +17,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@ActiveProfiles("test")
 @Transactional
-class OrderRepositoryTest {
+class OrderRepositoryE2ETest extends AbstractE2ETest {
 
     @Autowired
     private OrderRepository orderRepository;
@@ -42,28 +41,28 @@ class OrderRepositoryTest {
         orderRepository.deleteAll();
 
         user1 = userRepository.save(User.builder()
-                .username("user-order-1")
-                .email("user-order-1@example.com")
+                .username("e2e-user-1")
+                .email("e2e-user-1@example.com")
                 .password("password")
                 .role(User.Role.USER)
                 .balance(new BigDecimal("1000"))
                 .build());
         user2 = userRepository.save(User.builder()
-                .username("user-order-2")
-                .email("user-order-2@example.com")
+                .username("e2e-user-2")
+                .email("e2e-user-2@example.com")
                 .password("password")
                 .role(User.Role.USER)
                 .balance(new BigDecimal("1000"))
                 .build());
 
         player1 = playerRepository.save(Player.builder()
-                .name("Player Order 1")
+                .name("E2E Player 1")
                 .team("Team A")
                 .league("League A")
                 .position("Forward")
                 .build());
         player2 = playerRepository.save(Player.builder()
-                .name("Player Order 2")
+                .name("E2E Player 2")
                 .team("Team B")
                 .league("League B")
                 .position("Midfielder")
@@ -76,7 +75,7 @@ class OrderRepositoryTest {
                 .quantity(5)
                 .priceAtOrder(new BigDecimal("1.5"))
                 .total(new BigDecimal("7.5"))
-                .idempotencyKey("key-1")
+                .idempotencyKey("e2e-key-1")
                 .build();
 
         order2 = Order.builder()
@@ -86,7 +85,7 @@ class OrderRepositoryTest {
                 .quantity(2)
                 .priceAtOrder(new BigDecimal("2.0"))
                 .total(new BigDecimal("4.0"))
-                .idempotencyKey("key-2")
+                .idempotencyKey("e2e-key-2")
                 .build();
     }
 
@@ -94,7 +93,7 @@ class OrderRepositoryTest {
     void testFindByIdempotencyKey() {
         Order saved = orderRepository.save(order1);
 
-        Optional<Order> found = orderRepository.findByIdempotencyKey("key-1");
+        Optional<Order> found = orderRepository.findByIdempotencyKey("e2e-key-1");
 
         assertTrue(found.isPresent());
         assertEquals(saved.getId(), found.get().getId());
@@ -115,15 +114,15 @@ class OrderRepositoryTest {
         Order sellLow = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
-                .idempotencyKey("sell-low").build());
+                .idempotencyKey("e2e-sell-low").build());
         Order sellMid = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("20")).total(new BigDecimal("20"))
-                .idempotencyKey("sell-mid").build());
+                .idempotencyKey("e2e-sell-mid").build());
         orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("30")).total(new BigDecimal("30"))
-                .idempotencyKey("sell-high").build());
+                .idempotencyKey("e2e-sell-high").build());
 
         List<Order> result = orderRepository.findPendingSellOrdersForBuy(player1, new BigDecimal("25"));
 
@@ -137,13 +136,13 @@ class OrderRepositoryTest {
         Order pending = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(5).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("50"))
-                .idempotencyKey("sell-pending").build());
+                .idempotencyKey("e2e-sell-pending").build());
         Order partiallyFilled = orderRepository.save(Order.builder()
                 .user(user2).player(player1).type(Order.OrderType.SELL)
                 .quantity(5).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("50"))
                 .remainingQuantity(3)
                 .status(Order.OrderStatus.PARTIALLY_FILLED)
-                .idempotencyKey("sell-partial").build());
+                .idempotencyKey("e2e-sell-partial").build());
 
         List<Order> result = orderRepository.findPendingSellOrdersForBuy(player1, new BigDecimal("15"));
 
@@ -157,15 +156,15 @@ class OrderRepositoryTest {
         Order sell30 = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("30")).total(new BigDecimal("30"))
-                .idempotencyKey("sell-30").build());
+                .idempotencyKey("e2e-sell-30").build());
         Order sell10 = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
-                .idempotencyKey("sell-10").build());
+                .idempotencyKey("e2e-sell-10").build());
         Order sell20 = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("20")).total(new BigDecimal("20"))
-                .idempotencyKey("sell-20").build());
+                .idempotencyKey("e2e-sell-20").build());
 
         List<Order> result = orderRepository.findPendingSellOrdersForBuy(player1, new BigDecimal("50"));
 
@@ -180,15 +179,15 @@ class OrderRepositoryTest {
         Order buyHigh = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("30")).total(new BigDecimal("30"))
-                .idempotencyKey("buy-high").build());
+                .idempotencyKey("e2e-buy-high").build());
         Order buyMid = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("20")).total(new BigDecimal("20"))
-                .idempotencyKey("buy-mid").build());
+                .idempotencyKey("e2e-buy-mid").build());
         orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
-                .idempotencyKey("buy-low").build());
+                .idempotencyKey("e2e-buy-low").build());
 
         List<Order> result = orderRepository.findPendingBuyOrdersForSell(player1, new BigDecimal("15"));
 
@@ -202,15 +201,15 @@ class OrderRepositoryTest {
         Order buy10 = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
-                .idempotencyKey("buy-low-2").build());
+                .idempotencyKey("e2e-buy-low-2").build());
         Order buy30 = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("30")).total(new BigDecimal("30"))
-                .idempotencyKey("buy-high-2").build());
+                .idempotencyKey("e2e-buy-high-2").build());
         Order buy20 = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("20")).total(new BigDecimal("20"))
-                .idempotencyKey("buy-mid-2").build());
+                .idempotencyKey("e2e-buy-mid-2").build());
 
         List<Order> result = orderRepository.findPendingBuyOrdersForSell(player1, BigDecimal.ZERO);
 
@@ -225,31 +224,31 @@ class OrderRepositoryTest {
         Order buyPending = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
-                .idempotencyKey("bp1").build());
+                .idempotencyKey("e2e-bp1").build());
         Order sellPendingP1 = orderRepository.save(Order.builder()
                 .user(user2).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
-                .idempotencyKey("sp1").build());
+                .idempotencyKey("e2e-sp1").build());
         Order sellPartiallyP1 = orderRepository.save(Order.builder()
                 .user(user1).player(player1).type(Order.OrderType.SELL)
                 .quantity(5).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("50"))
                 .remainingQuantity(3)
                 .status(Order.OrderStatus.PARTIALLY_FILLED)
-                .idempotencyKey("spp1").build());
+                .idempotencyKey("e2e-spp1").build());
         orderRepository.save(Order.builder()
                 .user(user2).player(player2).type(Order.OrderType.BUY)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
-                .idempotencyKey("bp2").build());
+                .idempotencyKey("e2e-bp2").build());
         orderRepository.save(Order.builder()
                 .user(user2).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
                 .status(Order.OrderStatus.FILLED).remainingQuantity(0)
-                .idempotencyKey("sf1").build());
+                .idempotencyKey("e2e-sf1").build());
         orderRepository.save(Order.builder()
                 .user(user2).player(player1).type(Order.OrderType.SELL)
                 .quantity(1).priceAtOrder(new BigDecimal("10")).total(new BigDecimal("10"))
                 .status(Order.OrderStatus.CANCELLED).remainingQuantity(0)
-                .idempotencyKey("sc1").build());
+                .idempotencyKey("e2e-sc1").build());
 
         List<Order> result = orderRepository.findByPlayerAndStatusIn(player1,
                 List.of(Order.OrderStatus.PENDING, Order.OrderStatus.PARTIALLY_FILLED));

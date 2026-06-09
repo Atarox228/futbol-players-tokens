@@ -1,10 +1,12 @@
 package com.desapp.futbolplayerstokens.config;
 
 import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.Portfolio;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.OrderRepository;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
@@ -21,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
-@Profile("!test")
+@Profile("!test & !e2e")
 public class DataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataLoader.class);
@@ -33,6 +35,7 @@ public class DataLoader implements ApplicationRunner {
     private static final String TACKLES = "tackles";
     private static final String YELLOW_CARDS = "yellowCards";
     private static final String RED_CARDS = "redCards";
+    private static final String SUPERUSERSTRING = "superuser";
 
     private final UserService userService;
     private final PlayerScraperService scraperService;
@@ -40,19 +43,22 @@ public class DataLoader implements ApplicationRunner {
     private final StrategyConfigRepository strategyConfigRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final PortfolioRepository portfolioRepository;
 
     public DataLoader(UserService userService,
                       PlayerScraperService scraperService,
                       PlayerRepository playerRepository,
                       StrategyConfigRepository strategyConfigRepository,
                       OrderRepository orderRepository,
-                      UserRepository userRepository) {
+                      UserRepository userRepository,
+                      PortfolioRepository portfolioRepository) {
         this.userService = userService;
         this.scraperService = scraperService;
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.portfolioRepository = portfolioRepository;
     }
 
     @Override
@@ -67,6 +73,7 @@ public class DataLoader implements ApplicationRunner {
         createSuperuserIfMissing();
         createTestUsersIfMissing();
         createDefaultStrategyIfMissing();
+        seedSuperuserPortfolio();
     }
 
     private void loadMockPlayers() {
@@ -83,9 +90,9 @@ public class DataLoader implements ApplicationRunner {
     }
 
     private void createSuperuserIfMissing() {
-        userRepository.findByUsername("superuser").orElseGet(() -> {
+        userRepository.findByUsername(SUPERUSERSTRING).orElseGet(() -> {
             User u = User.builder()
-                    .username("superuser")
+                    .username(SUPERUSERSTRING)
                     .password(new BCryptPasswordEncoder().encode("superpass"))
                     .email("superuser@example.com")
                     .role(User.Role.SUPERUSER)
@@ -101,6 +108,24 @@ public class DataLoader implements ApplicationRunner {
             if (userRepository.findByUsername(uname).isEmpty()) {
                 userService.registerUser(uname, "password", uname + "@example.com");
                 // ensure balance is set to 1000 by default on creation
+            }
+        }
+    }
+
+    private void seedSuperuserPortfolio() {
+        User superuser = userRepository.findByUsername(SUPERUSERSTRING).orElse(null);
+        if (superuser == null) return;
+
+        for (Player player : playerRepository.findAll()) {
+            if (portfolioRepository.findByUserAndPlayer(superuser, player).isEmpty()) {
+                Portfolio portfolio = Portfolio.builder()
+                        .user(superuser)
+                        .player(player)
+                        .tokenQty(player.getTotalTokens())
+                        .avgBuyPrice(BigDecimal.ZERO)
+                        .build();
+                portfolioRepository.save(portfolio);
+                log.info("Seeded superuser portfolio for player {} with {} tokens", player.getName(), player.getTotalTokens());
             }
         }
     }

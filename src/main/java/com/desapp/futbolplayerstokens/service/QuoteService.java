@@ -11,5 +11,7 @@ public interface QuoteService {
     QuoteDTO getCurrentQuote(Long playerId);
 
     void recalculateAll(QuoteTrigger trigger);
+
+    void recalculatePlayers(List<Long> playerIds, QuoteTrigger trigger);
 }
 
