@@ -53,9 +53,63 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter'
 }
 
+sourceSets {
+    test {
+        java {
+            srcDirs = ['src/test/java', 'src/test/repository']
+        }
+        resources {
+            srcDirs = ['src/test/resources']
+        }
+    }
+
+    e2e {
+        java {
+            srcDirs = ['src/e2e/java']
+        }
+        resources {
+            srcDirs = ['src/e2e/resources']
+        }
+    }
+}
+
+configurations {
+    e2eImplementation.extendsFrom testImplementation
+    e2eRuntimeOnly.extendsFrom testRuntimeOnly
+    e2eCompileOnly.extendsFrom testCompileOnly
+    e2eAnnotationProcessor.extendsFrom testAnnotationProcessor
+}
+
+def collectTestClassesByAnnotation = { List<File> roots, String annotation ->
+    def classNames = []
+
+    roots.findAll { it.exists() }.each { rootDir ->
+        fileTree(rootDir) {
+            include '**/*Test.java'
+            include '**/*Tests.java'
+            include '**/*E2ETest.java'
+        }.files.each { sourceFile ->
+            def content = sourceFile.getText('UTF-8')
+            if (!content.contains(annotation)) {
+                return
+            }
+
+            def packageMatch = (content =~ /(?m)^\s*package\s+([\w\.]+)\s*;/)
+            def packageName = packageMatch.find() ? packageMatch.group(1) : null
+            def className = sourceFile.name.replace('.java', '')
+            classNames << (packageName ? "${packageName}.${className}" : className)
+        }
+    }
+
+    return classNames.unique().sort()
+}
+
+def springBootTests = providers.provider {
+    collectTestClassesByAnnotation([file('src/test/java'), file('src/test/repository')], '@SpringBootTest')
+}
+
 tasks.named('test') {
-    useJUnitPlatform()
-    finalizedBy jacocoTestReport
+    enabled = false
 }
 
 def coverageExclusions = [
@@ -67,23 +121,101 @@ def coverageExclusions = [
         '**/scheduler/**'
 ]
 
-jacocoTestReport {
-    dependsOn test
+def filteredMainClasses = {
+    sourceSets.main.output.asFileTree.matching {
+        exclude coverageExclusions
+    }
+}
+
+tasks.register('unitTest', Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = 'Ejecuta tests unitarios de src/test/java sin contexto Spring.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+
+    doFirst {
+        filter {
+            includeTestsMatching '*'
+            springBootTests.get().each { excludeTestsMatching it }
+        }
+    }
+
+    finalizedBy tasks.named('jacocoUnitTestReport')
+}
+
+tasks.register('e2eTest', Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = 'Ejecuta tests @SpringBootTest y tests E2E con perfil e2e.'
+    testClassesDirs = files(sourceSets.test.output.classesDirs, sourceSets.e2e.output.classesDirs)
+    classpath = files(sourceSets.test.runtimeClasspath, sourceSets.e2e.runtimeClasspath)
+    useJUnitPlatform()
+    systemProperty 'spring.profiles.active', 'e2e'
+
+    doFirst {
+        filter {
+            springBootTests.get().each { includeTestsMatching it }
+            collectTestClassesByAnnotation([file('src/e2e/java')], 'class ').each { includeTestsMatching it }
+        }
+    }
+
+    finalizedBy tasks.named('jacocoE2eTestReport')
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('unitTest')
+    dependsOn tasks.named('e2eTest')
+}
+
+tasks.register('jacocoUnitTestReport', JacocoReport) {
+    dependsOn tasks.named('unitTest')
+
+    executionData(tasks.named('unitTest'))
+    sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(filteredMainClasses())
 
     reports {
         xml.required = true
         html.required = true
     }
 
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: coverageExclusions)
-        }))
-    }
 }
 
-jacocoTestCoverageVerification {
-    dependsOn jacocoTestReport
+tasks.register('jacocoE2eTestReport', JacocoReport) {
+    dependsOn tasks.named('e2eTest')
+
+    executionData(tasks.named('e2eTest'))
+    sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(filteredMainClasses())
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+}
+
+tasks.register('jacocoAggregateReport', JacocoReport) {
+    dependsOn tasks.named('unitTest')
+    dependsOn tasks.named('e2eTest')
+
+    executionData(tasks.named('unitTest'), tasks.named('e2eTest'))
+    sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(filteredMainClasses())
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+}
+
+tasks.register('jacocoCoverageVerification', JacocoCoverageVerification) {
+    dependsOn tasks.named('jacocoAggregateReport')
+
+    executionData(tasks.named('unitTest'), tasks.named('e2eTest'))
+    sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(filteredMainClasses())
 
     violationRules {
         rule {
@@ -101,11 +233,6 @@ jacocoTestCoverageVerification {
         }
     }
 
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: coverageExclusions)
-        }))
-    }
 }
 
 sonar {
@@ -113,7 +240,7 @@ sonar {
         property 'sonar.projectKey', System.getenv('SONAR_PROJECT_KEY')
         property 'sonar.organization', System.getenv('SONAR_ORGANIZATION')
         property 'sonar.host.url', 'https://sonarcloud.io'
-        property 'sonar.coverage.jacoco.xmlReportPaths', layout.buildDirectory.file('reports/jacoco/test/jacocoTestReport.xml').get().asFile.absolutePath
+        property 'sonar.coverage.jacoco.xmlReportPaths', layout.buildDirectory.file('reports/jacoco/jacocoAggregateReport/jacocoAggregateReport.xml').get().asFile.absolutePath
         property 'sonar.exclusions', coverageExclusions.join(',')
         property 'sonar.qualitygate.wait', 'true'
         property 'sonar.gradle.skipCompile', 'true'
