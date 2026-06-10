@@ -23,6 +23,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/players")
@@ -67,15 +69,17 @@ public class PlayerControllerREST {
         @ApiResponse(responseCode = "200", description = "Lista de jugadores"),
         @ApiResponse(responseCode = "400", description = "Error en los parámetros")
     })
-    public ResponseEntity<List<PlayerDTO>> getPlayers(
+    public ResponseEntity<Page<PlayerDTO>> getPlayers(
             @Parameter(description = "Liga de los jugadores (ej: LALIGA)")
             @RequestParam(required = false) String league,
             @Parameter(description = "Equipo de los jugadores")
             @RequestParam(required = false) String team,
             @Parameter(description = "Posición del jugador en el campo")
-            @RequestParam(required = false) String position) {
+            @RequestParam(required = false) String position,
+            @Parameter(description = "Parámetros de paginación")
+            @PageableDefault(size = 20, sort = "id") Pageable pageable) {
         try {
-            List<PlayerDTO> players = playerService.getPlayersWithFilters(league, team, position);
+            Page<PlayerDTO> players = playerService.getPlayersWithFilters(league, team, position, pageable);
             return ResponseEntity.ok(players);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
@@ -263,7 +267,7 @@ public class PlayerControllerREST {
             long startTime = System.currentTimeMillis();
             scraperService.scrapeLeaguePlayersByStarterTeam(starterTeam, normalizedLeague);
 
-            List<Player> leaguePlayers = playerRepository.findByFilters(normalizedLeague, null, null);
+            List<Player> leaguePlayers = playerRepository.findByFilters(normalizedLeague, null, null, Pageable.unpaged()).getContent();
             List<Long> playerIds = leaguePlayers.stream().map(Player::getId).toList();
             if (!playerIds.isEmpty()) {
                 quoteService.recalculatePlayers(playerIds, QuoteTrigger.MANUAL);

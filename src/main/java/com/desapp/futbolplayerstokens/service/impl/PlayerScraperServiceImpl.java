@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.text.Normalizer;
 import java.util.Locale;
+import java.net.URI;
 import java.net.URL;
 
 @Service
@@ -1474,7 +1475,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private WebDriver createDriver(ChromeOptions options) {
         try {
             // Try to connect to remote Selenium server (for Docker)
-            return new RemoteWebDriver(new URL(SELENIUM_REMOTE_URL), options);
+            return new RemoteWebDriver(URI.create(SELENIUM_REMOTE_URL).toURL(), options);
         } catch (Exception e) {
             // Fallback to local ChromeDriver
             WebDriverManager.chromedriver().setup();

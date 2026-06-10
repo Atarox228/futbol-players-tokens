@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class PlayerServiceImpl implements PlayerService {
@@ -31,11 +33,9 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
-    public List<PlayerDTO> getPlayersWithFilters(String league, String team, String position) {
-        List<Player> players = playerRepository.findByFilters(league, team, position);
-        return players.stream()
-                .map(PlayerDTO::toDTO)
-                .collect(Collectors.toList());
+    public Page<PlayerDTO> getPlayersWithFilters(String league, String team, String position, Pageable pageable) {
+        return playerRepository.findByFilters(league, team, position, pageable)
+                .map(PlayerDTO::toDTO);
     }
 
     @Override

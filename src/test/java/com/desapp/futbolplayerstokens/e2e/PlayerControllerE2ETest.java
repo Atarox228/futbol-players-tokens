@@ -62,15 +62,15 @@ class PlayerControllerE2ETest extends AbstractE2ETest {
     void getPlayers_returnsAll() throws Exception {
         mockMvc.perform(get("/players"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.content.size()").value(2));
     }
 
     @Test
     void getPlayers_withLeagueFilter() throws Exception {
         mockMvc.perform(get("/players?league=LaLiga"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].name").value("E2E Player One"));
+                .andExpect(jsonPath("$.content.size()").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("E2E Player One"));
     }
 
     @Test

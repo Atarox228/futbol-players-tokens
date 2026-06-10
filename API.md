@@ -54,23 +54,29 @@ Health check público.
 **Response 200:** `"Hello World"`
 
 ### GET /players
-Lista de jugadores con filtros opcionales.
+Lista paginada de jugadores con filtros opcionales.
 
-**Query params:** `league`, `team`, `position`
+**Query params:** `league`, `team`, `position`, `page` (default 0), `size` (default 20), `sort` (default `id`)
 
 **Response 200:**
 ```json
-[
-  {
-    "id": 1,
-    "name": "Cristiano Ronaldo",
-    "team": "Al Nassr",
-    "league": "Saudi League",
-    "position": "Forward",
-    "score": 85.50,
-    "altPosition": "Midfielder"
-  }
-]
+{
+  "content": [
+    {
+      "id": 1,
+      "name": "Cristiano Ronaldo",
+      "team": "Al Nassr",
+      "league": "Saudi League",
+      "position": "Forward",
+      "score": 85.50,
+      "altPosition": "Midfielder"
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20
+}
 ```
 
 ### GET /players/ranking

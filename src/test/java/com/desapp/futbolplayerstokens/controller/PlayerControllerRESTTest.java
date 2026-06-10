@@ -17,6 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -54,34 +57,36 @@ class PlayerControllerRESTTest {
     }
 
     @Test
-    void getPlayers_withFilters_returnsList() {
-        when(playerService.getPlayersWithFilters("LaLiga", "Barcelona", "Forward"))
-                .thenReturn(List.of(PlayerDTO.builder().id(1L).name("Messi").build()));
+    void getPlayers_withFilters_returnsPage() {
+        Page<PlayerDTO> page = new PageImpl<>(List.of(PlayerDTO.builder().id(1L).name("Messi").build()));
+        when(playerService.getPlayersWithFilters(eq("LaLiga"), eq("Barcelona"), eq("Forward"), any(Pageable.class)))
+                .thenReturn(page);
 
-        ResponseEntity<List<PlayerDTO>> result = playerController.getPlayers("LaLiga", "Barcelona", "Forward");
+        ResponseEntity<Page<PlayerDTO>> result = playerController.getPlayers("LaLiga", "Barcelona", "Forward", Pageable.unpaged());
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertNotNull(result.getBody());
-        assertEquals(1, result.getBody().size());
+        assertEquals(1, result.getBody().getContent().size());
     }
 
     @Test
-    void getPlayers_withoutFilters_returnsList() {
-        when(playerService.getPlayersWithFilters(null, null, null))
-                .thenReturn(List.of());
+    void getPlayers_withoutFilters_returnsPage() {
+        Page<PlayerDTO> page = new PageImpl<>(List.of());
+        when(playerService.getPlayersWithFilters(eq(null), eq(null), eq(null), any(Pageable.class)))
+                .thenReturn(page);
 
-        ResponseEntity<List<PlayerDTO>> result = playerController.getPlayers(null, null, null);
+        ResponseEntity<Page<PlayerDTO>> result = playerController.getPlayers(null, null, null, Pageable.unpaged());
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertTrue(result.getBody().isEmpty());
+        assertTrue(result.getBody().getContent().isEmpty());
     }
 
     @Test
     void getPlayers_serviceError_returnsBadRequest() {
-        when(playerService.getPlayersWithFilters(any(), any(), any()))
+        when(playerService.getPlayersWithFilters(any(), any(), any(), any(Pageable.class)))
                 .thenThrow(new RuntimeException("DB error"));
 
-        ResponseEntity<List<PlayerDTO>> result = playerController.getPlayers("x", "y", "z");
+        ResponseEntity<Page<PlayerDTO>> result = playerController.getPlayers("x", "y", "z", Pageable.unpaged());
 
         assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
     }
@@ -212,7 +217,7 @@ class PlayerControllerRESTTest {
 
         when(scraperService.scrapeLeaguePlayersByStarterTeam("Athletic Club", league)).thenReturn(List.of());
         Player p1 = Player.builder().id(5L).build();
-        when(playerRepository.findByFilters(league, null, null)).thenReturn(List.of(p1));
+        when(playerRepository.findByFilters(eq(league), eq(null), eq(null), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(p1)));
 
         ResponseEntity<String> result = playerController.scrapeAllTeamsByLeague(league);
 

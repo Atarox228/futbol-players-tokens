@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface PlayerRepository extends JpaRepository<Player, Long> {
@@ -17,10 +18,11 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
            "(:league IS NULL OR p.league = :league) AND " +
            "(:team IS NULL OR p.team = :team) AND " +
            "(:position IS NULL OR p.position = :position OR p.altPosition = :position)")
-    List<Player> findByFilters(
+    Page<Player> findByFilters(
             @Param("league") String league,
             @Param("team") String team,
-            @Param("position") String position
+            @Param("position") String position,
+            Pageable pageable
     );
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
