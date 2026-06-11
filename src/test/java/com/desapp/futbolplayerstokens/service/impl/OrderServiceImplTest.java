@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -334,6 +335,219 @@ class OrderServiceImplTest {
         assertEquals(2, result.getRemainingQuantity()); // 10 - 3 - 5 = 2
         verify(portfolioService).transferTokens(2L, 1L, 10L, 3, new BigDecimal("90"));
         verify(portfolioService).transferTokens(2L, 1L, 10L, 5, new BigDecimal("100"));
+    }
+
+    @Test
+    void buy_autoCreatesSuperuserSellOrder() {
+        User superuser = User.builder()
+                .id(2L).username("superuser").email("super@test.com")
+                .password("pass").role(User.Role.SUPERUSER).balance(BigDecimal.ZERO)
+                .build();
+        Portfolio superPortfolio = Portfolio.builder()
+                .user(superuser).player(player).tokenQty(100).avgBuyPrice(BigDecimal.ZERO)
+                .build();
+
+        when(orderRepository.findByIdempotencyKey("key")).thenReturn(Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(quoteService.getCurrentQuote(10L)).thenReturn(QuoteDTO.builder().price(new BigDecimal("100")).build());
+        when(userRepository.findByUsername("superuser")).thenReturn(Optional.of(superuser));
+        when(portfolioRepository.findByUserAndPlayer(superuser, player)).thenReturn(Optional.of(superPortfolio));
+
+        final Map<Long, Order> savedOrderMap = new HashMap<>();
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            if (o.getId() == null) o.setId(99L + savedOrderMap.size());
+            savedOrderMap.put(o.getId(), o);
+            return o;
+        });
+        when(orderRepository.findById(anyLong())).thenAnswer(i ->
+                Optional.ofNullable(savedOrderMap.get(i.getArgument(0)))
+        );
+
+        when(orderRepository.findPendingSellOrdersForBuy(any(), any()))
+                .thenReturn(List.of())
+                .thenAnswer(i -> savedOrderMap.values().stream()
+                        .filter(o -> o.getType() == Order.OrderType.SELL
+                                && o.getStatus() == Order.OrderStatus.PENDING
+                                && o.getRemainingQuantity() > 0)
+                        .collect(Collectors.toList()));
+
+        OrderDTO result = orderService.buy(1L, 10L, 10, "key", null);
+
+        assertEquals("FILLED", result.getStatus());
+        assertEquals(0, result.getRemainingQuantity());
+        assertEquals(new BigDecimal("4000"), user.getBalance());
+        verify(portfolioService).transferTokens(2L, 1L, 10L, 10, new BigDecimal("100"));
+    }
+
+    @Test
+    void buy_autoSell_partialSuperuserTokens() {
+        User superuser = User.builder()
+                .id(2L).username("superuser").email("super@test.com")
+                .password("pass").role(User.Role.SUPERUSER).balance(BigDecimal.ZERO)
+                .build();
+        Portfolio superPortfolio = Portfolio.builder()
+                .user(superuser).player(player).tokenQty(30).avgBuyPrice(BigDecimal.ZERO)
+                .build();
+
+        when(orderRepository.findByIdempotencyKey("key")).thenReturn(Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(quoteService.getCurrentQuote(10L)).thenReturn(QuoteDTO.builder().price(new BigDecimal("100")).build());
+        when(userRepository.findByUsername("superuser")).thenReturn(Optional.of(superuser));
+        when(portfolioRepository.findByUserAndPlayer(superuser, player)).thenReturn(Optional.of(superPortfolio));
+
+        final Map<Long, Order> savedOrderMap = new HashMap<>();
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            if (o.getId() == null) o.setId(99L + savedOrderMap.size());
+            savedOrderMap.put(o.getId(), o);
+            return o;
+        });
+        when(orderRepository.findById(anyLong())).thenAnswer(i ->
+                Optional.ofNullable(savedOrderMap.get(i.getArgument(0)))
+        );
+
+        when(orderRepository.findPendingSellOrdersForBuy(any(), any()))
+                .thenReturn(List.of())
+                .thenAnswer(i -> savedOrderMap.values().stream()
+                        .filter(o -> o.getType() == Order.OrderType.SELL
+                                && o.getStatus() == Order.OrderStatus.PENDING
+                                && o.getRemainingQuantity() > 0)
+                        .collect(Collectors.toList()));
+
+        OrderDTO result = orderService.buy(1L, 10L, 50, "key", null);
+
+        assertEquals("PARTIALLY_FILLED", result.getStatus());
+        assertEquals(20, result.getRemainingQuantity());
+        verify(portfolioService).transferTokens(2L, 1L, 10L, 30, new BigDecimal("100"));
+    }
+
+    @Test
+    void buy_autoSell_withExistingSells() {
+        User superuser = User.builder()
+                .id(2L).username("superuser").email("super@test.com")
+                .password("pass").role(User.Role.SUPERUSER).balance(BigDecimal.ZERO)
+                .build();
+        User otherSeller = User.builder()
+                .id(3L).username("seller").email("seller@test.com")
+                .password("pass").role(User.Role.USER).balance(new BigDecimal("3000"))
+                .build();
+        Portfolio superPortfolio = Portfolio.builder()
+                .user(superuser).player(player).tokenQty(100).avgBuyPrice(BigDecimal.ZERO)
+                .build();
+        Order existingSell = Order.builder()
+                .id(200L).user(otherSeller).player(player).type(Order.OrderType.SELL)
+                .quantity(5).priceAtOrder(new BigDecimal("100")).total(new BigDecimal("500"))
+                .idempotencyKey("existing-sell").status(Order.OrderStatus.PENDING).remainingQuantity(5)
+                .build();
+
+        when(orderRepository.findByIdempotencyKey("key")).thenReturn(Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(quoteService.getCurrentQuote(10L)).thenReturn(QuoteDTO.builder().price(new BigDecimal("100")).build());
+        when(userRepository.findByUsername("superuser")).thenReturn(Optional.of(superuser));
+        when(portfolioRepository.findByUserAndPlayer(superuser, player)).thenReturn(Optional.of(superPortfolio));
+
+        final Map<Long, Order> savedOrderMap = new HashMap<>();
+        savedOrderMap.put(200L, existingSell);
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            if (o.getId() == null) o.setId(99L + savedOrderMap.size());
+            savedOrderMap.put(o.getId(), o);
+            return o;
+        });
+        when(orderRepository.findById(anyLong())).thenAnswer(i ->
+                Optional.ofNullable(savedOrderMap.get(i.getArgument(0)))
+        );
+
+        when(orderRepository.findPendingSellOrdersForBuy(any(), any()))
+                .thenReturn(List.of(existingSell))
+                .thenAnswer(i -> savedOrderMap.values().stream()
+                        .filter(o -> o.getType() == Order.OrderType.SELL
+                                && o.getStatus() == Order.OrderStatus.PENDING
+                                && o.getRemainingQuantity() > 0)
+                        .collect(Collectors.toList()));
+
+        OrderDTO result = orderService.buy(1L, 10L, 20, "key", null);
+
+        assertEquals("FILLED", result.getStatus());
+        assertEquals(0, result.getRemainingQuantity());
+        verify(portfolioService).transferTokens(3L, 1L, 10L, 5, new BigDecimal("100"));
+        verify(portfolioService).transferTokens(2L, 1L, 10L, 15, new BigDecimal("100"));
+    }
+
+    @Test
+    void buy_autoSell_quoteExceedsMaxPrice() {
+        User superuser = User.builder()
+                .id(2L).username("superuser").email("super@test.com")
+                .password("pass").role(User.Role.SUPERUSER).balance(BigDecimal.ZERO)
+                .build();
+        Portfolio superPortfolio = Portfolio.builder()
+                .user(superuser).player(player).tokenQty(100).avgBuyPrice(BigDecimal.ZERO)
+                .build();
+
+        when(orderRepository.findByIdempotencyKey("key")).thenReturn(Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(userRepository.findByUsername("superuser")).thenReturn(Optional.of(superuser));
+        when(portfolioRepository.findByUserAndPlayer(superuser, player)).thenReturn(Optional.of(superPortfolio));
+        when(quoteService.getCurrentQuote(10L)).thenReturn(QuoteDTO.builder().price(new BigDecimal("150")).build());
+        when(orderRepository.findPendingSellOrdersForBuy(any(), any())).thenReturn(List.of());
+
+        final Map<Long, Order> savedOrderMap = new HashMap<>();
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            if (o.getId() == null) o.setId(99L + savedOrderMap.size());
+            savedOrderMap.put(o.getId(), o);
+            return o;
+        });
+        when(orderRepository.findById(anyLong())).thenAnswer(i ->
+                Optional.ofNullable(savedOrderMap.get(i.getArgument(0)))
+        );
+
+        OrderDTO result = orderService.buy(1L, 10L, 10, "key", new BigDecimal("100"));
+
+        assertEquals("PENDING", result.getStatus());
+        assertEquals(10, result.getRemainingQuantity());
+    }
+
+    @Test
+    void buy_autoSell_noSuperuserPortfolio() {
+        User superuser = User.builder()
+                .id(2L).username("superuser").email("super@test.com")
+                .password("pass").role(User.Role.SUPERUSER).balance(BigDecimal.ZERO)
+                .build();
+
+        when(orderRepository.findByIdempotencyKey("key")).thenReturn(Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(playerRepository.findById(10L)).thenReturn(Optional.of(player));
+        when(quoteService.getCurrentQuote(10L)).thenReturn(QuoteDTO.builder().price(new BigDecimal("100")).build());
+        when(userRepository.findByUsername("superuser")).thenReturn(Optional.of(superuser));
+        when(portfolioRepository.findByUserAndPlayer(superuser, player)).thenReturn(Optional.empty());
+        when(orderRepository.findPendingSellOrdersForBuy(any(), any())).thenReturn(List.of());
+
+        final Map<Long, Order> savedOrderMap = new HashMap<>();
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            if (o.getId() == null) o.setId(99L + savedOrderMap.size());
+            savedOrderMap.put(o.getId(), o);
+            return o;
+        });
+        when(orderRepository.findById(anyLong())).thenAnswer(i ->
+                Optional.ofNullable(savedOrderMap.get(i.getArgument(0)))
+        );
+
+        OrderDTO result = orderService.buy(1L, 10L, 10, "key", null);
+
+        assertEquals("PENDING", result.getStatus());
+        assertEquals(10, result.getRemainingQuantity());
+        long autoSellCount = savedOrderMap.values().stream()
+                .filter(o -> o.getType() == Order.OrderType.SELL
+                        && o.getUser().getUsername().equals("superuser"))
+                .count();
+        assertEquals(0, autoSellCount);
     }
 
     @Test
