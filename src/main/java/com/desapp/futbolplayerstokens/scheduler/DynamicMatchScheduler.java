@@ -63,7 +63,7 @@ public class DynamicMatchScheduler {
     }
 
     /**
-     * Programa schedulers para cada partido del día (solo futuros)
+     * Programa schedulers para cada partido del día
      */
     public void scheduleMatchesForToday() {
         cancelAllSchedules();
@@ -72,8 +72,19 @@ public class DynamicMatchScheduler {
         LocalDateTime now = LocalDateTime.now();
 
         for (Match match : allMatches) {
-            if (match.getMatchTime() != null && match.getMatchTime().isAfter(now)) {
+            if (match.getMatchTime() == null) continue;
+
+            // Saltar partidos ya finalizados
+            if ("FINISHED".equals(match.getStatus())) continue;
+
+            LocalDateTime checkTime = match.getMatchTime().plusHours(2);
+
+            if (checkTime.isAfter(now)) {
+                // Aún no es hora de verificar → programar normalmente
                 scheduleMatch(match);
+            } else if (match.getMatchTime().isAfter(now.minusHours(4))) {
+                // Empezó hace menos de 4h y no está FINISHED → reintentar pronto
+                rescheduleMatchIn10Minutes(match);
             }
         }
     }
@@ -135,7 +146,11 @@ public class DynamicMatchScheduler {
                 return;
             }
 
-            logger.info("✅ Partido {} está FINISHED", match.getId());
+                logger.info("✅ Partido {} está FINISHED", match.getId());
+
+                // Persistir status FINISHED en la DB
+                match.setStatus("FINISHED");
+                matchRepository.save(match);
 
             String team1Name = getTeamName(match.getTeam1Id());
             String team2Name = getTeamName(match.getTeam2Id());

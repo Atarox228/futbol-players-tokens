@@ -29,7 +29,7 @@ class MatchTest {
     @Test
     void testMatchAllArgsConstructor() {
         LocalDateTime now = LocalDateTime.now();
-        Match match = new Match(1L, 100L, 10L, 20L, now);
+        Match match = new Match(1L, 100L, 10L, 20L, now, "TIMED");
 
         assertEquals(1L, match.getId());
         assertEquals(100L, match.getFootballDataMatchId());

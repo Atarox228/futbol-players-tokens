@@ -24,4 +24,5 @@ public class Match {
     private Long team1Id;
     private Long team2Id;
     private LocalDateTime matchTime;
+    private String status;
 }

@@ -87,6 +87,13 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         "Crystal Palace", "https://es.whoscored.com/teams/162/show/inglaterra-crystal-palace"
     );
 
+    private static final Map<String, String> WORLD_CUP_TEAM_URLS = new LinkedHashMap<>(Map.of(
+        "Mexico", "https://es.whoscored.com/teams/972/show/international-mexico",
+        "South Africa", "https://es.whoscored.com/teams/485/show/sud%C3%A1frica-south-africa",
+        "South Korea", "https://es.whoscored.com/teams/1159/show/international-republic-of-korea",
+        "Czechia", "https://es.whoscored.com/teams/332/show/rep-checa-czechia"
+    ));
+
     private static final String ATTR_CLASS = "class";
     private static final String ATTR_DISABLED = "disabled";
     private static final String ATTR_ARIA_DISABLED = "aria-disabled";
@@ -356,18 +363,26 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     @Override
     public List<PlayerDetailDTO> scrapeTeamPlayersByName(String teamName, String league) {
-        String baseUrl = getBaseUrlByLeague(league);
-
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Timings.TEAM_SELECTION);
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
 
         try {
-            navigateWithRetry(driver, wait, baseUrl);
-
-            closePopupIfPresent(driver, wait);
-            selectTeamFromDropdown(driver, wait, teamName);
+            if (LeagueConstant.WORLD_CUP.equals(league)) {
+                String directUrl = WORLD_CUP_TEAM_URLS.get(teamName);
+                if (directUrl == null) {
+                    throw new ScrapingException("No hay URL directa para '" + teamName + "' en World Cup. Agregala al mapa WORLD_CUP_TEAM_URLS.");
+                }
+                navigateWithRetry(driver, wait, directUrl);
+                closePopupIfPresent(driver, wait);
+                waitForTeamPageTitle(driver, wait, teamName);
+            } else {
+                String baseUrl = getBaseUrlByLeague(league);
+                navigateWithRetry(driver, wait, baseUrl);
+                closePopupIfPresent(driver, wait);
+                selectTeamFromDropdown(driver, wait, teamName);
+            }
 
             newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, teamName, league));
 
@@ -385,14 +400,27 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     @Override
     public List<PlayerDetailDTO> scrapeLeaguePlayersByStarterTeam(String starterTeam, String league) {
-        String baseUrl = getBaseUrlByLeague(league);
-
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Timings.TEAM_SELECTION);
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
 
         try {
+            if (LeagueConstant.WORLD_CUP.equals(league)) {
+                for (Map.Entry<String, String> entry : WORLD_CUP_TEAM_URLS.entrySet()) {
+                    String teamName = entry.getKey();
+                    String directUrl = entry.getValue();
+                    logger.info("➡️ Navegando a {} ({})", teamName, directUrl);
+                    navigateWithRetry(driver, wait, directUrl);
+                    Thread.sleep(Timings.POST_POPUP_DELAY_MS);
+                    closePopupIfPresent(driver, wait);
+                    waitForTeamPageTitle(driver, wait, teamName);
+                    newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, teamName, league));
+                }
+                return newPlayers;
+            }
+
+            String baseUrl = getBaseUrlByLeague(league);
             driver.get(baseUrl);
             Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
 
@@ -803,6 +831,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             case LeagueConstant.LIGUE_1 -> "https://es.whoscored.com/teams/614/show/francia-angers";
             case LeagueConstant.BUNDESLIGA -> "https://es.whoscored.com/teams/1730/show/alemania-augsburg";
             case LeagueConstant.SERIE_A -> "https://es.whoscored.com/teams/80/show/italia-ac-milan";
+            case LeagueConstant.WORLD_CUP -> throw new IllegalArgumentException("World Cup usa URLs directas, no getBaseUrlByLeague");
             default -> "https://es.whoscored.com/teams/65/show/espa%C3%B1a-barcelona";
         };
     }
@@ -1527,11 +1556,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         logger.info("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put(LeagueConstant.PREMIER_LEAGUE, "Arsenal");
-        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
-        ligas.put(LeagueConstant.BUNDESLIGA, "Augsburg");
-        ligas.put(LeagueConstant.SERIE_A, "AC Milan");
-        ligas.put(LeagueConstant.LIGUE_1, "Angers");
+        ligas.put(LeagueConstant.WORLD_CUP, "Mexico");
 
         scrapeAllLeagues(ligas, "Scraping automático");
     }
@@ -1547,11 +1572,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put(LeagueConstant.PREMIER_LEAGUE, "Arsenal");
-        ligas.put(LeagueConstant.LALIGA, "Athletic Club");
-        ligas.put(LeagueConstant.BUNDESLIGA, "Augsburg");
-        ligas.put(LeagueConstant.SERIE_A, "AC Milan");
-        ligas.put(LeagueConstant.LIGUE_1, "Angers");
+        ligas.put(LeagueConstant.WORLD_CUP, "Mexico");
 
         scrapeAllLeagues(ligas, "Scraping forzado");
 

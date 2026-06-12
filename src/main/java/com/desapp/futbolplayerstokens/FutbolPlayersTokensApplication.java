@@ -3,6 +3,8 @@ package com.desapp.futbolplayerstokens;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.web.config.EnableSpringDataWebSupport;
+import org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerializationMode;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.BufferedReader;
@@ -13,6 +15,7 @@ import java.nio.file.Paths;
 
 @SpringBootApplication
 @EnableScheduling
+@EnableSpringDataWebSupport(pageSerializationMode = PageSerializationMode.VIA_DTO)
 public class FutbolPlayersTokensApplication {
 
     public static void main(String[] args) {

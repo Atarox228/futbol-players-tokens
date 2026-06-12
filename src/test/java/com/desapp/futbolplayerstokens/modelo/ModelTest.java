@@ -315,6 +315,7 @@ class ModelTest {
         assertEquals("Ligue 1", LeagueConstant.LIGUE_1);
         assertEquals("Bundesliga", LeagueConstant.BUNDESLIGA);
         assertEquals("Serie A", LeagueConstant.SERIE_A);
+        assertEquals("World Cup", LeagueConstant.WORLD_CUP);
     }
 
     @Test

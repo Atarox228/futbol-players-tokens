@@ -286,7 +286,7 @@ public class PlayerControllerREST {
 
             return ResponseEntity.ok(message);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("❌ Liga inválida. Usá: LaLiga, Premier League, Bundesliga, Serie A, Ligue 1");
+            return ResponseEntity.badRequest().body("❌ Liga inválida. Usá: LaLiga, Premier League, Bundesliga, Serie A, Ligue 1, World Cup");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("❌ Error al scrapear liga: " + e.getMessage());
         }
@@ -300,6 +300,7 @@ public class PlayerControllerREST {
             case "bundesliga" -> "Union Berlin";
             case "serie a" -> "Inter";
             case "ligue 1" -> "Paris Saint-Germain";
+            case "world cup" -> "Mexico";
             default -> throw new ValidationException("Liga no soportada: " + league);
         };
     }

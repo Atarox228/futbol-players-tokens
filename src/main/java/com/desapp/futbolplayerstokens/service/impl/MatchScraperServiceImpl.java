@@ -41,10 +41,14 @@ public class MatchScraperServiceImpl implements MatchScraperService {
 
     @Override
     public List<Match> scrapeMatchesOfToday() {
-        // Limpiar tabla de matches antes de scrapear
-        long count = matchRepository.count();
-        if (count > 0) {
-            matchRepository.deleteAll();
+        // Limpiar tabla de matches antes de scrapear (excepto partidos en proceso, últimas 2h)
+        LocalDateTime now = LocalDateTime.now();
+        List<Match> existingMatches = matchRepository.findAll();
+        List<Match> matchesToDelete = existingMatches.stream()
+            .filter(m -> m.getMatchTime() == null || m.getMatchTime().isBefore(now.minusHours(2)))
+            .toList();
+        if (!matchesToDelete.isEmpty()) {
+            matchRepository.deleteAll(matchesToDelete);
         }
 
         // Intenta obtener el token del .env, si no está disponible, usa System.getenv()
@@ -56,7 +60,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
 
         LocalDate today = LocalDate.now();
         String dateFrom = today.toString();
-        String dateTo = today.toString();
+        String dateTo = today.plusDays(1).toString();
 
         logger.info("🔍 Scrapeando partidos para fecha: {} (Timezone: {})", dateFrom, ZoneId.systemDefault());
 
@@ -89,8 +93,15 @@ public class MatchScraperServiceImpl implements MatchScraperService {
                             ? matchApi.getMatchTime().atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
                             : null;
 
+                        if (localMatchTime != null && !localMatchTime.toLocalDate().equals(today)) {
+                            logger.info("⏭️ Skipping match {} ({}): local date {} != today {}",
+                                matchApi.getId(), localMatchTime, localMatchTime.toLocalDate(), today);
+                            continue;
+                        }
+
                         Match match = Match.builder()
                             .footballDataMatchId(matchApi.getId())
+                            .status(matchApi.getStatus())
                             .matchTime(localMatchTime)
                             .team1Id(team1Id)
                             .team2Id(team2Id)
