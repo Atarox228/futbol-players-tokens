@@ -4,8 +4,12 @@ import com.desapp.futbolplayerstokens.controller.dto.PlayerDetailDTO;
 import com.desapp.futbolplayerstokens.exception.ScrapingException;
 import com.desapp.futbolplayerstokens.modelo.LeagueConstant;
 import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.Portfolio;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
+import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
+import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import com.desapp.futbolplayerstokens.service.PlayerService;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -21,6 +25,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -87,12 +92,41 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         "Crystal Palace", "https://es.whoscored.com/teams/162/show/inglaterra-crystal-palace"
     );
 
-    private static final Map<String, String> WORLD_CUP_TEAM_URLS = new LinkedHashMap<>(Map.of(
-        "Mexico", "https://es.whoscored.com/teams/972/show/international-mexico",
-        "South Africa", "https://es.whoscored.com/teams/485/show/sud%C3%A1frica-south-africa",
-        "South Korea", "https://es.whoscored.com/teams/1159/show/international-republic-of-korea",
-        "Czechia", "https://es.whoscored.com/teams/332/show/rep-checa-czechia"
-    ));
+    private static final Map<String, String> WORLD_CUP_TEAM_URLS = new LinkedHashMap<>();
+    static {
+        WORLD_CUP_TEAM_URLS.put("Mexico", "https://es.whoscored.com/teams/972/show/international-mexico");
+        WORLD_CUP_TEAM_URLS.put("South Africa", "https://es.whoscored.com/teams/485/show/sud%C3%A1frica-south-africa");
+        WORLD_CUP_TEAM_URLS.put("South Korea", "https://es.whoscored.com/teams/1159/show/international-republic-of-korea");
+        WORLD_CUP_TEAM_URLS.put("Czechia", "https://es.whoscored.com/teams/332/show/rep-checa-czechia");
+        WORLD_CUP_TEAM_URLS.put("Canada", "https://es.whoscored.com/teams/1160/show/international-canada");
+        WORLD_CUP_TEAM_URLS.put("Bosnia-Herzegovina", "https://es.whoscored.com/teams/768/show/international-bosnia-and-herzegovina");
+        WORLD_CUP_TEAM_URLS.put("United States", "https://es.whoscored.com/teams/461/show/usa-usa");
+        WORLD_CUP_TEAM_URLS.put("Paraguay", "https://es.whoscored.com/teams/417/show/paraguay-paraguay");
+        WORLD_CUP_TEAM_URLS.put("Brazil", "https://es.whoscored.com/teams/409/show/brasil-brazil");
+        WORLD_CUP_TEAM_URLS.put("Qatar", "https://es.whoscored.com/teams/2379/show/qatar-qatar");
+        WORLD_CUP_TEAM_URLS.put("Scotland", "https://es.whoscored.com/teams/424/show/escocia-scotland");
+        WORLD_CUP_TEAM_URLS.put("Morocco", "https://es.whoscored.com/teams/495/show/marruecos-morocco");
+        WORLD_CUP_TEAM_URLS.put("Switzerland", "https://es.whoscored.com/teams/423/show/suiza-switzerland");
+        WORLD_CUP_TEAM_URLS.put("Haiti", "https://es.whoscored.com/teams/2693/show/hait%C3%AD-haiti");
+        WORLD_CUP_TEAM_URLS.put("Curaçao", "https://es.whoscored.com/teams/10649/show/indefinido-curacao");
+        WORLD_CUP_TEAM_URLS.put("Tunisia", "https://es.whoscored.com/teams/959/show/t%C3%BAnez-tunisia");
+        WORLD_CUP_TEAM_URLS.put("Ecuador", "https://es.whoscored.com/teams/419/show/ecuador-ecuador");
+        WORLD_CUP_TEAM_URLS.put("Germany", "https://es.whoscored.com/teams/336/show/alemania-germany");
+        WORLD_CUP_TEAM_URLS.put("Australia", "https://es.whoscored.com/teams/328/show/australia-australia");
+        WORLD_CUP_TEAM_URLS.put("Sweden", "https://es.whoscored.com/teams/344/show/suecia-sweden");
+        WORLD_CUP_TEAM_URLS.put("Ivory Coast", "https://es.whoscored.com/teams/973/show/costa-de-marfil-ivory-coast");
+        WORLD_CUP_TEAM_URLS.put("Spain", "https://es.whoscored.com/teams/338/show/espa%C3%B1a-spain");
+        WORLD_CUP_TEAM_URLS.put("Cape Verde Islands", "https://es.whoscored.com/teams/2555/show/cabo-verde-cabo-verde");
+        WORLD_CUP_TEAM_URLS.put("Belgium", "https://es.whoscored.com/teams/339/show/b%C3%A9lgica-belgium");
+        WORLD_CUP_TEAM_URLS.put("Netherlands", "https://es.whoscored.com/teams/335/show/holanda-netherlands");
+        WORLD_CUP_TEAM_URLS.put("Uruguay", "https://es.whoscored.com/teams/967/show/uruguay-uruguay");
+        WORLD_CUP_TEAM_URLS.put("Egypt", "https://es.whoscored.com/teams/944/show/egipto-egypt");
+        WORLD_CUP_TEAM_URLS.put("Saudi Arabia", "https://es.whoscored.com/teams/494/show/arabia-saud%C3%AD-saudi-arabia");
+        WORLD_CUP_TEAM_URLS.put("Turkey", "https://es.whoscored.com/teams/333/show/turqu%C3%ADa-turkiye");
+        WORLD_CUP_TEAM_URLS.put("Japan", "https://es.whoscored.com/teams/986/show/japan-japan");
+        WORLD_CUP_TEAM_URLS.put("Iran", "https://es.whoscored.com/teams/1293/show/ir%C3%A1n-iran");
+        WORLD_CUP_TEAM_URLS.put("New Zealand", "https://es.whoscored.com/teams/1918/show/international-new-zealand");
+    }
 
     private static final String ATTR_CLASS = "class";
     private static final String ATTR_DISABLED = "disabled";
@@ -146,10 +180,15 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private final PlayerRepository playerRepository;
     private final PlayerService playerService;
+    private final UserRepository userRepository;
+    private final PortfolioRepository portfolioRepository;
 
-    public PlayerScraperServiceImpl(PlayerRepository playerRepository, PlayerService playerService) {
+    public PlayerScraperServiceImpl(PlayerRepository playerRepository, PlayerService playerService,
+                                    UserRepository userRepository, PortfolioRepository portfolioRepository) {
         this.playerRepository = playerRepository;
         this.playerService = playerService;
+        this.userRepository = userRepository;
+        this.portfolioRepository = portfolioRepository;
     }
 
     @Override
@@ -643,11 +682,25 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 player.getTeam().trim());
 
         if (existingPlayers.isEmpty()) {
-            playerDesdeCero(player, playerRepository);
+            Player saved = playerDesdeCero(player, playerRepository);
+            seedSuperuserPortfolioForPlayer(saved);
             newPlayers.add(player);
         } else {
             modificandoPlayer(player, existingPlayers, playerRepository);
         }
+    }
+
+    private void seedSuperuserPortfolioForPlayer(Player player) {
+        User superuser = userRepository.findByUsername("superuser").orElse(null);
+        if (superuser == null) return;
+        if (portfolioRepository.findByUserAndPlayer(superuser, player).isPresent()) return;
+        Portfolio portfolio = Portfolio.builder()
+                .user(superuser)
+                .player(player)
+                .tokenQty(player.getTotalTokens())
+                .avgBuyPrice(BigDecimal.ZERO)
+                .build();
+        portfolioRepository.save(portfolio);
     }
 
     private void activateTeamStatsSection(WebDriver driver, WebDriverWait wait, String sectionId) throws InterruptedException {
@@ -700,7 +753,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         playerRepository.saveAll(existingPlayers);
     }
 
-    static void playerDesdeCero(PlayerDetailDTO player, PlayerRepository playerRepository) {
+    static Player playerDesdeCero(PlayerDetailDTO player, PlayerRepository playerRepository) {
         Player newPlayer = Player.builder()
             .name(player.getName())
             .rating(player.getRating())
@@ -735,7 +788,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             .playerOfTheMatch(player.getPlayerOfTheMatch())
             .build();
 
-        playerRepository.save(newPlayer);
+        return playerRepository.save(newPlayer);
     }
 
     @Override

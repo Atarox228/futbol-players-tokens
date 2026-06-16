@@ -6,6 +6,7 @@ import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.OrderService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,7 +42,7 @@ public class OrderControllerREST {
     }
 
     @GetMapping("/transactions")
-    public Page<OrderDTO> transactions(@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+    public Page<OrderDTO> transactions(@PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Long userId = currentUserId();
         return orderService.getTransactionsByUserId(userId, pageable);
     }

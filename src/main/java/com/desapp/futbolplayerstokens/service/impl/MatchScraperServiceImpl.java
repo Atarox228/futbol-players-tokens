@@ -45,7 +45,7 @@ public class MatchScraperServiceImpl implements MatchScraperService {
         LocalDateTime now = LocalDateTime.now();
         List<Match> existingMatches = matchRepository.findAll();
         List<Match> matchesToDelete = existingMatches.stream()
-            .filter(m -> m.getMatchTime() == null || m.getMatchTime().isBefore(now.minusHours(2)))
+            .filter(m -> m.getMatchTime() == null || (m.getMatchTime().isBefore(now.minusHours(2)) && "FINISHED".equals(m.getStatus())))
             .toList();
         if (!matchesToDelete.isEmpty()) {
             matchRepository.deleteAll(matchesToDelete);

@@ -3,8 +3,6 @@ package com.desapp.futbolplayerstokens.scheduler;
 import com.desapp.futbolplayerstokens.service.MatchScraperService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -21,12 +19,6 @@ public class MatchScraperScheduler {
     public MatchScraperScheduler(MatchScraperService matchScraperService, DynamicMatchScheduler dynamicMatchScheduler) {
         this.matchScraperService = matchScraperService;
         this.dynamicMatchScheduler = dynamicMatchScheduler;
-    }
-
-    @EventListener(ApplicationReadyEvent.class)
-    public void scrapeOnApplicationStart() {
-        logger.info("🚀 Aplicación iniciada. Ejecutando scraping inicial...");
-        scrapeMatchesDaily();
     }
 
     /**

@@ -286,6 +286,37 @@ public class DynamicMatchScheduler {
     }
 
     /**
+     * Cancela el scheduler de un partido específico y lo reprograma para ejecutarse en 5 segundos.
+     * Útil para forzar el scrapeo de un partido que ya se jugó pero cuyo scheduler no se ejecutó.
+     */
+    public void rescheduleMatchImmediately(Long matchId) {
+        ScheduledFuture<?> existing = scheduledMatches.get(matchId);
+        if (existing != null) {
+            existing.cancel(false);
+            logger.info("❌ Scheduler existente cancelado para partido {}", matchId);
+        }
+
+        Match match = matchRepository.findById(matchId)
+            .orElseThrow(() -> new IllegalArgumentException("Partido no encontrado: " + matchId));
+
+        Instant executionInstant = Instant.now().plus(Duration.ofSeconds(5));
+        LocalDateTime executionTime = LocalDateTime.ofInstant(executionInstant, ZoneId.systemDefault());
+
+        ScheduledFuture<?> future = taskScheduler.schedule(
+            () -> {
+                logger.info("⚡ Ejecutando match task forzada para partido: {} a las {}", matchId, LocalDateTime.now());
+                sequentialExecutor.submit(() -> executeMatchTask(match));
+            },
+            executionInstant
+        );
+
+        scheduledMatches.put(matchId, future);
+        scheduleInfo.put(matchId, new MatchScheduleInfo(matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime));
+
+        logger.info("⚡ Partido {} reprogramado forzadamente para ejecutarse en 5 segundos ({})", matchId, executionTime);
+    }
+
+    /**
      * Cancela todos los schedulers activos
      */
     public void cancelAllSchedules() {
