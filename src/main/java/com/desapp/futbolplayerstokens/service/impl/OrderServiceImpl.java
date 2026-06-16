@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -190,9 +192,55 @@ public class OrderServiceImpl implements OrderService {
                 .build();
         order = orderRepository.save(order);
 
+        ensureSuperuserSellOrders(order);
+
         matchBuyOrder(order);
 
         return OrderDTO.toDTO(orderRepository.findById(order.getId()).orElse(order));
+    }
+
+    private void ensureSuperuserSellOrders(Order buyOrder) {
+        int remainingQty = buyOrder.getRemainingQuantity();
+        if (remainingQty <= 0) return;
+
+        List<Order> existingSells = orderRepository
+                .findPendingSellOrdersForBuy(buyOrder.getPlayer(), buyOrder.getPriceAtOrder())
+                .stream()
+                .filter(o -> o.getRemainingQuantity() > 0)
+                .toList();
+
+        int availableFromExisting = existingSells.stream()
+                .mapToInt(Order::getRemainingQuantity)
+                .sum();
+
+        int deficit = remainingQty - availableFromExisting;
+        if (deficit <= 0) return;
+
+        Optional<User> superuserOpt = userRepository.findByUsername("superuser");
+        if (superuserOpt.isEmpty()) return;
+        User superuser = superuserOpt.get();
+
+        Portfolio superPortfolio = portfolioRepository.findByUserAndPlayer(superuser, buyOrder.getPlayer())
+                .orElse(null);
+        if (superPortfolio == null || superPortfolio.getTokenQty() <= 0) return;
+
+        BigDecimal quotePrice = quoteService.getCurrentQuote(buyOrder.getPlayer().getId()).getPrice();
+        if (quotePrice.compareTo(buyOrder.getPriceAtOrder()) > 0) return;
+
+        int autoSellQty = Math.min(deficit, superPortfolio.getTokenQty());
+
+        Order autoSellOrder = Order.builder()
+                .user(superuser)
+                .player(buyOrder.getPlayer())
+                .type(Order.OrderType.SELL)
+                .quantity(autoSellQty)
+                .priceAtOrder(quotePrice)
+                .total(quotePrice.multiply(BigDecimal.valueOf(autoSellQty)))
+                .idempotencyKey("auto-sell-" + UUID.randomUUID())
+                .status(Order.OrderStatus.PENDING)
+                .remainingQuantity(autoSellQty)
+                .build();
+        orderRepository.save(autoSellOrder);
     }
 
     private OrderDTO createSellOrder(Long userId, Long playerId, int quantity, String idempotencyKey, BigDecimal minPrice) {

@@ -4,13 +4,17 @@ import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
 import com.desapp.futbolplayerstokens.controller.dto.ValuationResult;
 import com.desapp.futbolplayerstokens.exception.ConfigurationException;
 import com.desapp.futbolplayerstokens.modelo.Player;
+import com.desapp.futbolplayerstokens.modelo.Portfolio;
 import com.desapp.futbolplayerstokens.modelo.Quote;
 import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig.StrategyType;
+import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
 import com.desapp.futbolplayerstokens.repository.QuoteRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
+import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import com.desapp.futbolplayerstokens.service.ValuationService;
 import com.desapp.futbolplayerstokens.service.impl.ScoreByPositionStrategy;
@@ -20,10 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class QuoteServiceImpl implements QuoteService {
@@ -32,23 +36,31 @@ public class QuoteServiceImpl implements QuoteService {
     private static final String ESTRATEGIAINACTIVA = "No active strategy config";
     private static final String JUGADOR_NOENCONTRADO = "Player not found with id: ";
 
+    private static final String SUPERUSER_USERNAME = "superuser";
+
     private final QuoteRepository quoteRepository;
     private final PlayerRepository playerRepository;
     private final StrategyConfigRepository strategyConfigRepository;
     private final ValuationService valuationService;
     private final TransactionTemplate transactionTemplate;
+    private final UserRepository userRepository;
+    private final PortfolioRepository portfolioRepository;
 
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
                             PlayerRepository playerRepository,
                             StrategyConfigRepository strategyConfigRepository,
                             ValuationService valuationService,
-                            TransactionTemplate transactionTemplate) {
+                            TransactionTemplate transactionTemplate,
+                            UserRepository userRepository,
+                            PortfolioRepository portfolioRepository) {
         this.quoteRepository = quoteRepository;
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
         this.valuationService = valuationService;
         this.transactionTemplate = transactionTemplate;
+        this.userRepository = userRepository;
+        this.portfolioRepository = portfolioRepository;
     }
 
     @Override
@@ -110,6 +122,8 @@ public class QuoteServiceImpl implements QuoteService {
             total++;
         }
 
+        seedSuperuserPortfolioForMissingPlayers();
+
         LOGGER.info("Recalculation finished. Total players processed: {}", total);
     }
 
@@ -131,7 +145,33 @@ public class QuoteServiceImpl implements QuoteService {
             recalculateSingle(player, config, trigger);
         }
 
+        seedSuperuserPortfolioForMissingPlayers();
+
         LOGGER.info("Recalculation finished for {} players", playerIds.size());
+    }
+
+    private void seedSuperuserPortfolioForMissingPlayers() {
+        User superuser = userRepository.findByUsername(SUPERUSER_USERNAME).orElse(null);
+        if (superuser == null) {
+            LOGGER.warn("Superuser not found, skipping portfolio seeding");
+            return;
+        }
+        int seeded = 0;
+        for (Player player : playerRepository.findAll()) {
+            if (portfolioRepository.findByUserAndPlayer(superuser, player).isEmpty()) {
+                Portfolio portfolio = Portfolio.builder()
+                        .user(superuser)
+                        .player(player)
+                        .tokenQty(player.getTotalTokens())
+                        .avgBuyPrice(BigDecimal.ZERO)
+                        .build();
+                portfolioRepository.save(portfolio);
+                seeded++;
+            }
+        }
+        if (seeded > 0) {
+            LOGGER.info("Seeded superuser portfolio for {} new players", seeded);
+        }
     }
 
     private Quote recalculateSingle(Player player, StrategyConfig config, QuoteTrigger trigger) {

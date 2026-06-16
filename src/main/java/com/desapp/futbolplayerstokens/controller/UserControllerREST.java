@@ -8,6 +8,7 @@ import com.desapp.futbolplayerstokens.service.PortfolioService;
 import com.desapp.futbolplayerstokens.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,8 +36,13 @@ public class UserControllerREST {
     @GetMapping("/{id}/portfolio")
     public Page<PortfolioDTO> getPortfolio(
             @PathVariable("id") Long id,
-            @PageableDefault(size = 20, sort = "id") Pageable pageable) {
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         return portfolioService.getPortfolio(id, pageable);
+    }
+
+    @GetMapping("/{id}/portfolio/all")
+    public List<PortfolioDTO> getAllPortfolio(@PathVariable("id") Long id) {
+        return portfolioService.getPortfolio(id);
     }
 
     @GetMapping("/{id}/transactions")

@@ -34,6 +34,7 @@ import java.util.List;
 public class DynamicMatchScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(DynamicMatchScheduler.class);
+    private static final String STATUS_FINISHED = "FINISHED";
 
     private final TaskScheduler taskScheduler;
     private final MatchRepository matchRepository;
@@ -63,7 +64,7 @@ public class DynamicMatchScheduler {
     }
 
     /**
-     * Programa schedulers para cada partido del día (solo futuros)
+     * Programa schedulers para cada partido del día
      */
     public void scheduleMatchesForToday() {
         cancelAllSchedules();
@@ -72,8 +73,14 @@ public class DynamicMatchScheduler {
         LocalDateTime now = LocalDateTime.now();
 
         for (Match match : allMatches) {
-            if (match.getMatchTime() != null && match.getMatchTime().isAfter(now)) {
+            if (match.getMatchTime() == null || STATUS_FINISHED.equals(match.getStatus())) continue;
+
+            LocalDateTime checkTime = match.getMatchTime().plusHours(2);
+
+            if (checkTime.isAfter(now)) {
                 scheduleMatch(match);
+            } else if (match.getMatchTime().isAfter(now.minusHours(4))) {
+                rescheduleMatchIn10Minutes(match);
             }
         }
     }
@@ -135,7 +142,10 @@ public class DynamicMatchScheduler {
                 return;
             }
 
-            logger.info("✅ Partido {} está FINISHED", match.getId());
+                logger.info("✅ Partido {} está {}", match.getId(), STATUS_FINISHED);
+
+                match.setStatus(STATUS_FINISHED);
+                matchRepository.save(match);
 
             String team1Name = getTeamName(match.getTeam1Id());
             String team2Name = getTeamName(match.getTeam2Id());
@@ -222,7 +232,7 @@ public class DynamicMatchScheduler {
             if (response.getBody() != null) {
                 String status = response.getBody().getStatus();
                 logger.info("📊 Status de API para partido {}: {}", match.getId(), status);
-                boolean isFinished = "FINISHED".equals(status);
+                boolean isFinished = STATUS_FINISHED.equals(status);
                 logger.info("   ➜ ¿Terminado? {}", isFinished);
                 return isFinished;
             } else {
@@ -268,6 +278,37 @@ public class DynamicMatchScheduler {
         } catch (Exception e) {
             return "Unknown (" + teamId + ")";
         }
+    }
+
+    /**
+     * Cancela el scheduler de un partido específico y lo reprograma para ejecutarse en 5 segundos.
+     * Útil para forzar el scrapeo de un partido que ya se jugó pero cuyo scheduler no se ejecutó.
+     */
+    public void rescheduleMatchImmediately(Long matchId) {
+        ScheduledFuture<?> existing = scheduledMatches.get(matchId);
+        if (existing != null) {
+            existing.cancel(false);
+            logger.info("❌ Scheduler existente cancelado para partido {}", matchId);
+        }
+
+        Match match = matchRepository.findById(matchId)
+            .orElseThrow(() -> new IllegalArgumentException("Partido no encontrado: " + matchId));
+
+        Instant executionInstant = Instant.now().plus(Duration.ofSeconds(5));
+        LocalDateTime executionTime = LocalDateTime.ofInstant(executionInstant, ZoneId.systemDefault());
+
+        ScheduledFuture<?> future = taskScheduler.schedule(
+            () -> {
+                logger.info("⚡ Ejecutando match task forzada para partido: {} a las {}", matchId, LocalDateTime.now());
+                sequentialExecutor.submit(() -> executeMatchTask(match));
+            },
+            executionInstant
+        );
+
+        scheduledMatches.put(matchId, future);
+        scheduleInfo.put(matchId, new MatchScheduleInfo(matchId, match.getTeam1Id(), match.getTeam2Id(), executionTime));
+
+        logger.info("⚡ Partido {} reprogramado forzadamente para ejecutarse en 5 segundos ({})", matchId, executionTime);
     }
 
     /**

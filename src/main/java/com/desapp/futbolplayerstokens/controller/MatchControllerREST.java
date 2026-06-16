@@ -2,6 +2,7 @@ package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.controller.dto.MatchDTO;
 import com.desapp.futbolplayerstokens.modelo.Match;
+import com.desapp.futbolplayerstokens.scheduler.DynamicMatchScheduler;
 import com.desapp.futbolplayerstokens.service.MatchScraperService;
 import com.desapp.futbolplayerstokens.service.MatchService;
 
@@ -25,10 +26,12 @@ public class MatchControllerREST {
 
     private final MatchService matchService;
     private final MatchScraperService matchScraperService;
+    private final DynamicMatchScheduler dynamicMatchScheduler;
 
-    public MatchControllerREST(MatchService matchService, MatchScraperService matchScraperService) {
+    public MatchControllerREST(MatchService matchService, MatchScraperService matchScraperService, DynamicMatchScheduler dynamicMatchScheduler) {
         this.matchService = matchService;
         this.matchScraperService = matchScraperService;
+        this.dynamicMatchScheduler = dynamicMatchScheduler;
     }
 
     @GetMapping("/all")
@@ -139,5 +142,26 @@ public class MatchControllerREST {
             .map(MatchDTO::fromEntity)
             .toList();
         return ResponseEntity.ok(matchDTOs);
+    }
+
+    @PostMapping("/reschedule/{id}")
+    @PermitAll
+    @Operation(summary = "Re-programar partido", description = "Cancela el scheduler existente del partido y crea uno nuevo que se ejecuta en 5 segundos. Sirve para forzar el scrapeo de partidos que ya se jugaron pero cuyo scheduler automático no se ejecutó.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Partido reprogramado exitosamente"),
+        @ApiResponse(responseCode = "404", description = "Partido no encontrado"),
+        @ApiResponse(responseCode = "500", description = "Error al reprogramar")
+    })
+    public ResponseEntity<String> rescheduleMatch(
+            @Parameter(description = "ID del partido a reprogramar")
+            @PathVariable Long id) {
+        try {
+            dynamicMatchScheduler.rescheduleMatchImmediately(id);
+            return ResponseEntity.ok("✅ Partido " + id + " reprogramado para ejecutarse en 5 segundos");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("❌ " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("❌ Error al reprogramar partido: " + e.getMessage());
+        }
     }
 }

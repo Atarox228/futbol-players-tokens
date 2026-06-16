@@ -11,11 +11,14 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class StrategyConfigServiceImpl implements StrategyConfigService {
 
     private static final BigDecimal ONE = BigDecimal.ONE;
+
+    private static final Set<String> PENALTY_KEYS = Set.of("yellowCards", "redCards", "ownGoals", "faults");
 
     private final StrategyConfigRepository repository;
 
@@ -68,11 +71,16 @@ public class StrategyConfigServiceImpl implements StrategyConfigService {
         }
 
         BigDecimal sum = BigDecimal.ZERO;
-        for (BigDecimal w : weights.values()) {
+        for (java.util.Map.Entry<String, BigDecimal> e : weights.entrySet()) {
+            BigDecimal w = e.getValue();
             if (w == null || w.compareTo(BigDecimal.ZERO) < 0) {
                 throw new ValidationException("All weights must be non-negative");
             }
-            sum = sum.add(w);
+            if (PENALTY_KEYS.contains(e.getKey())) {
+                sum = sum.subtract(w);
+            } else {
+                sum = sum.add(w);
+            }
         }
         if (sum.compareTo(ONE) > 0) {
             throw new ValidationException("Sum of all weights (" + sum + ") must not exceed 1");
