@@ -126,6 +126,8 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         WORLD_CUP_TEAM_URLS.put("Japan", "https://es.whoscored.com/teams/986/show/japan-japan");
         WORLD_CUP_TEAM_URLS.put("Iran", "https://es.whoscored.com/teams/1293/show/ir%C3%A1n-iran");
         WORLD_CUP_TEAM_URLS.put("New Zealand", "https://es.whoscored.com/teams/1918/show/international-new-zealand");
+        WORLD_CUP_TEAM_URLS.put("France", "https://es.whoscored.com/teams/341/show/international-france");
+        WORLD_CUP_TEAM_URLS.put("Senegal", "https://es.whoscored.com/teams/957/show/international-senegal");
     }
 
     private static final String ATTR_CLASS = "class";
