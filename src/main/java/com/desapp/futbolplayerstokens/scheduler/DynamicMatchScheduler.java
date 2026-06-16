@@ -34,6 +34,7 @@ import java.util.List;
 public class DynamicMatchScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(DynamicMatchScheduler.class);
+    private static final String STATUS_FINISHED = "FINISHED";
 
     private final TaskScheduler taskScheduler;
     private final MatchRepository matchRepository;
@@ -72,18 +73,13 @@ public class DynamicMatchScheduler {
         LocalDateTime now = LocalDateTime.now();
 
         for (Match match : allMatches) {
-            if (match.getMatchTime() == null) continue;
-
-            // Saltar partidos ya finalizados
-            if ("FINISHED".equals(match.getStatus())) continue;
+            if (match.getMatchTime() == null || STATUS_FINISHED.equals(match.getStatus())) continue;
 
             LocalDateTime checkTime = match.getMatchTime().plusHours(2);
 
             if (checkTime.isAfter(now)) {
-                // Aún no es hora de verificar → programar normalmente
                 scheduleMatch(match);
             } else if (match.getMatchTime().isAfter(now.minusHours(4))) {
-                // Empezó hace menos de 4h y no está FINISHED → reintentar pronto
                 rescheduleMatchIn10Minutes(match);
             }
         }
@@ -146,10 +142,9 @@ public class DynamicMatchScheduler {
                 return;
             }
 
-                logger.info("✅ Partido {} está FINISHED", match.getId());
+                logger.info("✅ Partido {} está {}", match.getId(), STATUS_FINISHED);
 
-                // Persistir status FINISHED en la DB
-                match.setStatus("FINISHED");
+                match.setStatus(STATUS_FINISHED);
                 matchRepository.save(match);
 
             String team1Name = getTeamName(match.getTeam1Id());
@@ -237,7 +232,7 @@ public class DynamicMatchScheduler {
             if (response.getBody() != null) {
                 String status = response.getBody().getStatus();
                 logger.info("📊 Status de API para partido {}: {}", match.getId(), status);
-                boolean isFinished = "FINISHED".equals(status);
+                boolean isFinished = STATUS_FINISHED.equals(status);
                 logger.info("   ➜ ¿Terminado? {}", isFinished);
                 return isFinished;
             } else {

@@ -26,6 +26,7 @@ import java.util.List;
 public class MatchScraperServiceImpl implements MatchScraperService {
 
     private static final Logger logger = LoggerFactory.getLogger(MatchScraperServiceImpl.class);
+    private static final String STATUS_FINISHED = "FINISHED";
 
     private final RestTemplate restTemplate;
     private final MatchService matchService;
@@ -41,83 +42,85 @@ public class MatchScraperServiceImpl implements MatchScraperService {
 
     @Override
     public List<Match> scrapeMatchesOfToday() {
-        // Limpiar tabla de matches antes de scrapear (excepto partidos en proceso, últimas 2h)
-        LocalDateTime now = LocalDateTime.now();
-        List<Match> existingMatches = matchRepository.findAll();
-        List<Match> matchesToDelete = existingMatches.stream()
-            .filter(m -> m.getMatchTime() == null || (m.getMatchTime().isBefore(now.minusHours(2)) && "FINISHED".equals(m.getStatus())))
-            .toList();
-        if (!matchesToDelete.isEmpty()) {
-            matchRepository.deleteAll(matchesToDelete);
-        }
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDateTime now = LocalDateTime.now(zone);
+        cleanOldMatches(now);
 
-        // Intenta obtener el token del .env, si no está disponible, usa System.getenv()
         String apiToken = getApiToken();
-
         if (apiToken == null || apiToken.isEmpty()) {
             throw new ConfigurationException("❌ FOOTBALL_DATA_API_TOKEN no configurado. Setea la variable de entorno FOOTBALL_DATA_API_TOKEN con tu token de football-data.org");
         }
 
-        LocalDate today = LocalDate.now();
-        String dateFrom = today.toString();
-        String dateTo = today.plusDays(1).toString();
-
-        logger.info("🔍 Scrapeando partidos para fecha: {} (Timezone: {})", dateFrom, ZoneId.systemDefault());
+        LocalDate today = LocalDate.now(zone);
+        logger.info("🔍 Scrapeando partidos para fecha: {} (Timezone: {})", today, zone);
 
         List<Match> savedMatches = new ArrayList<>();
 
         for (String competitionId : footballDataProperties.getCompetitionIds()) {
-            String url = String.format(
-                "%s/competitions/%s/matches?dateFrom=%s&dateTo=%s",
-                footballDataProperties.getBaseUrl(), competitionId, dateFrom, dateTo
-            );
-
-            try {
-                HttpHeaders headers = new HttpHeaders();
-                headers.set("X-Auth-Token", apiToken);
-
-                HttpEntity<String> entity = new HttpEntity<>(headers);
-
-                ResponseEntity<MatchApiDTO> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    MatchApiDTO.class
-                );
-
-                if (response.getBody() != null && response.getBody().getMatches() != null) {
-                    for (MatchApiDTO.Match matchApi : response.getBody().getMatches()) {
-                        Long team1Id = matchApi.getHomeTeam() != null ? matchApi.getHomeTeam().getId() : null;
-                        Long team2Id = matchApi.getAwayTeam() != null ? matchApi.getAwayTeam().getId() : null;
-                        LocalDateTime localMatchTime = matchApi.getMatchTime() != null
-                            ? matchApi.getMatchTime().atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
-                            : null;
-
-                        if (localMatchTime != null && !localMatchTime.toLocalDate().equals(today)) {
-                            logger.info("⏭️ Skipping match {} ({}): local date {} != today {}",
-                                matchApi.getId(), localMatchTime, localMatchTime.toLocalDate(), today);
-                            continue;
-                        }
-
-                        Match match = Match.builder()
-                            .footballDataMatchId(matchApi.getId())
-                            .status(matchApi.getStatus())
-                            .matchTime(localMatchTime)
-                            .team1Id(team1Id)
-                            .team2Id(team2Id)
-                            .build();
-
-                        Match savedMatch = matchService.createMatch(match);
-                        savedMatches.add(savedMatch);
-                    }
-                }
-
-            } catch (Exception e) {
-                logger.error("❌ Error al consultar la API para competencia {}: {}", competitionId, e.getMessage());
-            }
+            fetchAndSaveMatches(competitionId, today, apiToken, savedMatches);
         }
 
         return savedMatches;
+    }
+
+    private void cleanOldMatches(LocalDateTime now) {
+        List<Match> existingMatches = matchRepository.findAll();
+        List<Match> matchesToDelete = existingMatches.stream()
+            .filter(m -> m.getMatchTime() == null || (m.getMatchTime().isBefore(now.minusHours(2)) && STATUS_FINISHED.equals(m.getStatus())))
+            .toList();
+        if (!matchesToDelete.isEmpty()) {
+            matchRepository.deleteAll(matchesToDelete);
+        }
+    }
+
+    private void fetchAndSaveMatches(String competitionId, LocalDate today, String apiToken, List<Match> savedMatches) {
+        String url = String.format(
+            "%s/competitions/%s/matches?dateFrom=%s&dateTo=%s",
+            footballDataProperties.getBaseUrl(), competitionId, today, today.plusDays(1)
+        );
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Auth-Token", apiToken);
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<MatchApiDTO> response = restTemplate.exchange(
+                url, HttpMethod.GET, entity, MatchApiDTO.class
+            );
+
+            if (response.getBody() == null || response.getBody().getMatches() == null) return;
+
+            for (MatchApiDTO.Match matchApi : response.getBody().getMatches()) {
+                processMatchApi(matchApi, today, savedMatches);
+            }
+
+        } catch (Exception e) {
+            logger.error("❌ Error al consultar la API para competencia {}: {}", competitionId, e.getMessage());
+        }
+    }
+
+    private void processMatchApi(MatchApiDTO.Match matchApi, LocalDate today, List<Match> savedMatches) {
+        Long team1Id = matchApi.getHomeTeam() != null ? matchApi.getHomeTeam().getId() : null;
+        Long team2Id = matchApi.getAwayTeam() != null ? matchApi.getAwayTeam().getId() : null;
+        LocalDateTime localMatchTime = matchApi.getMatchTime() != null
+            ? matchApi.getMatchTime().atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
+            : null;
+
+        if (localMatchTime != null && !localMatchTime.toLocalDate().equals(today)) {
+            logger.info("⏭️ Skipping match {} ({}): local date {} != today {}",
+                matchApi.getId(), localMatchTime, localMatchTime.toLocalDate(), today);
+            return;
+        }
+
+        Match match = Match.builder()
+            .footballDataMatchId(matchApi.getId())
+            .status(matchApi.getStatus())
+            .matchTime(localMatchTime)
+            .team1Id(team1Id)
+            .team2Id(team2Id)
+            .build();
+
+        savedMatches.add(matchService.createMatch(match));
     }
 
     /**

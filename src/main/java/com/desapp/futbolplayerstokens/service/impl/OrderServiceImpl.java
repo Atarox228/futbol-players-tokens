@@ -217,7 +217,7 @@ public class OrderServiceImpl implements OrderService {
         if (deficit <= 0) return;
 
         Optional<User> superuserOpt = userRepository.findByUsername("superuser");
-        if (superuserOpt == null || superuserOpt.isEmpty()) return;
+        if (superuserOpt.isEmpty()) return;
         User superuser = superuserOpt.get();
 
         Portfolio superPortfolio = portfolioRepository.findByUserAndPlayer(superuser, buyOrder.getPlayer())

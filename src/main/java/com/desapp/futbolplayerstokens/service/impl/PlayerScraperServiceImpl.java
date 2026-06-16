@@ -92,9 +92,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         "Crystal Palace", "https://es.whoscored.com/teams/162/show/inglaterra-crystal-palace"
     );
 
+    private static final String WORLD_CUP_STARTER_TEAM = "Mexico";
+
     private static final Map<String, String> WORLD_CUP_TEAM_URLS = new LinkedHashMap<>();
     static {
-        WORLD_CUP_TEAM_URLS.put("Mexico", "https://es.whoscored.com/teams/972/show/international-mexico");
+        WORLD_CUP_TEAM_URLS.put(WORLD_CUP_STARTER_TEAM, "https://es.whoscored.com/teams/972/show/international-mexico");
         WORLD_CUP_TEAM_URLS.put("South Africa", "https://es.whoscored.com/teams/485/show/sud%C3%A1frica-south-africa");
         WORLD_CUP_TEAM_URLS.put("South Korea", "https://es.whoscored.com/teams/1159/show/international-republic-of-korea");
         WORLD_CUP_TEAM_URLS.put("Czechia", "https://es.whoscored.com/teams/332/show/rep-checa-czechia");
@@ -1611,7 +1613,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         logger.info("🚀 BD vacía detectada. Iniciando scraping automático de todos los jugadores...");
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put(LeagueConstant.WORLD_CUP, "Mexico");
+        ligas.put(LeagueConstant.WORLD_CUP, WORLD_CUP_STARTER_TEAM);
 
         scrapeAllLeagues(ligas, "Scraping automático");
     }
@@ -1627,7 +1629,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         Map<String, String> ligas = new LinkedHashMap<>();
-        ligas.put(LeagueConstant.WORLD_CUP, "Mexico");
+        ligas.put(LeagueConstant.WORLD_CUP, WORLD_CUP_STARTER_TEAM);
 
         scrapeAllLeagues(ligas, "Scraping forzado");
 

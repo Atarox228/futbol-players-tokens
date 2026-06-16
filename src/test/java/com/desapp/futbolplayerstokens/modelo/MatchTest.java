@@ -29,13 +29,13 @@ class MatchTest {
     @Test
     void testMatchAllArgsConstructor() {
         LocalDateTime now = LocalDateTime.now();
-        Match match = new Match(1L, 100L, 10L, 20L, now, "TIMED");
+        Match m = new Match(1L, 100L, 10L, 20L, now, "TIMED");
 
-        assertEquals(1L, match.getId());
-        assertEquals(100L, match.getFootballDataMatchId());
-        assertEquals(10L, match.getTeam1Id());
-        assertEquals(20L, match.getTeam2Id());
-        assertEquals(now, match.getMatchTime());
+        assertEquals(1L, m.getId());
+        assertEquals(100L, m.getFootballDataMatchId());
+        assertEquals(10L, m.getTeam1Id());
+        assertEquals(20L, m.getTeam2Id());
+        assertEquals(now, m.getMatchTime());
     }
 
     @Test
@@ -136,7 +136,7 @@ class MatchTest {
     @Test
     void testMatchToString() {
         LocalDateTime now = LocalDateTime.now();
-        Match match = Match.builder()
+        Match m = Match.builder()
                 .id(1L)
                 .footballDataMatchId(100L)
                 .team1Id(10L)
@@ -144,7 +144,7 @@ class MatchTest {
                 .matchTime(now)
                 .build();
 
-        String toString = match.toString();
+        String toString = m.toString();
         assertNotNull(toString);
         assertTrue(toString.contains("Match"));
     }
