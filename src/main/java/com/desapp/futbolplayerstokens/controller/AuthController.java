@@ -40,12 +40,12 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "Usuario registrado exitosamente"),
         @ApiResponse(responseCode = "400", description = "Error en la validación o usuario ya existe")
     })
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest request) {
         try {
             User user = userService.registerUser(request.getUsername(), request.getPassword(), request.getEmail());
-            return ResponseEntity.ok("User registered successfully");
+            return ResponseEntity.ok(Map.of("message", "User registered successfully"));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -55,7 +55,7 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "Login exitoso, token devuelto"),
         @ApiResponse(responseCode = "400", description = "Credenciales inválidas")
     })
-    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletResponse response) {
+    public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
@@ -73,7 +73,7 @@ public class AuthController {
             User user = userService.findByUsername(request.getUsername()).orElseThrow(() -> new RuntimeException("User not found"));
             return ResponseEntity.ok(Map.of("token", token, "message", "Login successful", "userId", user.getId()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Invalid credentials");
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid credentials"));
         }
     }
 
@@ -82,7 +82,7 @@ public class AuthController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Logout exitoso")
     })
-    public ResponseEntity<?> logout(HttpServletResponse response) {
+    public ResponseEntity<Map<String, Object>> logout(HttpServletResponse response) {
         Cookie cookie = new Cookie("authToken", null);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);

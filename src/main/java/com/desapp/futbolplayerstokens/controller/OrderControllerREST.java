@@ -1,6 +1,8 @@
 package com.desapp.futbolplayerstokens.controller;
 
+import com.desapp.futbolplayerstokens.controller.dto.BuyRequest;
 import com.desapp.futbolplayerstokens.controller.dto.OrderDTO;
+import com.desapp.futbolplayerstokens.controller.dto.SellRequest;
 import com.desapp.futbolplayerstokens.modelo.Order;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.OrderService;
@@ -11,7 +13,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -31,13 +32,13 @@ public class OrderControllerREST {
     @PostMapping("/buy")
     public OrderDTO buy(@RequestBody BuyRequest req) {
         Long userId = currentUserId();
-        return orderService.buy(userId, req.playerId, req.quantity, req.idempotencyKey, req.maxPrice);
+        return orderService.buy(userId, req.getPlayerId(), req.getQuantity(), req.getIdempotencyKey(), req.getMaxPrice());
     }
 
     @PostMapping("/sell")
     public OrderDTO sell(@RequestBody SellRequest req) {
         Long userId = currentUserId();
-        return orderService.sell(userId, req.playerId, req.quantity, req.idempotencyKey, req.minPrice);
+        return orderService.sell(userId, req.getPlayerId(), req.getQuantity(), req.getIdempotencyKey(), req.getMinPrice());
     }
 
     @GetMapping("/transactions")
@@ -85,20 +86,6 @@ public class OrderControllerREST {
         String username = auth.getName();
         return userRepository.findByUsername(username).map(u -> u.getId()).orElseThrow(() -> new RuntimeException("User not found"));
     }
-
-    public record BuyRequest(
-            Long playerId,
-            int quantity,
-            String idempotencyKey,
-            BigDecimal maxPrice
-    ) {}
-
-    public record SellRequest(
-            Long playerId,
-            int quantity,
-            String idempotencyKey,
-            BigDecimal minPrice
-    ) {}
 
 }
 
