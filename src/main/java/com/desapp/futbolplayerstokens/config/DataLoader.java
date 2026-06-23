@@ -2,11 +2,14 @@ package com.desapp.futbolplayerstokens.config;
 
 import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.Portfolio;
+import com.desapp.futbolplayerstokens.modelo.ScoringConfig;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.modelo.User;
+import com.desapp.futbolplayerstokens.modelo.ValuationMode;
 import com.desapp.futbolplayerstokens.repository.OrderRepository;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
+import com.desapp.futbolplayerstokens.repository.ScoringConfigRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
@@ -44,6 +47,7 @@ public class DataLoader implements ApplicationRunner {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
+    private final ScoringConfigRepository scoringConfigRepository;
 
     public DataLoader(UserService userService,
                       PlayerScraperService scraperService,
@@ -51,7 +55,8 @@ public class DataLoader implements ApplicationRunner {
                       StrategyConfigRepository strategyConfigRepository,
                       OrderRepository orderRepository,
                       UserRepository userRepository,
-                      PortfolioRepository portfolioRepository) {
+                      PortfolioRepository portfolioRepository,
+                      ScoringConfigRepository scoringConfigRepository) {
         this.userService = userService;
         this.scraperService = scraperService;
         this.playerRepository = playerRepository;
@@ -59,6 +64,7 @@ public class DataLoader implements ApplicationRunner {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.portfolioRepository = portfolioRepository;
+        this.scoringConfigRepository = scoringConfigRepository;
     }
 
     @Override
@@ -70,6 +76,7 @@ public class DataLoader implements ApplicationRunner {
             loadMockPlayers();
         }
 
+        createScoringConfigIfMissing();
         createSuperuserIfMissing();
         createTestUsersIfMissing();
         createDefaultStrategyIfMissing();
@@ -127,6 +134,16 @@ public class DataLoader implements ApplicationRunner {
                 portfolioRepository.save(portfolio);
                 log.info("Seeded superuser portfolio for player {} with {} tokens", player.getName(), player.getTotalTokens());
             }
+        }
+    }
+
+    private void createScoringConfigIfMissing() {
+        if (scoringConfigRepository.findById(1L).isEmpty()) {
+            ScoringConfig config = ScoringConfig.builder()
+                    .id(1L)
+                    .mode(ValuationMode.POSITION)
+                    .build();
+            scoringConfigRepository.save(config);
         }
     }
 

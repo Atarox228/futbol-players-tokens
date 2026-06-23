@@ -13,5 +13,7 @@ public interface StrategyConfigService {
 
     StrategyConfig update(StrategyType type, UpdateStrategyRequest request);
 
+    StrategyConfig updateNormalized(StrategyType type, UpdateStrategyRequest request);
+
     List<StrategyConfig> getHistoryByType(StrategyType type);
 }

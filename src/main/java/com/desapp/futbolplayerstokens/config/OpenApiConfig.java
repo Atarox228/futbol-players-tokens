@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
     info = @Info(
         title = "Futbol Players Tokens API",
         version = "1.0.0",
-        description = "API REST para gestión de jugadores de fútbol, cotizaciones y partidos.",
+        description = "API REST para gestión de jugadores de fútbol, cotizaciones, partidos y configuración de estrategias de valuación. Soporta dos modos de puntuación: GENERAL (mismas métricas para todos) y POSITION (métricas según la posición del jugador). Los pesos de las valuaciones pueden configurarse y normalizarse.",
         contact = @Contact(
             name = "DesApp Team",
             url = "https://github.com/desapp"
