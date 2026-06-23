@@ -130,6 +130,20 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         WORLD_CUP_TEAM_URLS.put("New Zealand", "https://es.whoscored.com/teams/1918/show/international-new-zealand");
         WORLD_CUP_TEAM_URLS.put("France", "https://es.whoscored.com/teams/341/show/international-france");
         WORLD_CUP_TEAM_URLS.put("Senegal", "https://es.whoscored.com/teams/957/show/international-senegal");
+        WORLD_CUP_TEAM_URLS.put("Iraq", "https://es.whoscored.com/teams/2374/show/international-iraq");
+        WORLD_CUP_TEAM_URLS.put("Norway", "https://es.whoscored.com/teams/334/show/international-norway");
+        WORLD_CUP_TEAM_URLS.put("Argentina", "https://es.whoscored.com/teams/346/show/internacional-argentina");
+        WORLD_CUP_TEAM_URLS.put("Algeria", "https://es.whoscored.com/teams/966/show/internacional-algeria");
+        WORLD_CUP_TEAM_URLS.put("Austria", "https://es.whoscored.com/teams/324/show/internacional-austria");
+        WORLD_CUP_TEAM_URLS.put("Jordan", "https://es.whoscored.com/teams/1489/show/internacional-jordan");
+        WORLD_CUP_TEAM_URLS.put("Portugal", "https://es.whoscored.com/teams/340/show/internacional-portugal");
+        WORLD_CUP_TEAM_URLS.put("DR Congo", "https://es.whoscored.com/teams/960/show/internacional-dr-congo");
+        WORLD_CUP_TEAM_URLS.put("Uzbekistan", "https://es.whoscored.com/teams/1563/show/internacional-uzbekistan");
+        WORLD_CUP_TEAM_URLS.put("Colombia", "https://es.whoscored.com/teams/408/show/internacional-colombia");
+        WORLD_CUP_TEAM_URLS.put("Ghana", "https://es.whoscored.com/teams/965/show/internacional-ghana");
+        WORLD_CUP_TEAM_URLS.put("Panama", "https://es.whoscored.com/teams/2694/show/internacional-panama");
+        WORLD_CUP_TEAM_URLS.put("England", "https://es.whoscored.com/teams/345/show/internacional-england");
+        WORLD_CUP_TEAM_URLS.put("Croatia", "https://es.whoscored.com/teams/337/show/internacional-croatia");
     }
 
     private static final String ATTR_CLASS = "class";

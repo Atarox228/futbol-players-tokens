@@ -113,7 +113,7 @@ public class DynamicMatchScheduler {
             return;
         }
         
-        LocalDateTime executionTime = matchTime.plus(Duration.ofHours(2));
+        LocalDateTime executionTime = matchTime.plus(Duration.ofMinutes(130));
         Instant executionInstant = executionTime.atZone(ZoneId.systemDefault()).toInstant();
 
         ScheduledFuture<?> future = taskScheduler.schedule(

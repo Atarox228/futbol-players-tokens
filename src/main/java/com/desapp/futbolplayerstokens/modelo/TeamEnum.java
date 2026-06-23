@@ -149,7 +149,7 @@ public enum TeamEnum {
     BOSNIA_HERZEGOVINA(1060, "Bosnia-Herzegovina", LeagueConstant.WORLD_CUP),
     PANAMA(1836, "Panama", LeagueConstant.WORLD_CUP),
     CAPE_VERDE_ISLANDS(1930, "Cape Verde Islands", LeagueConstant.WORLD_CUP),
-    CONGO_DR(1934, "Congo DR", LeagueConstant.WORLD_CUP),
+    CONGO_DR(1934, "DR Congo", LeagueConstant.WORLD_CUP),
     IVORY_COAST(1935, "Ivory Coast", LeagueConstant.WORLD_CUP),
     QATAR(8030, "Qatar", LeagueConstant.WORLD_CUP),
     JORDAN(8049, "Jordan", LeagueConstant.WORLD_CUP),
