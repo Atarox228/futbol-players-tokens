@@ -138,6 +138,7 @@ public class MatchControllerREST {
     })
     public ResponseEntity<List<MatchDTO>> scrapeMatchesOfToday() {
         List<Match> matches = matchScraperService.scrapeMatchesOfToday();
+        dynamicMatchScheduler.scheduleMatchesForToday();
         List<MatchDTO> matchDTOs = matches.stream()
             .map(MatchDTO::fromEntity)
             .toList();
