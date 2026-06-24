@@ -1,6 +1,9 @@
+server:
+  port: ${PORT:8080}
+
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/player_market
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/player_market}
     username: ${SPRING_DATASOURCE_USERNAME:}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: org.postgresql.Driver

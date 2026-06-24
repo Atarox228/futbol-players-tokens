@@ -34,7 +34,7 @@ ENV DISPLAY=:99
 RUN echo '#!/bin/bash\n\
 /opt/bin/entry_point.sh &\n\
 sleep 5\n\
-java -jar app.jar\n\
+java -jar app.jar --server.port=${PORT:-8080}\n\
 ' > /app/start.sh && chmod +x /app/start.sh
 
 EXPOSE 8080 4444
