@@ -35,27 +35,8 @@ public class FutbolPlayersTokensApplication {
         Path dockerEnvPath = projectDir.resolve(".env.docker");
         Path localEnvPath = projectDir.resolve(".env");
 
-        boolean loaded = loadEnvFile(dockerEnvPath);
-
-        if (!loaded) {
-            loaded = loadEnvFile(localEnvPath);
-        }
-
-        if (!loaded) {
-            throw new IllegalStateException(
-                    "No se encontró ningún archivo .env válido. Se buscó en: "
-                            + dockerEnvPath.toAbsolutePath()
-                            + " y "
-                            + localEnvPath.toAbsolutePath()
-            );
-        }
-
-        String datasourcePassword = System.getProperty("SPRING_DATASOURCE_PASSWORD");
-
-        if (datasourcePassword == null || datasourcePassword.isBlank()) {
-            throw new IllegalStateException(
-                    "SPRING_DATASOURCE_PASSWORD no fue cargada. Revisá que el archivo .env tenga esa variable."
-            );
+        if (!loadEnvFile(dockerEnvPath)) {
+            loadEnvFile(localEnvPath);
         }
     }
 
