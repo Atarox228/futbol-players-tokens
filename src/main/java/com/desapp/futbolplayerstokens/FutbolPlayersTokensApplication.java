@@ -3,6 +3,8 @@ package com.desapp.futbolplayerstokens;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.core.env.PropertiesPropertySource;
+import org.springframework.core.env.StandardEnvironment;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.data.web.config.EnableSpringDataWebSupport.PageSerializationMode;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -12,6 +14,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @SpringBootApplication
 @EnableScheduling
@@ -27,7 +32,17 @@ public class FutbolPlayersTokensApplication {
             WebDriverManager.chromedriver().setup();
         }
 
-        SpringApplication.run(FutbolPlayersTokensApplication.class, args);
+        Properties dbProps = parseDatabaseUrl();
+
+        if (dbProps != null) {
+            StandardEnvironment env = new StandardEnvironment();
+            env.getPropertySources().addFirst(new PropertiesPropertySource("databaseUrl", dbProps));
+            SpringApplication app = new SpringApplication(FutbolPlayersTokensApplication.class);
+            app.setEnvironment(env);
+            app.run(args);
+        } else {
+            SpringApplication.run(FutbolPlayersTokensApplication.class, args);
+        }
     }
 
     private static void loadEnv() {
@@ -38,6 +53,33 @@ public class FutbolPlayersTokensApplication {
         if (!loadEnvFile(dockerEnvPath)) {
             loadEnvFile(localEnvPath);
         }
+    }
+
+    private static Properties parseDatabaseUrl() {
+        String databaseUrl = System.getenv("DATABASE_URL");
+
+        if (databaseUrl == null || databaseUrl.isBlank()) {
+            return null;
+        }
+
+        Pattern pattern = Pattern.compile("postgresql://([^:]+):([^@]+)@([^:]+):?(\\d*)/(\\w+)");
+        Matcher matcher = pattern.matcher(databaseUrl);
+
+        if (matcher.matches()) {
+            String user = matcher.group(1);
+            String password = matcher.group(2);
+            String host = matcher.group(3);
+            String port = matcher.group(4).isEmpty() ? "5432" : matcher.group(4);
+            String db = matcher.group(5);
+
+            Properties props = new Properties();
+            props.setProperty("spring.datasource.url", "jdbc:postgresql://" + host + ":" + port + "/" + db);
+            props.setProperty("spring.datasource.username", user);
+            props.setProperty("spring.datasource.password", password);
+            return props;
+        }
+
+        return null;
     }
 
     private static boolean loadEnvFile(Path envPath) {
