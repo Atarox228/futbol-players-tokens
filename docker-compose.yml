@@ -32,6 +32,9 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+      SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION: "true"
+      SPRING_SQL_INIT_SCHEMA_LOCATIONS: classpath:data-migration.sql
       SPRING_SHOW_SQL: "true"
       CHROMIUM_BIN: /usr/bin/chromium
       CHROMEDRIVER_BIN: /usr/bin/chromedriver
@@ -42,7 +45,9 @@ services:
     restart: on-failure
     networks:
       - futbol-network
-    shm_size: '2gb'
+    shm_size: '256m'
+    mem_limit: 512m
+    mem_reservation: 256m
 
 volumes:
   postgres_data:

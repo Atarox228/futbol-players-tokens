@@ -47,9 +47,23 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String CHROME_ARG_NO_SANDBOX = "--no-sandbox";
     private static final String CHROME_ARG_DISABLE_DEV_SHM = "--disable-dev-shm-usage";
     private static final String CHROME_ARG_DISABLE_GPU = "--disable-gpu";
-    private static final String CHROME_ARG_WINDOW_SIZE = "--window-size=1920,1080";
+    private static final String CHROME_ARG_WINDOW_SIZE = "--window-size=1366,768";
     private static final String CHROME_ARG_DISABLE_AUTOMATION = "--disable-blink-features=AutomationControlled";
     private static final String CHROME_ARG_DISABLE_WEB_RESOURCES = "--disable-web-resources";
+
+    private static final String CHROME_ARG_DISABLE_EXTENSIONS = "--disable-extensions";
+    private static final String CHROME_ARG_DISABLE_BACKGROUND_NETWORKING = "--disable-background-networking";
+    private static final String CHROME_ARG_DISABLE_SYNC = "--disable-sync";
+    private static final String CHROME_ARG_DISABLE_TRANSLATE = "--disable-translate";
+    private static final String CHROME_ARG_DISABLE_DEFAULT_APPS = "--disable-default-apps";
+    private static final String CHROME_ARG_DISABLE_NOTIFICATIONS = "--disable-notifications";
+    private static final String CHROME_ARG_DISABLE_BG_TIMER_THROTTLING = "--disable-background-timer-throttling";
+    private static final String CHROME_ARG_DISABLE_COMPONENT_UPDATE = "--disable-component-update";
+    private static final String CHROME_ARG_DISABLE_BREAKPAD = "--disable-breakpad";
+    private static final String CHROME_ARG_NO_FIRST_RUN = "--no-first-run";
+    private static final String CHROME_ARG_NO_DEFAULT_BROWSER_CHECK = "--no-default-browser-check";
+    private static final String CHROME_ARG_DISABLE_FEATURES = "--disable-features=TranslateUI,ChromeWhatsNewUI,IsolateOrigins,site-per-process";
+    private static final String CHROME_ARG_BLINK_SETTINGS = "--blink-settings=imagesEnabled=false";
 
     private static final String CSS_TBODY_TR = "tbody tr";
     private static final String CSS_PLAYER_LINK_SPAN = "a.player-link span";
@@ -1569,6 +1583,19 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         options.addArguments(CHROME_ARG_WINDOW_SIZE);
         options.addArguments(CHROME_ARG_DISABLE_AUTOMATION);
         options.addArguments(CHROME_ARG_DISABLE_WEB_RESOURCES);
+        options.addArguments(CHROME_ARG_DISABLE_EXTENSIONS);
+        options.addArguments(CHROME_ARG_DISABLE_BACKGROUND_NETWORKING);
+        options.addArguments(CHROME_ARG_DISABLE_SYNC);
+        options.addArguments(CHROME_ARG_DISABLE_TRANSLATE);
+        options.addArguments(CHROME_ARG_DISABLE_DEFAULT_APPS);
+        options.addArguments(CHROME_ARG_DISABLE_NOTIFICATIONS);
+        options.addArguments(CHROME_ARG_DISABLE_BG_TIMER_THROTTLING);
+        options.addArguments(CHROME_ARG_DISABLE_COMPONENT_UPDATE);
+        options.addArguments(CHROME_ARG_DISABLE_BREAKPAD);
+        options.addArguments(CHROME_ARG_NO_FIRST_RUN);
+        options.addArguments(CHROME_ARG_NO_DEFAULT_BROWSER_CHECK);
+        options.addArguments(CHROME_ARG_DISABLE_FEATURES);
+        options.addArguments(CHROME_ARG_BLINK_SETTINGS);
         return options;
     }
 

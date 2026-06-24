@@ -22,6 +22,7 @@ ENV TZ=America/Argentina/Buenos_Aires
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /app
+COPY .env.docker .env.docker
 COPY --from=builder /app/build/libs/*.jar app.jar
 
 # Set environment variables
