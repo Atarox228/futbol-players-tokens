@@ -127,13 +127,16 @@ public class MatchScraperServiceImpl implements MatchScraperService {
      * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
      */
     private String getApiToken() {
-        // Intenta obtener desde System.getProperty() primero (cargado desde .env)
-        String token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        String token = footballDataProperties.getToken();
         if (token != null && !token.isEmpty()) {
             return token;
         }
-        
-        // Fallback a System.getenv() por si está seteado en el SO
+
+        token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isEmpty()) {
+            return token;
+        }
+
         return System.getenv("FOOTBALL_DATA_API_TOKEN");
     }
 }

@@ -7,6 +7,7 @@ import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
 import com.desapp.futbolplayerstokens.modelo.TeamEnum;
 import com.desapp.futbolplayerstokens.repository.MatchRepository;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import com.desapp.futbolplayerstokens.config.FootballDataProperties;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ public class DynamicMatchScheduler {
     private final PlayerScraperService playerScraperService;
     private final QuoteService quoteService;
     private final PlayerRepository playerRepository;
+    private final FootballDataProperties footballDataProperties;
     private final ExecutorService sequentialExecutor;
 
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> scheduledMatches = new ConcurrentHashMap<>();
@@ -49,13 +51,15 @@ public class DynamicMatchScheduler {
 
     public DynamicMatchScheduler(TaskScheduler taskScheduler, MatchRepository matchRepository,
                                   RestTemplate restTemplate, PlayerScraperService playerScraperService,
-                                  QuoteService quoteService, PlayerRepository playerRepository) {
+                                  QuoteService quoteService, PlayerRepository playerRepository,
+                                  FootballDataProperties footballDataProperties) {
         this.taskScheduler = taskScheduler;
         this.matchRepository = matchRepository;
         this.restTemplate = restTemplate;
         this.playerScraperService = playerScraperService;
         this.quoteService = quoteService;
         this.playerRepository = playerRepository;
+        this.footballDataProperties = footballDataProperties;
         this.sequentialExecutor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "MatchTaskExecutor");
             t.setDaemon(false);
@@ -340,13 +344,16 @@ public class DynamicMatchScheduler {
      * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
      */
     private String getApiToken() {
-        // Intenta obtener desde System.getProperty() primero (cargado desde .env)
-        String token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        String token = footballDataProperties.getToken();
         if (token != null && !token.isEmpty()) {
             return token;
         }
-        
-        // Fallback a System.getenv() por si está seteado en el SO
+
+        token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isEmpty()) {
+            return token;
+        }
+
         return System.getenv("FOOTBALL_DATA_API_TOKEN");
     }
 
