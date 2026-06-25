@@ -13,6 +13,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -32,12 +33,14 @@ public class MatchScraperServiceImpl implements MatchScraperService {
     private final MatchService matchService;
     private final MatchRepository matchRepository;
     private final FootballDataProperties footballDataProperties;
+    private final Environment environment;
 
-    public MatchScraperServiceImpl(RestTemplate restTemplate, MatchService matchService, MatchRepository matchRepository, FootballDataProperties footballDataProperties) {
+    public MatchScraperServiceImpl(RestTemplate restTemplate, MatchService matchService, MatchRepository matchRepository, FootballDataProperties footballDataProperties, Environment environment) {
         this.restTemplate = restTemplate;
         this.matchService = matchService;
         this.matchRepository = matchRepository;
         this.footballDataProperties = footballDataProperties;
+        this.environment = environment;
     }
 
     @Override
@@ -127,13 +130,18 @@ public class MatchScraperServiceImpl implements MatchScraperService {
      * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
      */
     private String getApiToken() {
-        String token = footballDataProperties.getToken();
-        if (token != null && !token.isEmpty()) {
+        String token = environment.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isBlank()) {
+            return token;
+        }
+
+        token = footballDataProperties.getToken();
+        if (token != null && !token.isBlank()) {
             return token;
         }
 
         token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
-        if (token != null && !token.isEmpty()) {
+        if (token != null && !token.isBlank()) {
             return token;
         }
 
