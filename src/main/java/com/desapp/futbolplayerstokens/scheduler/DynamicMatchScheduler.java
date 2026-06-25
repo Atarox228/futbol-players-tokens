@@ -344,17 +344,22 @@ public class DynamicMatchScheduler {
      * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
      */
     private String getApiToken() {
-        String token = footballDataProperties.getToken();
-        if (token != null && !token.isEmpty()) {
+        String token = System.getenv("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isBlank()) {
             return token;
         }
 
         token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
-        if (token != null && !token.isEmpty()) {
+        if (token != null && !token.isBlank()) {
             return token;
         }
 
-        return System.getenv("FOOTBALL_DATA_API_TOKEN");
+        token = footballDataProperties.getToken();
+        if (token != null && !token.isBlank()) {
+            return token;
+        }
+
+        return null;
     }
 
     public static class MatchScheduleInfo {
