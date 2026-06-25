@@ -39,10 +39,13 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs").permitAll()
                         .requestMatchers("/webjars/**").permitAll()
                         .requestMatchers("/swagger-resources/**").permitAll()
+                        .requestMatchers("/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/prometheus").permitAll()
                         .requestMatchers("/orders/**").authenticated()
                         .requestMatchers("/users/**").authenticated()
                         // permitir acceso a endpoints de quotes para usuarios autenticados
                         .requestMatchers("/quotes/**").authenticated()
+                        .requestMatchers("/api/metrics/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

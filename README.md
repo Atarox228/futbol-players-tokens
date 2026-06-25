@@ -407,7 +407,351 @@ Cada posición usa métricas específicas:
 
 Si un jugador tiene una posición desconocida o nula, se usa la estrategia GENERAL como fallback.
 
-## Notas importantes
+## Business Intelligence (BI) Metrics
+
+Endpoints REST que exponen analytics del mercado calculados en tiempo real. Requieren autenticación JWT.
+
+### Endpoints disponibles
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/api/metrics/market-overview` | Estadísticas generales del mercado |
+| `GET` | `/api/metrics/market-depth/{playerId}` | Liquidez por precio para un jugador |
+| `GET` | `/api/metrics/player-valuation/{playerId}` | Valuación histórica y tendencias de un jugador |
+| `GET` | `/api/metrics/top-traded` | Ranking de jugadores más operados |
+| `GET` | `/api/metrics/portfolio-summary/{userId}` | Portfolio avanzado con P&L y diversificación |
+| `GET` | `/api/metrics/order-book-stats` | Estadísticas del libro de órdenes |
+| `GET` | `/api/metrics/strategy-impact` | Impacto de cambios de estrategia en precios |
+
+### Market Overview
+
+```bash
+curl -X GET http://localhost:8080/api/metrics/market-overview \
+  -H "Authorization: Bearer <token>"
+```
+
+Respuesta:
+```json
+{
+  "openBuyOrders": 12,
+  "openSellOrders": 8,
+  "totalValueLockedBuy": 2500.00,
+  "totalValueLockedSell": 1800.00,
+  "activeUsers": 15,
+  "totalPlayers": 350,
+  "totalTokensInCirculation": 35000
+}
+```
+
+### Market Depth
+
+```bash
+curl -X GET http://localhost:8080/api/metrics/market-depth/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+Respuesta:
+```json
+{
+  "playerId": 1,
+  "playerName": "Messi",
+  "bestBid": 95.50,
+  "bestAsk": 97.00,
+  "spread": 1.50,
+  "bids": [
+    { "price": 95.50, "totalQuantity": 10, "orderCount": 2 },
+    { "price": 94.00, "totalQuantity": 5,  "orderCount": 1 }
+  ],
+  "asks": [
+    { "price": 97.00, "totalQuantity": 8,  "orderCount": 3 },
+    { "price": 98.50, "totalQuantity": 3,  "orderCount": 1 }
+  ]
+}
+```
+
+### Player Valuation
+
+```bash
+curl -X GET http://localhost:8080/api/metrics/player-valuation/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+Respuesta:
+```json
+{
+  "playerId": 1,
+  "playerName": "Messi",
+  "currentPrice": 95.00,
+  "priceChange1d": 2.15,
+  "priceChange7d": -1.50,
+  "priceChange30d": 8.30,
+  "volatility30d": 3.45,
+  "score": 85.00,
+  "position": "FW",
+  "team": "Barcelona"
+}
+```
+
+### Top Traded
+
+```bash
+curl -X GET http://localhost:8080/api/metrics/top-traded \
+  -H "Authorization: Bearer <token>"
+```
+
+Respuesta:
+```json
+[
+  {
+    "rank": 1,
+    "playerId": 7,
+    "playerName": "Erling Haaland",
+    "team": "Manchester City",
+    "league": "Premier League",
+    "orderCount": 45,
+    "totalQuantity": 320,
+    "totalValue": 28500.00
+  },
+  {
+    "rank": 2,
+    "playerId": 15,
+    "playerName": "Kylian Mbappé",
+    "team": "Real Madrid",
+    "league": "LaLiga",
+    "orderCount": 38,
+    "totalQuantity": 280,
+    "totalValue": 31000.00
+  }
+]
+```
+
+### Portfolio Summary
+
+```bash
+curl -X GET http://localhost:8080/api/metrics/portfolio-summary/1 \
+  -H "Authorization: Bearer <token>"
+```
+
+Respuesta:
+```json
+{
+  "userId": 1,
+  "username": "testuser",
+  "totalInvested": 5000.00,
+  "currentValue": 6230.00,
+  "profitLoss": 1230.00,
+  "profitLossPercent": 24.60,
+  "totalPositions": 5,
+  "positions": [
+    {
+      "playerId": 7,
+      "playerName": "Erling Haaland",
+      "position": "FW",
+      "team": "Manchester City",
+      "tokenQty": 10,
+      "avgBuyPrice": 80.00,
+      "currentPrice": 95.00,
+      "currentValue": 950.00,
+      "profitLoss": 150.00,
+      "profitLossPercent": 18.75
+    }
+  ],
+  "diversification": {
+    "forwardCount": 2,
+    "midfielderCount": 1,
+    "defenderCount": 1,
+    "goalkeeperCount": 1,
+    "laLigaCount": 2,
+    "premierLeagueCount": 1,
+    "bundesligaCount": 1,
+    "serieACount": 1,
+    "ligue1Count": 0
+  }
+}
+```
+
+### Order Book Stats
+
+```bash
+curl -X GET http://localhost:8080/api/metrics/order-book-stats \
+  -H "Authorization: Bearer <token>"
+```
+
+Respuesta:
+```json
+{
+  "fillRate": 0.65,
+  "avgTimeToFillHours": 0,
+  "avgOrderSize": 5,
+  "cancelRate": 0.12,
+  "totalOrders": 280,
+  "filledOrders": 182,
+  "cancelledOrders": 34,
+  "pendingOrders": 64
+}
+```
+
+### Strategy Impact
+
+```bash
+curl -X GET http://localhost:8080/api/metrics/strategy-impact \
+  -H "Authorization: Bearer <token>"
+```
+
+Respuesta:
+```json
+[
+  {
+    "strategyType": "GENERAL",
+    "previousVersion": 1,
+    "currentVersion": 2,
+    "avgPriceBefore": 85.00,
+    "avgPriceAfter": 92.50,
+    "priceChangePercent": 8.82,
+    "affectedPlayers": 25,
+    "topChanges": [
+      {
+        "playerId": 7,
+        "playerName": "Erling Haaland",
+        "oldPrice": 90.00,
+        "newPrice": 105.00,
+        "changePercent": 16.67
+      }
+    ]
+  }
+]
+```
+
+### Prometheus Gauges adicionales
+
+Además de las métricas custom instrumentadas en los servicios, se agregan los siguientes **Gauges** visibles en `/actuator/prometheus`:
+
+| Métrica | Tags | Descripción |
+|---------|------|-------------|
+| `market.open.orders` | type=`all`, `buy`, `sell` | Órdenes pendientes en vivo |
+| `players.total` | — | Cantidad total de jugadores |
+| `users.active` | — | Usuarios con portfolio no vacío |
+
+```promql
+# Órdenes de compra pendientes
+market_open_orders{type="buy"}
+
+# Órdenes de venta pendientes
+market_open_orders{type="sell"}
+
+# Total de jugadores
+players_total
+
+# Usuarios activos
+users_active
+```
+
+## Monitoreo con Prometheus y Grafana
+
+El proyecto incluye métricas via **Spring Boot Actuator** + **Micrometer** + **Prometheus**.
+
+### Métricas disponibles
+
+#### Métricas out-of-the-box (Actuator)
+
+| Métrica | Descripción |
+|---------|-------------|
+| `jvm_memory_used_bytes` | Memoria JVM usada por heap/off-heap |
+| `jvm_gc_*` | Tiempo y count de garbage collection |
+| `http_server_requests_seconds` | Latencia y count de requests HTTP |
+| `hikaricp_connections_*` | Pool de conexiones JDBC |
+| `process_cpu_usage` | Uso de CPU del proceso |
+| `system_cpu_usage` | Uso de CPU del sistema |
+
+#### Métricas de negocio custom
+
+| Métrica | Tipo | Descripción |
+|---------|------|-------------|
+| `orders.buy.total` | Counter | Órdenes de compra creadas |
+| `orders.sell.total` | Counter | Órdenes de venta creadas |
+| `orders.filled.total` | Counter | Órdenes completamente ejecutadas |
+| `orders.matching.duration` | Timer | Tiempo de matching de órdenes (percentiles 50, 95, 99) |
+| `quotes.recalculate.duration` | Timer | Tiempo de recálculo de cotizaciones (percentiles 50, 95, 99) |
+| `users.registrations.total` | Counter | Registros de usuarios |
+
+### Endpoints de métricas
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `GET /actuator/health` | Health check (público) |
+| `GET /actuator/info` | Información de la app |
+| `GET /actuator/prometheus` | Métricas en formato Prometheus (público) |
+
+### Ver métricas localmente
+
+```bash
+# Health check
+curl http://localhost:8080/actuator/health
+
+# Todas las métricas en formato Prometheus
+curl http://localhost:8080/actuator/prometheus
+```
+
+### Ejecutar stack completo con Docker
+
+```bash
+docker-compose up -d
+```
+
+Esto levanta:
+- **App**: `http://localhost:8080`
+- **Prometheus**: `http://localhost:9090`
+- **Grafana**: `http://localhost:3001`
+
+### Consultar métricas en Prometheus
+
+1. Abrir `http://localhost:9090`
+2. En el query explorer, probar consultas PromQL:
+
+```promql
+# Tasa de órdenes de compra por minuto
+rate(orders_buy_total[1m])
+
+# Tasa de órdenes de venta por minuto  
+rate(orders_sell_total[1m])
+
+# Percentil 95 de tiempo de matching de órdenes (en segundos)
+orders_matching_duration_seconds{quantile="0.95"}
+
+# Tasa de requests HTTP por minuto
+rate(http_server_requests_seconds_count[1m])
+
+# Memoria JVM usada
+jvm_memory_used_bytes{area="heap"}
+
+# Tiempo de recálculo de cotizaciones - percentil 99
+quotes_recalculate_duration_seconds{quantile="0.99"}
+```
+
+### Configurar Grafana
+
+1. Abrir `http://localhost:3001` (login: admin / admin)
+2. Ir a **Configuration > Data Sources > Add data source**
+3. Seleccionar **Prometheus**
+4. URL: `http://prometheus:9090`
+5. Click **Save & Test**
+6. Crear dashboard: **+ > Dashboard > Add panel**
+7. Ejemplo de panel con query:
+   ```
+   rate(orders_buy_total[5m])
+   ```
+8. Explorar dashboards pre-hechos importando `https://grafana.com/grafana/dashboards/` (ej. Spring Boot 3.x Dashboard)
+
+### Arquitectura
+
+```
+┌──────────────┐     /actuator/prometheus     ┌──────────────┐     ┌──────────────┐
+│ Spring Boot  │ ────────────────────────────> │  Prometheus  │ <── │   Grafana    │
+│   (App)      │    scrape cada 15s            │  :9090       │     │  :3001       │
+└──────────────┘                               └──────────────┘     └──────────────┘
+```
+
+### Notas importantes
 
 - El JWT se genera con una clave secreta fija en `JwtUtil`.
 - En producción, reemplaza `SECRET_KEY` por una clave segura y administra la configuración con variables de entorno.

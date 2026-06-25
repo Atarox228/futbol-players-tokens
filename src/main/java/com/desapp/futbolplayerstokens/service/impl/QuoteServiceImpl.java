@@ -16,6 +16,8 @@ import com.desapp.futbolplayerstokens.service.QuoteService;
 import com.desapp.futbolplayerstokens.service.ScoringConfigService;
 import com.desapp.futbolplayerstokens.service.ValuationService;
 import com.desapp.futbolplayerstokens.service.impl.ScoreByPositionStrategy;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,6 +43,7 @@ public class QuoteServiceImpl implements QuoteService {
     private final ValuationService valuationService;
     private final TransactionTemplate transactionTemplate;
     private final ScoringConfigService scoringConfigService;
+    private final Timer recalculateTimer;
 
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
@@ -47,13 +51,18 @@ public class QuoteServiceImpl implements QuoteService {
                             StrategyConfigRepository strategyConfigRepository,
                             ValuationService valuationService,
                             TransactionTemplate transactionTemplate,
-                            ScoringConfigService scoringConfigService) {
+                            ScoringConfigService scoringConfigService,
+                            MeterRegistry meterRegistry) {
         this.quoteRepository = quoteRepository;
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
         this.valuationService = valuationService;
         this.transactionTemplate = transactionTemplate;
         this.scoringConfigService = scoringConfigService;
+        this.recalculateTimer = Timer.builder("quotes.recalculate.duration")
+                .description("Time taken to recalculate all quotes")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(meterRegistry);
     }
 
     @Override
@@ -99,7 +108,9 @@ public class QuoteServiceImpl implements QuoteService {
     @Override
     @Transactional
     public void recalculateAll(QuoteTrigger trigger) {
+        long start = System.nanoTime();
         transactionTemplate.executeWithoutResult(status -> doRecalculateAll(trigger));
+        recalculateTimer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
     }
 
     private void doRecalculateAll(QuoteTrigger trigger) {

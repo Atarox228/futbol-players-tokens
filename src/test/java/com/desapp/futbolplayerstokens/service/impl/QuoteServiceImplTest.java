@@ -14,12 +14,12 @@ import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.modelo.ValuationMode;
 import com.desapp.futbolplayerstokens.service.ScoringConfigService;
 import com.desapp.futbolplayerstokens.service.ValuationService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -55,7 +55,6 @@ class QuoteServiceImplTest {
     @Mock
     private ScoringConfigService scoringConfigService;
 
-    @InjectMocks
     private QuoteServiceImpl quoteService;
 
     @Captor
@@ -68,6 +67,8 @@ class QuoteServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        quoteService = new QuoteServiceImpl(quoteRepository, playerRepository, strategyConfigRepository,
+                valuationService, transactionTemplate, scoringConfigService, new SimpleMeterRegistry());
         testPlayer = Player.builder()
                 .id(1L)
                 .name("Messi")
