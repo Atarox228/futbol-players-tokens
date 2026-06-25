@@ -202,7 +202,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     // Timing constants
     private static final class Timings {
         static final Duration MAIN_PAGE_LOAD = Duration.ofSeconds(15);
-        static final Duration TEAM_SELECTION = Duration.ofSeconds(120);
+        static final Duration TEAM_SELECTION = Duration.ofSeconds(30);
         static final long INITIAL_PAGE_LOAD_MS = 2000;
         static final long POST_CLICK_DELAY_MS = 500;
         static final long POST_PAGINATION_DELAY_MS = 1500;
@@ -699,24 +699,28 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     }
 
     private List<WebElement> findAnyTableWithPlayerLinks(WebDriver driver, WebDriverWait wait) {
-        String xpath = "//table[.//a[contains(@class, 'player-link')]]//tbody/tr";
+        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, document.body.scrollHeight);");
+        try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
 
-        try {
-            Thread.sleep(2000);
-            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.xpath(xpath)));
-            List<WebElement> rows = driver.findElements(By.xpath(xpath));
+        String[] xpaths = {
+            "//table[.//a[contains(@class, 'player-link')]]//tbody/tr",
+            "//table[.//a[contains(@href, '/Players/') or contains(@href, '/players/')]]//tbody/tr",
+            "//table[.//span[contains(@class, 'player-meta-data')]]//tbody/tr",
+        };
 
-            if (rows.isEmpty()) {
-                throw new ScrapingException("No se encontró ninguna tabla con player-links");
+        for (String xpath : xpaths) {
+            try {
+                wait.withTimeout(Duration.ofSeconds(10))
+                    .until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.xpath(xpath)));
+                List<WebElement> rows = driver.findElements(By.xpath(xpath));
+                if (!rows.isEmpty()) {
+                    return rows;
+                }
+            } catch (TimeoutException ignored) {
             }
-
-            return rows;
-        } catch (TimeoutException e) {
-            throw new ScrapingException("Timeout esperando tabla con player-links");
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new ScrapingException("Interrumpido", ie);
         }
+
+        throw new ScrapingException("No se encontró ninguna tabla con player-links en la página");
     }
 
     private Map<String, PlayerDetailDTO> extractSectionPlayers(WebDriver driver,
@@ -1639,11 +1643,18 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         try {
             String title = driver.getTitle();
             String url = driver.getCurrentUrl();
-            String bodyStart = driver.findElement(By.tagName("body")).getText();
-            String snippet = bodyStart.length() > 300 ? bodyStart.substring(0, 300) : bodyStart;
+            ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, document.body.scrollHeight);");
+            Thread.sleep(2000);
+            String bodyText = driver.findElement(By.tagName("body")).getText();
+            String snippet = bodyText.length() > 2000 ? bodyText.substring(0, 2000) : bodyText;
             logger.info("🔍 Página cargada para {} - Título: '{}'", teamName, title);
             logger.info("🔍 URL actual: {}", url);
-            logger.info("🔍 Body snippet: {}", snippet.replace("\n", " ").replace("\r", ""));
+            logger.info("🔍 Body snippet (2k chars): {}", snippet.replace("\n", " ").replace("\r", ""));
+            boolean hasPlayerLink = !driver.findElements(By.cssSelector("a.player-link")).isEmpty();
+            boolean hasTeamSquad = !driver.findElements(By.id("team-squad-stats-summary")).isEmpty();
+            boolean hasStatsGrid = !driver.findElements(By.id("top-player-stats-summary-grid")).isEmpty();
+            logger.info("🔍 Elementos encontrados: player-link={}, team-squad-summary={}, stats-grid={}",
+                hasPlayerLink, hasTeamSquad, hasStatsGrid);
         } catch (Exception e) {
             logger.warn("⚠️ No se pudo diagnosticar la página para {}: {}", teamName, e.getMessage());
         }
