@@ -181,7 +181,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     // Timing constants
     private static final class Timings {
         static final Duration MAIN_PAGE_LOAD = Duration.ofSeconds(15);
-        static final Duration TEAM_SELECTION = Duration.ofSeconds(30);
+        static final Duration TEAM_SELECTION = Duration.ofSeconds(120);
         static final long INITIAL_PAGE_LOAD_MS = 2000;
         static final long POST_CLICK_DELAY_MS = 500;
         static final long POST_PAGINATION_DELAY_MS = 1500;
