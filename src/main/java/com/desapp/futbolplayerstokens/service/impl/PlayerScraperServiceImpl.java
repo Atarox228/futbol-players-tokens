@@ -181,7 +181,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     // Timing constants
     private static final class Timings {
         static final Duration MAIN_PAGE_LOAD = Duration.ofSeconds(15);
-        static final Duration TEAM_SELECTION = Duration.ofSeconds(12);
+        static final Duration TEAM_SELECTION = Duration.ofSeconds(30);
         static final long INITIAL_PAGE_LOAD_MS = 2000;
         static final long POST_CLICK_DELAY_MS = 500;
         static final long POST_PAGINATION_DELAY_MS = 1500;
@@ -600,9 +600,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private List<PlayerDetailDTO> scrapeCurrentTeamRoster(WebDriver driver, WebDriverWait wait, String teamName, String league)
             throws InterruptedException {
-        Map<String, PlayerDetailDTO> playersByName = extractSectionPlayers(driver, wait, TEAM_SQUAD_SUMMARY_SECTION, this::extractSummaryPlayerFromRow);
-        mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_DEFENSIVE_SECTION, this::extractDefensivePlayerFromRow));
-        mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_OFFENSIVE_SECTION, this::extractOffensivePlayerFromRow));
+        Map<String, PlayerDetailDTO> playersByName = new LinkedHashMap<>();
+
+        try {
+            playersByName = extractSectionPlayers(driver, wait, TEAM_SQUAD_SUMMARY_SECTION, this::extractSummaryPlayerFromRow);
+            mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_DEFENSIVE_SECTION, this::extractDefensivePlayerFromRow));
+            mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_OFFENSIVE_SECTION, this::extractOffensivePlayerFromRow));
+        } catch (ScrapingException e) {
+            logger.warn("⚠️ Fallback a tabla simple para {}: {}", teamName, e.getMessage());
+            playersByName = scrapeRosterFallback(driver, wait);
+        }
 
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
         String canonicalTeamName = resolveTeamName(teamName);
@@ -613,6 +620,26 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         return newPlayers;
+    }
+
+    private Map<String, PlayerDetailDTO> scrapeRosterFallback(WebDriver driver, WebDriverWait wait)
+            throws InterruptedException {
+        List<WebElement> rows = findSquadRows(driver, wait);
+        Map<String, PlayerDetailDTO> playersByName = new LinkedHashMap<>();
+
+        for (WebElement row : rows) {
+            try {
+                if (!shouldSkipRow(row)) {
+                    PlayerDetailDTO player = extractPlayerDataFromRoster(row);
+                    if (player != null && player.getName() != null && !player.getName().isBlank()) {
+                        playersByName.put(normalize(player.getName()), player);
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        return playersByName;
     }
 
     private Map<String, PlayerDetailDTO> extractSectionPlayers(WebDriver driver,
