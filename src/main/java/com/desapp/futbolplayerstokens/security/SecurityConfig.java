@@ -38,7 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/players/scrape/**").permitAll()
                         .requestMatchers("/api/matches/scrape/**").permitAll()
                         .requestMatchers("/api/scheduler/**").permitAll()
-                        .requestMatchers("/health").permitAll()
+                        .requestMatchers("/health", "/debug/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/orders/**").authenticated()
                         .requestMatchers("/users/**").authenticated()
