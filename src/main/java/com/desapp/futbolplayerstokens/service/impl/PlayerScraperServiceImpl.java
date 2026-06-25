@@ -505,6 +505,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                     logger.info("➡️ Navegando a {} ({})", teamName, directUrl);
                     navigateWithRetry(driver, wait, directUrl);
                     applyStealth(driver);
+                    logPageDiagnostics(driver, teamName);
                     Thread.sleep(Timings.POST_POPUP_DELAY_MS);
                     closePopupIfPresent(driver, wait);
                     waitForTeamPageTitle(driver, wait, teamName);
@@ -1629,7 +1630,22 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 });
             return true;
         } catch (TimeoutException e) {
+            logger.warn("⚠️ waitForTeamPageTitle falló para '{}'. Título actual: '{}'", expectedTeamName, driver.getTitle());
             return false;
+        }
+    }
+
+    private void logPageDiagnostics(WebDriver driver, String teamName) {
+        try {
+            String title = driver.getTitle();
+            String url = driver.getCurrentUrl();
+            String bodyStart = driver.findElement(By.tagName("body")).getText();
+            String snippet = bodyStart.length() > 300 ? bodyStart.substring(0, 300) : bodyStart;
+            logger.info("🔍 Página cargada para {} - Título: '{}'", teamName, title);
+            logger.info("🔍 URL actual: {}", url);
+            logger.info("🔍 Body snippet: {}", snippet.replace("\n", " ").replace("\r", ""));
+        } catch (Exception e) {
+            logger.warn("⚠️ No se pudo diagnosticar la página para {}: {}", teamName, e.getMessage());
         }
     }
 
