@@ -130,21 +130,32 @@ public class MatchScraperServiceImpl implements MatchScraperService {
      * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
      */
     private String getApiToken() {
-        String token = environment.getProperty("FOOTBALL_DATA_API_TOKEN");
-        if (token != null && !token.isBlank()) {
-            return token;
+        String envVal = System.getenv("FOOTBALL_DATA_API_TOKEN");
+        logger.warn("DEBUG getApiToken: System.getenv(FOOTBALL_DATA_API_TOKEN)='{}'", envVal);
+
+        if (envVal != null && !envVal.isBlank()) {
+            logger.info("Using FOOTBALL_DATA_API_TOKEN from System.getenv");
+            return envVal;
         }
 
-        token = footballDataProperties.getToken();
-        if (token != null && !token.isBlank()) {
-            return token;
+        String propVal = environment.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (propVal != null && !propVal.isBlank()) {
+            logger.info("Using FOOTBALL_DATA_API_TOKEN from Spring Environment");
+            return propVal;
         }
 
-        token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
-        if (token != null && !token.isBlank()) {
-            return token;
+        String cfgVal = footballDataProperties.getToken();
+        if (cfgVal != null && !cfgVal.isBlank()) {
+            logger.info("Using FOOTBALL_DATA_API_TOKEN from FootballDataProperties");
+            return cfgVal;
         }
 
-        return System.getenv("FOOTBALL_DATA_API_TOKEN");
+        String sysVal = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (sysVal != null && !sysVal.isBlank()) {
+            logger.info("Using FOOTBALL_DATA_API_TOKEN from System.getProperty");
+            return sysVal;
+        }
+
+        return null;
     }
 }
