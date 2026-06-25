@@ -624,7 +624,36 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private Map<String, PlayerDetailDTO> scrapeRosterFallback(WebDriver driver, WebDriverWait wait)
             throws InterruptedException {
-        List<WebElement> rows = findSquadRows(driver, wait);
+        ScrapingException lastError = null;
+
+        // Strategy 1: XPath by "Plantilla"/"Squad" heading
+        try {
+            return extractFromRows(driver, findSquadRows(driver, wait));
+        } catch (ScrapingException e) {
+            lastError = e;
+        }
+
+        // Strategy 2: By stats grid ID
+        try {
+            return extractFromRows(driver, findSquadRowsFromTable(driver, wait));
+        } catch (ScrapingException e) {
+            lastError = e;
+        }
+
+        // Strategy 3: Any table with player links on the page
+        try {
+            List<WebElement> rows = findAnyTableWithPlayerLinks(driver, wait);
+            if (!rows.isEmpty()) {
+                return extractFromRows(driver, rows);
+            }
+        } catch (ScrapingException e) {
+            lastError = e;
+        }
+
+        throw lastError != null ? lastError : new ScrapingException("No se pudo encontrar la tabla de plantilla");
+    }
+
+    private Map<String, PlayerDetailDTO> extractFromRows(WebDriver driver, List<WebElement> rows) {
         Map<String, PlayerDetailDTO> playersByName = new LinkedHashMap<>();
 
         for (WebElement row : rows) {
@@ -640,6 +669,27 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         return playersByName;
+    }
+
+    private List<WebElement> findAnyTableWithPlayerLinks(WebDriver driver, WebDriverWait wait) {
+        String xpath = "//table[.//a[contains(@class, 'player-link')]]//tbody/tr";
+
+        try {
+            Thread.sleep(2000);
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.xpath(xpath)));
+            List<WebElement> rows = driver.findElements(By.xpath(xpath));
+
+            if (rows.isEmpty()) {
+                throw new ScrapingException("No se encontró ninguna tabla con player-links");
+            }
+
+            return rows;
+        } catch (TimeoutException e) {
+            throw new ScrapingException("Timeout esperando tabla con player-links");
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new ScrapingException("Interrumpido", ie);
+        }
     }
 
     private Map<String, PlayerDetailDTO> extractSectionPlayers(WebDriver driver,
