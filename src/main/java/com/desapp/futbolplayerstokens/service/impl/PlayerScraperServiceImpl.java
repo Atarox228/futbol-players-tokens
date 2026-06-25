@@ -43,7 +43,13 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private static final Logger logger = LoggerFactory.getLogger(PlayerScraperServiceImpl.class);
 
-    private static final String SELENIUM_REMOTE_URL = "http://localhost:4444";
+    private static final String SELENIUM_REMOTE_URL;
+
+    static {
+        String env = System.getenv("SELENIUM_REMOTE_URL");
+        SELENIUM_REMOTE_URL = (env != null && !env.isBlank()) ? env.trim() : "http://localhost:4444";
+        logger.info("SELENIUM_REMOTE_URL: {}", SELENIUM_REMOTE_URL);
+    }
 
     private static final String CHROME_ARG_NO_SANDBOX = "--no-sandbox";
     private static final String CHROME_ARG_DISABLE_DEV_SHM = "--disable-dev-shm-usage";
