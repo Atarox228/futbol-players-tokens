@@ -30,6 +30,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DynamicMatchScheduler {
@@ -357,6 +358,15 @@ public class DynamicMatchScheduler {
         token = footballDataProperties.getToken();
         if (token != null && !token.isBlank()) {
             return token;
+        }
+
+        for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
+            if (entry.getKey().trim().equalsIgnoreCase("FOOTBALL_DATA_API_TOKEN")) {
+                String val = entry.getValue();
+                if (val != null && !val.isBlank()) {
+                    return val;
+                }
+            }
         }
 
         return null;
