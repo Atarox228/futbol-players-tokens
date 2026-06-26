@@ -196,7 +196,9 @@ public class MetricsControllerREST {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        List<Portfolio> portfolioEntries = portfolioRepository.findByUser(user);
+        List<Portfolio> portfolioEntries = portfolioRepository.findByUser(user).stream()
+                .filter(p -> p.getTokenQty() > 0)
+                .toList();
 
         BigDecimal totalInvested = BigDecimal.ZERO;
         BigDecimal currentValue = BigDecimal.ZERO;
