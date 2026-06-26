@@ -12,12 +12,10 @@ import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.PlayerScraperService;
 import com.desapp.futbolplayerstokens.service.PlayerService;
-import io.github.bonigarcia.wdm.WebDriverManager;
 import org.jspecify.annotations.NonNull;
 import org.openqa.selenium.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.Select;
@@ -47,7 +45,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     static {
         String env = System.getenv("SELENIUM_REMOTE_URL");
-        SELENIUM_REMOTE_URL = (env != null && !env.isBlank()) ? env.trim() : "http://localhost:4444";
+        if (env == null || env.isBlank()) {
+            throw new IllegalStateException("SELENIUM_REMOTE_URL environment variable is required (BrightData Browser API endpoint)");
+        }
+        SELENIUM_REMOTE_URL = env.trim();
         logger.info("SELENIUM_REMOTE_URL: {}", SELENIUM_REMOTE_URL);
     }
 
@@ -1738,11 +1739,9 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private WebDriver createDriver(ChromeOptions options) {
         try {
-            RemoteWebDriver driver = new RemoteWebDriver(URI.create(SELENIUM_REMOTE_URL).toURL(), options);
-            return driver;
+            return new RemoteWebDriver(URI.create(SELENIUM_REMOTE_URL).toURL(), options);
         } catch (Exception e) {
-            WebDriverManager.chromedriver().setup();
-            return new ChromeDriver(options);
+            throw new ScrapingException("Failed to connect to BrightData Browser API at " + SELENIUM_REMOTE_URL, e);
         }
     }
 

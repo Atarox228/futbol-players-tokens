@@ -36,18 +36,13 @@ services:
       SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION: "true"
       SPRING_SQL_INIT_SCHEMA_LOCATIONS: classpath:data-migration.sql
       SPRING_SHOW_SQL: "true"
-      CHROMIUM_BIN: /usr/bin/chromium
-      CHROMEDRIVER_BIN: /usr/bin/chromedriver
     ports:
       - "8080:8080"
-    volumes:
-      - /dev/shm:/dev/shm
     restart: on-failure
     networks:
       - futbol-network
-    shm_size: '256m'
-    mem_limit: 512m
-    mem_reservation: 256m
+    mem_limit: 256m
+    mem_reservation: 128m
 
   prometheus:
     image: prom/prometheus:latest
