@@ -1741,6 +1741,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         try {
             return new RemoteWebDriver(URI.create(SELENIUM_REMOTE_URL).toURL(), options);
         } catch (Exception e) {
+            logger.error("Failed to connect to BrightData Browser API: {}", e.getMessage(), e);
             throw new ScrapingException("Failed to connect to BrightData Browser API at " + SELENIUM_REMOTE_URL, e);
         }
     }
