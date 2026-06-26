@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.Random;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.net.URI;
@@ -42,12 +43,17 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private static final Logger logger = LoggerFactory.getLogger(PlayerScraperServiceImpl.class);
 
-    private static final String SELENIUM_REMOTE_URL = "http://localhost:4444";
+    private static final String SELENIUM_REMOTE_URL;
+
+    static {
+        String env = System.getenv("SELENIUM_REMOTE_URL");
+        SELENIUM_REMOTE_URL = (env != null && !env.isBlank()) ? env.trim() : "http://localhost:4444";
+        logger.info("SELENIUM_REMOTE_URL: {}", SELENIUM_REMOTE_URL);
+    }
 
     private static final String CHROME_ARG_NO_SANDBOX = "--no-sandbox";
     private static final String CHROME_ARG_DISABLE_DEV_SHM = "--disable-dev-shm-usage";
     private static final String CHROME_ARG_DISABLE_GPU = "--disable-gpu";
-    private static final String CHROME_ARG_WINDOW_SIZE = "--window-size=1366,768";
     private static final String CHROME_ARG_DISABLE_AUTOMATION = "--disable-blink-features=AutomationControlled";
     private static final String CHROME_ARG_DISABLE_WEB_RESOURCES = "--disable-web-resources";
 
@@ -89,6 +95,27 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String TEAM_SQUAD_SUMMARY_SECTION = "team-squad-stats-summary";
     private static final String TEAM_SQUAD_DEFENSIVE_SECTION = "team-squad-stats-defensive";
     private static final String TEAM_SQUAD_OFFENSIVE_SECTION = "team-squad-stats-offensive";
+
+    // Non-team options to filter out from dropdown (e.g., "All Players" view)
+    private static final String[] USER_AGENTS = {
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:127.0) Gecko/20100101 Firefox/127.0",
+    };
+
+    private static final String[] WINDOW_SIZES = {
+        "--window-size=1366,768",
+        "--window-size=1440,900",
+        "--window-size=1536,864",
+        "--window-size=1280,800",
+        "--window-size=1920,1080",
+        "--window-size=1280,720",
+    };
+
+    private static final Random RANDOM = new Random();
 
     // Non-team options to filter out from dropdown (e.g., "All Players" view)
     private static final String[] NON_TEAM_DROPDOWN_OPTIONS = {
@@ -181,7 +208,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     // Timing constants
     private static final class Timings {
         static final Duration MAIN_PAGE_LOAD = Duration.ofSeconds(15);
-        static final Duration TEAM_SELECTION = Duration.ofSeconds(12);
+        static final Duration TEAM_SELECTION = Duration.ofSeconds(30);
         static final long INITIAL_PAGE_LOAD_MS = 2000;
         static final long POST_CLICK_DELAY_MS = 500;
         static final long POST_PAGINATION_DELAY_MS = 1500;
@@ -483,16 +510,20 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                     String directUrl = entry.getValue();
                     logger.info("➡️ Navegando a {} ({})", teamName, directUrl);
                     navigateWithRetry(driver, wait, directUrl);
+                    applyStealth(driver);
+                    logPageDiagnostics(driver, teamName);
                     Thread.sleep(Timings.POST_POPUP_DELAY_MS);
                     closePopupIfPresent(driver, wait);
                     waitForTeamPageTitle(driver, wait, teamName);
                     newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, teamName, league));
+                    randomDelay();
                 }
                 return newPlayers;
             }
 
             String baseUrl = getBaseUrlByLeague(league);
             driver.get(baseUrl);
+            applyStealth(driver);
             Thread.sleep(Timings.INITIAL_PAGE_LOAD_MS);
 
             closePopupIfPresent(driver, wait);
@@ -527,10 +558,12 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 }
                 logger.info("➡️ Navegando directo a {} ({})", currentTeamName, overrideUrl);
                 navigateWithRetry(driver, wait, overrideUrl);
+                applyStealth(driver);
                 Thread.sleep(Timings.POST_POPUP_DELAY_MS);
                 closePopupIfPresent(driver, wait);
                 waitForTeamPageTitle(driver, wait, currentTeamName);
                 newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, currentTeamName, league));
+                randomDelay();
             }
 
             return newPlayers;
@@ -600,9 +633,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private List<PlayerDetailDTO> scrapeCurrentTeamRoster(WebDriver driver, WebDriverWait wait, String teamName, String league)
             throws InterruptedException {
-        Map<String, PlayerDetailDTO> playersByName = extractSectionPlayers(driver, wait, TEAM_SQUAD_SUMMARY_SECTION, this::extractSummaryPlayerFromRow);
-        mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_DEFENSIVE_SECTION, this::extractDefensivePlayerFromRow));
-        mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_OFFENSIVE_SECTION, this::extractOffensivePlayerFromRow));
+        Map<String, PlayerDetailDTO> playersByName = new LinkedHashMap<>();
+
+        try {
+            playersByName = extractSectionPlayers(driver, wait, TEAM_SQUAD_SUMMARY_SECTION, this::extractSummaryPlayerFromRow);
+            mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_DEFENSIVE_SECTION, this::extractDefensivePlayerFromRow));
+            mergeSectionPlayers(playersByName, extractSectionPlayers(driver, wait, TEAM_SQUAD_OFFENSIVE_SECTION, this::extractOffensivePlayerFromRow));
+        } catch (ScrapingException e) {
+            logger.warn("⚠️ Fallback a tabla simple para {}: {}", teamName, e.getMessage());
+            playersByName = scrapeRosterFallback(driver, wait);
+        }
 
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
         String canonicalTeamName = resolveTeamName(teamName);
@@ -613,6 +653,80 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
 
         return newPlayers;
+    }
+
+    private Map<String, PlayerDetailDTO> scrapeRosterFallback(WebDriver driver, WebDriverWait wait)
+            throws InterruptedException {
+        ScrapingException lastError = null;
+
+        // Strategy 1: XPath by "Plantilla"/"Squad" heading
+        try {
+            return extractFromRows(driver, findSquadRows(driver, wait));
+        } catch (ScrapingException e) {
+            lastError = e;
+        }
+
+        // Strategy 2: By stats grid ID
+        try {
+            return extractFromRows(driver, findSquadRowsFromTable(driver, wait));
+        } catch (ScrapingException e) {
+            lastError = e;
+        }
+
+        // Strategy 3: Any table with player links on the page
+        try {
+            List<WebElement> rows = findAnyTableWithPlayerLinks(driver, wait);
+            if (!rows.isEmpty()) {
+                return extractFromRows(driver, rows);
+            }
+        } catch (ScrapingException e) {
+            lastError = e;
+        }
+
+        throw lastError != null ? lastError : new ScrapingException("No se pudo encontrar la tabla de plantilla");
+    }
+
+    private Map<String, PlayerDetailDTO> extractFromRows(WebDriver driver, List<WebElement> rows) {
+        Map<String, PlayerDetailDTO> playersByName = new LinkedHashMap<>();
+
+        for (WebElement row : rows) {
+            try {
+                if (!shouldSkipRow(row)) {
+                    PlayerDetailDTO player = extractPlayerDataFromRoster(row);
+                    if (player != null && player.getName() != null && !player.getName().isBlank()) {
+                        playersByName.put(normalize(player.getName()), player);
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        return playersByName;
+    }
+
+    private List<WebElement> findAnyTableWithPlayerLinks(WebDriver driver, WebDriverWait wait) {
+        ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, document.body.scrollHeight);");
+        try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        String[] xpaths = {
+            "//table[.//a[contains(@class, 'player-link')]]//tbody/tr",
+            "//table[.//a[contains(@href, '/Players/') or contains(@href, '/players/')]]//tbody/tr",
+            "//table[.//span[contains(@class, 'player-meta-data')]]//tbody/tr",
+        };
+
+        for (String xpath : xpaths) {
+            try {
+                wait.withTimeout(Duration.ofSeconds(10))
+                    .until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.xpath(xpath)));
+                List<WebElement> rows = driver.findElements(By.xpath(xpath));
+                if (!rows.isEmpty()) {
+                    return rows;
+                }
+            } catch (TimeoutException ignored) {
+            }
+        }
+
+        throw new ScrapingException("No se encontró ninguna tabla con player-links en la página");
     }
 
     private Map<String, PlayerDetailDTO> extractSectionPlayers(WebDriver driver,
@@ -1526,7 +1640,29 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 });
             return true;
         } catch (TimeoutException e) {
+            logger.warn("⚠️ waitForTeamPageTitle falló para '{}'. Título actual: '{}'", expectedTeamName, driver.getTitle());
             return false;
+        }
+    }
+
+    private void logPageDiagnostics(WebDriver driver, String teamName) {
+        try {
+            String title = driver.getTitle();
+            String url = driver.getCurrentUrl();
+            ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, document.body.scrollHeight);");
+            Thread.sleep(2000);
+            String bodyText = driver.findElement(By.tagName("body")).getText();
+            String snippet = bodyText.length() > 2000 ? bodyText.substring(0, 2000) : bodyText;
+            logger.info("🔍 Página cargada para {} - Título: '{}'", teamName, title);
+            logger.info("🔍 URL actual: {}", url);
+            logger.info("🔍 Body snippet (2k chars): {}", snippet.replace("\n", " ").replace("\r", ""));
+            boolean hasPlayerLink = !driver.findElements(By.cssSelector("a.player-link")).isEmpty();
+            boolean hasTeamSquad = !driver.findElements(By.id("team-squad-stats-summary")).isEmpty();
+            boolean hasStatsGrid = !driver.findElements(By.id("top-player-stats-summary-grid")).isEmpty();
+            logger.info("🔍 Elementos encontrados: player-link={}, team-squad-summary={}, stats-grid={}",
+                hasPlayerLink, hasTeamSquad, hasStatsGrid);
+        } catch (Exception e) {
+            logger.warn("⚠️ No se pudo diagnosticar la página para {}: {}", teamName, e.getMessage());
         }
     }
 
@@ -1580,7 +1716,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         options.addArguments(CHROME_ARG_NO_SANDBOX);
         options.addArguments(CHROME_ARG_DISABLE_DEV_SHM);
         options.addArguments(CHROME_ARG_DISABLE_GPU);
-        options.addArguments(CHROME_ARG_WINDOW_SIZE);
+        options.addArguments(WINDOW_SIZES[RANDOM.nextInt(WINDOW_SIZES.length)]);
         options.addArguments(CHROME_ARG_DISABLE_AUTOMATION);
         options.addArguments(CHROME_ARG_DISABLE_WEB_RESOURCES);
         options.addArguments(CHROME_ARG_DISABLE_EXTENSIONS);
@@ -1596,17 +1732,34 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         options.addArguments(CHROME_ARG_NO_DEFAULT_BROWSER_CHECK);
         options.addArguments(CHROME_ARG_DISABLE_FEATURES);
         options.addArguments(CHROME_ARG_BLINK_SETTINGS);
+        options.addArguments("--user-agent=" + USER_AGENTS[RANDOM.nextInt(USER_AGENTS.length)]);
         return options;
     }
 
     private WebDriver createDriver(ChromeOptions options) {
         try {
-            // Try to connect to remote Selenium server (for Docker)
-            return new RemoteWebDriver(URI.create(SELENIUM_REMOTE_URL).toURL(), options);
+            RemoteWebDriver driver = new RemoteWebDriver(URI.create(SELENIUM_REMOTE_URL).toURL(), options);
+            return driver;
         } catch (Exception e) {
-            // Fallback to local ChromeDriver
             WebDriverManager.chromedriver().setup();
             return new ChromeDriver(options);
+        }
+    }
+
+    private void applyStealth(WebDriver driver) {
+        String js = """
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es', 'en'] });
+        """;
+        ((JavascriptExecutor) driver).executeScript(js);
+    }
+
+    private void randomDelay() {
+        try {
+            Thread.sleep(1000 + RANDOM.nextInt(4000));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

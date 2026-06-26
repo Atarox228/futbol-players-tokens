@@ -22,8 +22,11 @@ ENV TZ=America/Argentina/Buenos_Aires
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /app
-COPY .env.docker .env.docker
 COPY --from=builder /app/build/libs/*.jar app.jar
+
+# Accept FOOTBALL_DATA_API_TOKEN as build arg and persist as env var
+ARG FOOTBALL_DATA_API_TOKEN
+ENV FOOTBALL_DATA_API_TOKEN=$FOOTBALL_DATA_API_TOKEN
 
 # Set environment variables
 ENV CHROMIUM_BIN=/usr/bin/chromium
@@ -31,11 +34,11 @@ ENV CHROMEDRIVER_BIN=/usr/bin/chromedriver
 ENV DISPLAY=:99
 
 # Create startup script
-RUN echo '#!/bin/bash\n\
-/opt/bin/entry_point.sh &\n\
-sleep 5\n\
-java -jar app.jar --server.port=${PORT:-8080}\n\
-' > /app/start.sh && chmod +x /app/start.sh
+RUN echo "#!/bin/bash" > /app/start.sh && \
+    echo "/opt/bin/entry_point.sh &" >> /app/start.sh && \
+    echo "sleep 5" >> /app/start.sh && \
+    echo 'exec java -jar app.jar --server.port=${PORT:-8080}' >> /app/start.sh && \
+    chmod +x /app/start.sh
 
 EXPOSE 8080 4444
 ENTRYPOINT ["/app/start.sh"]

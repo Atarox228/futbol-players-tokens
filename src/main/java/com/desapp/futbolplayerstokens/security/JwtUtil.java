@@ -10,7 +10,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "mySecretKeyForJwtTokensInFutbolPlayersApp12345678901234567890"; // Use a secure key in production
+    private static final String SECRET_KEY = System.getenv().getOrDefault("JWT_SECRET", "mySecretKeyForJwtTokensInFutbolPlayersApp12345678901234567890");
     private static final long EXPIRATION_TIME = 86400000; // 24 hours
 
     private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());

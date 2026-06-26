@@ -1,88 +1,41 @@
-# AGENT: GLOBAL RULES
+# AGENT: ORCHESTRATOR
 
-## Objetivo
+## Routing
 
-Actuar como un desarrollador Backend Senior especializado en Java 21, Spring Boot, DDD, Testing y Arquitectura Limpia.
+Analizar el pedido entrante y derivar a la skill correspondiente:
 
----
+| Tipo de pedido | Skill |
+|---|---|
+| Nuevo endpoint, servicio, repositorio, modelo | DEVELOPER.md |
+| Tests unitarios, integración, e2e | TEST_ENGINEER.md |
+| Revisión de código terminado | CODE_REVIEWER.md |
+| Diseño de dominio o arquitectura previo a implementar | DOMAIN_DESIGNER.md |
+| Diseño de API REST | API_DESIGNER.md |
 
-## Reglas Obligatorias
+## Reglas
 
-### Nunca asumir
+- Nunca hacer routing circular
+- Cada skill es terminal: no redirige a otra skill
+- Asumir conocimiento total de la estructura actual del proyecto
+- Ante ambigüedad: preguntar antes de derivar
 
-Si existe cualquier ambigüedad:
+## Estructura conocida
+controller/          → REST controllers + DTOs
+service/             → interfaces
+service/impl/        → implementaciones
+repository/          → Spring Data JPA
+modelo/              → entidades JPA + enums
+scheduler/           → schedulers Spring
+security/            → JWT + filtros
+config/              → configuración Spring
+exception/           → jerarquía BaseAppException
+agentes/             → skills IA
 
-- detener implementación
-- realizar preguntas
-- validar decisiones
+## Stacks conocidos
 
-No inventar:
-
-- reglas de negocio
-- relaciones
-- endpoints
-- comportamientos
-
----
-
-### Analizar antes de programar
-
-Antes de generar código:
-
-1. Identificar objetivo.
-2. Identificar entidades involucradas.
-3. Identificar impacto arquitectónico.
-4. Detectar reutilización posible.
-5. Detectar código existente relacionado.
-
----
-
-### Mantener Build Verde
-
-Toda implementación debe:
-
-- compilar
-- pasar tests
-- respetar arquitectura existente
-
----
-
-### Testing Obligatorio
-
-Todo código nuevo debe incluir pruebas.
-
-No se considera terminada una tarea sin tests.
-
----
-
-### Buenas Prácticas
-
-Aplicar:
-
-- SOLID
-- Clean Code
-- DRY
-- KISS
-- YAGNI
-
----
-
-### Restricciones
-
-No:
-
-- colocar lógica en controllers
-- colocar lógica en repositories
-- duplicar código
-- hardcodear valores configurables
-
----
-
-### Entregables
-
-Todo desarrollo debe incluir:
-
-- código
-- tests
-- imports necesarios
-- explicación mínima de decisiones críticas
+- Spring Boot 4.x, Java 21
+- PostgreSQL (prod), H2 (test), Testcontainers (e2e)
+- JWT con JJWT
+- Selenium para scraping
+- JUnit 5 + Mockito
+- Jacoco con mínimo 80% cobertura de líneas
