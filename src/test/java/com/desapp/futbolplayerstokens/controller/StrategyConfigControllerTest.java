@@ -1,8 +1,14 @@
 package com.desapp.futbolplayerstokens.controller;
 
+import com.desapp.futbolplayerstokens.controller.dto.UpdateModeRequest;
 import com.desapp.futbolplayerstokens.controller.dto.UpdateStrategyRequest;
+import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
+import com.desapp.futbolplayerstokens.modelo.ScoringConfig;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
+import com.desapp.futbolplayerstokens.modelo.ValuationMode;
 import com.desapp.futbolplayerstokens.service.ActiveStrategyService;
+import com.desapp.futbolplayerstokens.service.QuoteService;
+import com.desapp.futbolplayerstokens.service.ScoringConfigService;
 import com.desapp.futbolplayerstokens.service.StrategyConfigService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +33,12 @@ class StrategyConfigControllerTest {
 
     @Mock
     private StrategyConfigService strategyConfigService;
+
+    @Mock
+    private ScoringConfigService scoringConfigService;
+
+    @Mock
+    private QuoteService quoteService;
 
     @InjectMocks
     private StrategyConfigController strategyConfigController;
@@ -95,7 +107,7 @@ class StrategyConfigControllerTest {
     }
 
     @Test
-    void updateStrategy_returnsUpdatedConfig() {
+    void updateStrategy_returnsUpdatedConfig_andRecalculatesAll() {
         UpdateStrategyRequest request = new UpdateStrategyRequest();
         request.setValorBase(new BigDecimal("5"));
         request.setFactorEscala(new BigDecimal("15"));
@@ -110,6 +122,7 @@ class StrategyConfigControllerTest {
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertEquals(3, result.getBody().getVersion());
+        verify(quoteService, times(1)).recalculateAll(QuoteTrigger.MANUAL);
     }
 
     @Test
@@ -117,6 +130,7 @@ class StrategyConfigControllerTest {
         UpdateStrategyRequest request = new UpdateStrategyRequest();
         assertThrows(IllegalArgumentException.class,
                 () -> strategyConfigController.updateStrategy("BADTYPE", request));
+        verify(quoteService, never()).recalculateAll(any());
     }
 
     @Test
@@ -132,5 +146,33 @@ class StrategyConfigControllerTest {
         ResponseEntity<StrategyConfig> result = strategyConfigController.updateStrategy("MIDFIELDER", request);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
+        verify(quoteService, times(1)).recalculateAll(QuoteTrigger.MANUAL);
+    }
+
+    @Test
+    void updateStrategyNormalized_returnsUpdatedConfig_andRecalculatesAll() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        request.setValorBase(new BigDecimal("5"));
+        request.setFactorEscala(new BigDecimal("15"));
+        request.setWeights(Map.of("goals", new BigDecimal("0.6"), "assists", new BigDecimal("0.4")));
+
+        StrategyConfig updated = StrategyConfig.builder()
+                .type(StrategyConfig.StrategyType.GENERAL).version(4).build();
+        when(strategyConfigService.updateNormalized(StrategyConfig.StrategyType.GENERAL, request))
+                .thenReturn(updated);
+
+        ResponseEntity<StrategyConfig> result = strategyConfigController.updateStrategyNormalized("GENERAL", request);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(4, result.getBody().getVersion());
+        verify(quoteService, times(1)).recalculateAll(QuoteTrigger.MANUAL);
+    }
+
+    @Test
+    void updateStrategyNormalized_invalidType_throwsException() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        assertThrows(IllegalArgumentException.class,
+                () -> strategyConfigController.updateStrategyNormalized("BADTYPE", request));
+        verify(quoteService, never()).recalculateAll(any());
     }
 }

@@ -42,6 +42,18 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
 
+# Actuator & Prometheus Metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+
 # Football-Data.org API Configuration
 football-data:
   api:

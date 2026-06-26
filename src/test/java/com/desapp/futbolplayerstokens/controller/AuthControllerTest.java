@@ -40,6 +40,7 @@ class AuthControllerTest {
     @InjectMocks
     private AuthController authController;
 
+    @SuppressWarnings("unchecked")
     @Test
     void register_success() {
         AuthController.RegisterRequest req = new AuthController.RegisterRequest();
@@ -50,12 +51,13 @@ class AuthControllerTest {
         when(userService.registerUser("newuser", "password", "new@example.com"))
                 .thenReturn(User.builder().id(2L).username("newuser").build());
 
-        ResponseEntity<?> result = authController.register(req);
+        ResponseEntity<Map<String, Object>> result = authController.register(req);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertEquals("User registered successfully", result.getBody());
+        assertEquals("User registered successfully", result.getBody().get("message"));
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void register_duplicateUser_returnsBadRequest() {
         AuthController.RegisterRequest req = new AuthController.RegisterRequest();
@@ -66,12 +68,13 @@ class AuthControllerTest {
         when(userService.registerUser("existing", "password", "existing@example.com"))
                 .thenThrow(new ValidationException("Username already exists"));
 
-        ResponseEntity<?> result = authController.register(req);
+        ResponseEntity<Map<String, Object>> result = authController.register(req);
 
         assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
-        assertEquals("Username already exists", result.getBody());
+        assertEquals("Username already exists", result.getBody().get("error"));
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void register_duplicateEmail_returnsBadRequest() {
         AuthController.RegisterRequest req = new AuthController.RegisterRequest();
@@ -82,10 +85,10 @@ class AuthControllerTest {
         when(userService.registerUser("newuser", "password", "used@example.com"))
                 .thenThrow(new ValidationException("Email already exists"));
 
-        ResponseEntity<?> result = authController.register(req);
+        ResponseEntity<Map<String, Object>> result = authController.register(req);
 
         assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
-        assertEquals("Email already exists", result.getBody());
+        assertEquals("Email already exists", result.getBody().get("error"));
     }
 
     @Test
@@ -120,10 +123,10 @@ class AuthControllerTest {
         when(authenticationManager.authenticate(any()))
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
-        ResponseEntity<?> result = authController.login(req, response);
+        ResponseEntity<Map<String, Object>> result = authController.login(req, response);
 
         assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
-        assertEquals("Invalid credentials", result.getBody());
+        assertEquals("Invalid credentials", result.getBody().get("error"));
     }
 
     @Test

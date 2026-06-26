@@ -198,4 +198,84 @@ class StrategyConfigServiceImplTest {
         assertDoesNotThrow(
                 () -> strategyConfigService.update(StrategyConfig.StrategyType.GENERAL, request));
     }
+
+    @Test
+    void updateNormalized_normalizesWeightsAndCreatesNewVersion() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        request.setValorBase(new BigDecimal("3"));
+        request.setFactorEscala(new BigDecimal("20"));
+        request.setWeights(Map.of("goals", new BigDecimal("0.6"), "assists", new BigDecimal("0.4")));
+
+        when(repository.findTopByTypeOrderByVersionDesc(StrategyConfig.StrategyType.GENERAL))
+                .thenReturn(Optional.of(StrategyConfig.builder().version(2).build()));
+
+        when(repository.save(any(StrategyConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StrategyConfig result = strategyConfigService.updateNormalized(StrategyConfig.StrategyType.GENERAL, request);
+
+        assertEquals(3, result.getVersion());
+        // normalized: 0.6 / 1.0 = 0.6, 0.4 / 1.0 = 0.4
+        assertEquals(new BigDecimal("0.60000000"), result.getWeights().get("goals"));
+        assertEquals(new BigDecimal("0.40000000"), result.getWeights().get("assists"));
+    }
+
+    @Test
+    void updateNormalized_whenWeightsDontSumToOne_normalizesToSumToOne() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        request.setWeights(Map.of("goals", new BigDecimal("0.3"), "assists", new BigDecimal("0.1")));
+
+        when(repository.findTopByTypeOrderByVersionDesc(StrategyConfig.StrategyType.GENERAL))
+                .thenReturn(Optional.of(StrategyConfig.builder().version(1).build()));
+        when(repository.save(any(StrategyConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StrategyConfig result = strategyConfigService.updateNormalized(StrategyConfig.StrategyType.GENERAL, request);
+
+        // sum = 0.4, so goals = 0.3/0.4 = 0.75, assists = 0.1/0.4 = 0.25
+        assertEquals(new BigDecimal("0.75000000"), result.getWeights().get("goals"));
+        assertEquals(new BigDecimal("0.25000000"), result.getWeights().get("assists"));
+    }
+
+    @Test
+    void updateNormalized_nullWeights_throwsException() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        request.setWeights(null);
+
+        assertThrows(ValidationException.class,
+                () -> strategyConfigService.updateNormalized(StrategyConfig.StrategyType.GENERAL, request));
+    }
+
+    @Test
+    void updateNormalized_emptyWeights_throwsException() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        request.setWeights(Map.of());
+
+        assertThrows(ValidationException.class,
+                () -> strategyConfigService.updateNormalized(StrategyConfig.StrategyType.GENERAL, request));
+    }
+
+    @Test
+    void updateNormalized_negativeWeight_throwsException() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        request.setWeights(Map.of("goals", new BigDecimal("-0.1")));
+
+        assertThrows(ValidationException.class,
+                () -> strategyConfigService.updateNormalized(StrategyConfig.StrategyType.GENERAL, request));
+    }
+
+    @Test
+    void updateNormalized_firstVersion_whenNoPreviousExists() {
+        UpdateStrategyRequest request = new UpdateStrategyRequest();
+        request.setValorBase(new BigDecimal("5"));
+        request.setFactorEscala(new BigDecimal("10"));
+        request.setWeights(Map.of("goals", BigDecimal.ONE));
+
+        when(repository.findTopByTypeOrderByVersionDesc(StrategyConfig.StrategyType.FORWARD))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(StrategyConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StrategyConfig result = strategyConfigService.updateNormalized(StrategyConfig.StrategyType.FORWARD, request);
+
+        assertEquals(1, result.getVersion());
+        assertEquals(new BigDecimal("1.00000000"), result.getWeights().get("goals"));
+    }
 }

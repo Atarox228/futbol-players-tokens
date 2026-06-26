@@ -1,6 +1,8 @@
 package com.desapp.futbolplayerstokens.controller;
 
+import com.desapp.futbolplayerstokens.controller.dto.BuyRequest;
 import com.desapp.futbolplayerstokens.controller.dto.OrderDTO;
+import com.desapp.futbolplayerstokens.controller.dto.SellRequest;
 import com.desapp.futbolplayerstokens.modelo.Order;
 import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
@@ -53,7 +55,7 @@ class OrderControllerRESTTest {
 
     @Test
     void buy_createsOrder() {
-        OrderControllerREST.BuyRequest req = new OrderControllerREST.BuyRequest(10L, 5, "key-1", new BigDecimal("100"));
+        BuyRequest req = new BuyRequest(10L, 5, "key-1", new BigDecimal("100"));
         OrderDTO expected = OrderDTO.builder().id(1L).build();
         when(orderService.buy(1L, 10L, 5, "key-1", new BigDecimal("100"))).thenReturn(expected);
 
@@ -65,7 +67,7 @@ class OrderControllerRESTTest {
 
     @Test
     void sell_createsOrder() {
-        OrderControllerREST.SellRequest req = new OrderControllerREST.SellRequest(10L, 3, "key-2", new BigDecimal("80"));
+        SellRequest req = new SellRequest(10L, 3, "key-2", new BigDecimal("80"));
         OrderDTO expected = OrderDTO.builder().id(2L).build();
         when(orderService.sell(1L, 10L, 3, "key-2", new BigDecimal("80"))).thenReturn(expected);
 

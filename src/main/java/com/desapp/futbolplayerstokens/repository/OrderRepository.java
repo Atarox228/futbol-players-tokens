@@ -39,5 +39,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Page<Order> findByUser(User user, Pageable pageable);
     List<Order> findByPlayerAndStatusIn(Player player, Collection<Order.OrderStatus> statuses);
+
+    long countByStatusAndType(Order.OrderStatus status, Order.OrderType type);
+
+    @Query("SELECT COALESCE(SUM(o.total), 0) FROM Order o WHERE o.status = :status AND o.type = :type")
+    BigDecimal sumTotalByStatusAndType(@Param("status") Order.OrderStatus status, @Param("type") Order.OrderType type);
+
+    @Query("SELECT o.player.id, COUNT(o), SUM(o.quantity), SUM(o.total) FROM Order o WHERE o.status IN ('FILLED', 'PARTIALLY_FILLED') GROUP BY o.player.id ORDER BY COUNT(o) DESC")
+    List<Object[]> findTopTradedPlayers();
+
+    @Query("SELECT COUNT(DISTINCT o.player.id) FROM Order o WHERE o.status IN ('FILLED', 'PARTIALLY_FILLED') AND o.createdAt BETWEEN :start AND :end")
+    long countDistinctPlayersTradedBetween(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
 }
 
