@@ -20,16 +20,7 @@ import org.springframework.context.annotation.Configuration;
             url = "https://github.com/desapp"
         )
     ),
-    servers = {
-        @Server(
-            url = "http://localhost:8080",
-            description = "Local Server"
-        ),
-        @Server(
-            url = "http://localhost:8081",
-            description = "Alternative Local Server"
-        )
-    }
+    servers = {}
 )
 @SecurityScheme(
     name = "bearer-jwt",
