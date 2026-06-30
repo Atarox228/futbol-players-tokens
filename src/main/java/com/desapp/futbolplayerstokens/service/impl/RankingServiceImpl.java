@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 @Service
 public class RankingServiceImpl implements RankingService {
@@ -92,45 +93,67 @@ public class RankingServiceImpl implements RankingService {
         long startIndex = (long) page * size; // 0-based global start
         long endIndexExclusive = Math.min(startIndex + size, totalPlayers);
 
+        List<Player> resultPlayers = loadPlayersForWindow(startIndex, endIndexExclusive, nonNullCount);
+        return mapPlayersToRankingDtos(resultPlayers, startIndex);
+    }
+
+    private List<Player> loadPlayersForWindow(long startIndex, long endIndexExclusive, long nonNullCount) {
         List<Player> resultPlayers = new ArrayList<>();
 
-        if (startIndex < endIndexExclusive) {
-            // fetch non-null players up to endIndexExclusive (we only need up to that)
-            int fetchNonNullCount = (int) Math.min(nonNullCount, endIndexExclusive);
-            if (fetchNonNullCount > 0) {
-                List<Player> nonNullPlayers = playerRepository.findByScoreNotNullOrdered(PageRequest.of(0, fetchNonNullCount));
-                // take the slice from startIndex to min(nonNullPlayers.size(), endIndexExclusive)
-                int from = (int) Math.max(0, startIndex);
-                int to = (int) Math.min(nonNullPlayers.size(), endIndexExclusive);
-                if (from < to) {
-                    resultPlayers.addAll(nonNullPlayers.subList(from, to));
-                }
-            }
-
-            // if still need more (i.e., requested window spans into null-score players)
-            int needed = (int) (endIndexExclusive - startIndex) - resultPlayers.size();
-            if (needed > 0) {
-                long nullOffset = Math.max(0, startIndex - nonNullCount);
-                int fetchNullCount = (int) (nullOffset + needed);
-                if (fetchNullCount > 0) {
-                    List<Player> nullPlayers = playerRepository.findByScoreNullOrdered(PageRequest.of(0, fetchNullCount));
-                    int fromNull = (int) nullOffset;
-                    int toNull = Math.min(nullPlayers.size(), fromNull + needed);
-                    if (fromNull < toNull) {
-                        resultPlayers.addAll(nullPlayers.subList(fromNull, toNull));
-                    }
-                }
-            }
+        if (startIndex >= endIndexExclusive) {
+            return resultPlayers;
         }
 
-        List<PlayerRankingDTO> dtos = new ArrayList<>();
-        int rankStart = (int) startIndex + 1; // ranks are 1-based
-        for (int i = 0; i < resultPlayers.size(); i++) {
-            Player p = resultPlayers.get(i);
-            dtos.add(PlayerRankingDTO.of(p, rankStart + i));
+        loadNonNullPlayers(resultPlayers, startIndex, endIndexExclusive, nonNullCount);
+        loadNullPlayers(resultPlayers, startIndex, endIndexExclusive, nonNullCount);
+        return resultPlayers;
+    }
+
+    private void loadNonNullPlayers(List<Player> resultPlayers,
+                                    long startIndex,
+                                    long endIndexExclusive,
+                                    long nonNullCount) {
+        int fetchNonNullCount = (int) Math.min(nonNullCount, endIndexExclusive);
+        if (fetchNonNullCount <= 0) {
+            return;
         }
 
-        return dtos;
+        List<Player> nonNullPlayers = playerRepository.findByScoreNotNullOrdered(PageRequest.of(0, fetchNonNullCount));
+        int from = (int) Math.max(0, startIndex);
+        int to = (int) Math.min(nonNullPlayers.size(), endIndexExclusive);
+        if (from < to) {
+            resultPlayers.addAll(nonNullPlayers.subList(from, to));
+        }
+    }
+
+    private void loadNullPlayers(List<Player> resultPlayers,
+                                 long startIndex,
+                                 long endIndexExclusive,
+                                 long nonNullCount) {
+        int needed = (int) (endIndexExclusive - startIndex) - resultPlayers.size();
+        if (needed <= 0) {
+            return;
+        }
+
+        long nullOffset = Math.max(0, startIndex - nonNullCount);
+        int fetchNullCount = (int) (nullOffset + needed);
+        if (fetchNullCount <= 0) {
+            return;
+        }
+
+        List<Player> nullPlayers = playerRepository.findByScoreNullOrdered(PageRequest.of(0, fetchNullCount));
+        int fromNull = (int) nullOffset;
+        int toNull = Math.min(nullPlayers.size(), fromNull + needed);
+        if (fromNull < toNull) {
+            resultPlayers.addAll(nullPlayers.subList(fromNull, toNull));
+        }
+    }
+
+    private List<PlayerRankingDTO> mapPlayersToRankingDtos(List<Player> players, long startIndex) {
+        int rankStart = (int) startIndex + 1;
+        return IntStream.range(0, players.size())
+                .mapToObj(index -> PlayerRankingDTO.of(players.get(index), rankStart + index))
+                .toList();
     }
 }
 
