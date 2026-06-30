@@ -7,7 +7,6 @@ import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig.StrategyType;
 import com.desapp.futbolplayerstokens.service.Strategy;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,13 +14,11 @@ import java.math.RoundingMode;
 import java.util.Objects;
 
 @Service
-//noinspection SpringJavaInjectionPointsAutowiringInspection
 public class ScoreByPositionStrategy implements Strategy {
 
-    private ScoreGeneralStrategy scoreGeneralStrategy;
+    private final ScoreGeneralStrategy scoreGeneralStrategy;
 
-    @Autowired
-    public void setScoreGeneralStrategy(ScoreGeneralStrategy scoreGeneralStrategy) {
+    public ScoreByPositionStrategy(ScoreGeneralStrategy scoreGeneralStrategy) {
         this.scoreGeneralStrategy = scoreGeneralStrategy;
     }
 

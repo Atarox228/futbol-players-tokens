@@ -15,13 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ScoreByPositionStrategyTest {
 
     private final ScoreGeneralStrategy general = new ScoreGeneralStrategy();
-    private final ScoreByPositionStrategy strategy = createStrategy();
-
-    private ScoreByPositionStrategy createStrategy() {
-        ScoreByPositionStrategy s = new ScoreByPositionStrategy();
-        s.setScoreGeneralStrategy(general);
-        return s;
-    }
+        private final ScoreByPositionStrategy strategy = new ScoreByPositionStrategy(general);
 
     @Test
     void forwardWithMoreGoalsScoresHigher() {

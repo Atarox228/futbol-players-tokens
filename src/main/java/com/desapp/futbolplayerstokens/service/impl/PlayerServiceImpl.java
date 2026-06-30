@@ -6,17 +6,21 @@ import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.service.PlayerOverwriteResult;
 import com.desapp.futbolplayerstokens.service.PlayerService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 @Service
 public class PlayerServiceImpl implements PlayerService {
+
+    private static final Logger log = LoggerFactory.getLogger(PlayerServiceImpl.class);
 
     private final PlayerRepository playerRepository;
 
@@ -51,7 +55,7 @@ public class PlayerServiceImpl implements PlayerService {
                 saveNewPlayer(dto);
                 saved++;
             } catch (Exception e) {
-                System.err.println("Error guardando jugador " + dto.getName() + ": " + e.getMessage());
+                log.error("Error guardando jugador {}: {}", dto.getName(), e.getMessage(), e);
             }
         }
     }

@@ -9,14 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ValuationStrategyRouterImplTest {
 
     private final ScoreGeneralStrategy scoreGeneralStrategy = new ScoreGeneralStrategy();
-    private final ScoreByPositionStrategy scoreByPositionStrategy = createStrategy();
+    private final ScoreByPositionStrategy scoreByPositionStrategy = new ScoreByPositionStrategy(scoreGeneralStrategy);
     private final ValuationStrategyRouterImpl router = new ValuationStrategyRouterImpl(scoreGeneralStrategy, scoreByPositionStrategy);
-
-    private ScoreByPositionStrategy createStrategy() {
-        ScoreByPositionStrategy strategy = new ScoreByPositionStrategy();
-        strategy.setScoreGeneralStrategy(scoreGeneralStrategy);
-        return strategy;
-    }
 
     @Test
     void shouldReturnGeneralStrategyWhenKeyIsNullOrBlankOrGeneralVariants() {
