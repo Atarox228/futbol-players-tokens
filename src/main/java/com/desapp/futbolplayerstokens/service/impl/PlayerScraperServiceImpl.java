@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.net.URI;
@@ -114,8 +114,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         "--window-size=1920,1080",
         "--window-size=1280,720",
     };
-
-    private static final Random RANDOM = new Random();
 
     // Non-team options to filter out from dropdown (e.g., "All Players" view)
     private static final String[] NON_TEAM_DROPDOWN_OPTIONS = {
@@ -1716,7 +1714,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         options.addArguments(CHROME_ARG_NO_SANDBOX);
         options.addArguments(CHROME_ARG_DISABLE_DEV_SHM);
         options.addArguments(CHROME_ARG_DISABLE_GPU);
-        options.addArguments(WINDOW_SIZES[RANDOM.nextInt(WINDOW_SIZES.length)]);
+        options.addArguments(WINDOW_SIZES[ThreadLocalRandom.current().nextInt(WINDOW_SIZES.length)]);
         options.addArguments(CHROME_ARG_DISABLE_AUTOMATION);
         options.addArguments(CHROME_ARG_DISABLE_WEB_RESOURCES);
         options.addArguments(CHROME_ARG_DISABLE_EXTENSIONS);
@@ -1732,7 +1730,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         options.addArguments(CHROME_ARG_NO_DEFAULT_BROWSER_CHECK);
         options.addArguments(CHROME_ARG_DISABLE_FEATURES);
         options.addArguments(CHROME_ARG_BLINK_SETTINGS);
-        options.addArguments("--user-agent=" + USER_AGENTS[RANDOM.nextInt(USER_AGENTS.length)]);
+        options.addArguments("--user-agent=" + USER_AGENTS[ThreadLocalRandom.current().nextInt(USER_AGENTS.length)]);
         return options;
     }
 
@@ -1771,7 +1769,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private void randomDelay() {
         try {
-            Thread.sleep(1000 + RANDOM.nextInt(4000));
+            Thread.sleep(ThreadLocalRandom.current().nextInt(1000, 5000));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
