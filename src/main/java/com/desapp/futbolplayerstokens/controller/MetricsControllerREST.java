@@ -21,8 +21,8 @@ import com.desapp.futbolplayerstokens.repository.QuoteRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -7,8 +7,6 @@ import com.desapp.futbolplayerstokens.service.OrderService;
 import com.desapp.futbolplayerstokens.service.PortfolioService;
 import com.desapp.futbolplayerstokens.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
