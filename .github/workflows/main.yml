@@ -10,9 +10,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    services:
-      # Postgres NO va acá: los tests E2E lo levantan ellos mismos vía Testcontainers.
-
     steps:
     - uses: actions/checkout@v4
       with:
