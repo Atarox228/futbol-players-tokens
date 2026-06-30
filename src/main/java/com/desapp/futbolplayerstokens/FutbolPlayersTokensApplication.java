@@ -62,7 +62,7 @@ public class FutbolPlayersTokensApplication {
             return null;
         }
 
-        Pattern pattern = Pattern.compile("postgresql://([^:]+):([^@]+)@([^:]+):?(\\d*)/(\\w+)");
+        Pattern pattern = Pattern.compile("postgresql://([^:]+):([^@]+)@([^:]+):?(\\d+)/(\\w+)");
         Matcher matcher = pattern.matcher(databaseUrl);
 
         if (matcher.matches()) {

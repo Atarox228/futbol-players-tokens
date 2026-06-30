@@ -1313,7 +1313,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 if (parts.length >= 2) {
                     int first = Integer.parseInt(parts[0].replaceAll(REGEX_NON_NUMERIC, EMPTY));
                     int second = Integer.parseInt(parts[1].replaceAll(REGEX_NON_NUMERIC, EMPTY));
-                    return first + second;
+                    return Math.addExact(first, second);
                 }
             } catch (NumberFormatException e) {
                 // Fallback a extracción simple
@@ -1659,7 +1659,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             boolean hasStatsGrid = !driver.findElements(By.id("top-player-stats-summary-grid")).isEmpty();
             logger.info("🔍 Elementos encontrados: player-link={}, team-squad-summary={}, stats-grid={}",
                 hasPlayerLink, hasTeamSquad, hasStatsGrid);
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("⚠️ Diagnóstico interrumpido para {}: {}", teamName, e.getMessage());
+        } catch (RuntimeException e) {
             logger.warn("⚠️ No se pudo diagnosticar la página para {}: {}", teamName, e.getMessage());
         }
     }

@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -141,7 +142,7 @@ public class MetricsControllerREST {
         Optional<Quote> latestQuoteOpt = quoteRepository.findTopByPlayerIdOrderByTimestampDesc(playerId);
 
         BigDecimal currentPrice = latestQuoteOpt.map(Quote::getPrice).orElse(BigDecimal.ZERO);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("America/Argentina/Buenos_Aires"));
 
         BigDecimal priceChange1d = calcPriceChange(playerId, now.minusDays(1));
         BigDecimal priceChange7d = calcPriceChange(playerId, now.minusDays(7));
@@ -402,7 +403,7 @@ public class MetricsControllerREST {
                     }
                     return null;
                 })
-                .orElse(LocalDateTime.now().minusDays(7));
+                .orElse(LocalDateTime.now(ZoneId.of("America/Argentina/Buenos_Aires")).minusDays(7));
     }
 
     private List<StrategyImpactDTO.PriceChange> findTopPriceChanges(
