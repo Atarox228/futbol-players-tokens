@@ -254,7 +254,7 @@ tasks.register('jacocoAggregateReport', JacocoReport) {
 tasks.register('jacocoCoverageVerification', JacocoCoverageVerification) {
     dependsOn tasks.named('jacocoAggregateReport')
 
-    executionData(tasks.named('unitTest'), tasks.named('e2eTest'))
+    executionData(file("${buildDir}/jacoco/unitTest.exec"), file("${buildDir}/jacoco/e2eTest.exec"))
     sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
     classDirectories.setFrom(filteredMainClasses())
 
