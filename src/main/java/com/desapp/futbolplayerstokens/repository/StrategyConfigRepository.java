@@ -17,5 +17,7 @@ public interface StrategyConfigRepository extends JpaRepository<StrategyConfig, 
     List<StrategyConfig> findAllActive();
 
     Optional<StrategyConfig> findTopByOrderByVersionDesc();
+
+    Optional<StrategyConfig> findFirstByTypeAndVersionLessThanOrderByVersionDesc(StrategyType type, Integer version);
 }
 

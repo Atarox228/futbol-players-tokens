@@ -1,9 +1,19 @@
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/player_market
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/player_market}
     username: ${SPRING_DATASOURCE_USERNAME:}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      max-lifetime: 600000
+      connection-timeout: 30000
+      idle-timeout: 600000
+      validation-timeout: 5000
+      leak-detection-threshold: 600000
 
   data:
     redis:
@@ -41,6 +51,18 @@ springdoc:
     display-operation-id: true
     operations-sorter: method
     tags-sorter: alpha
+
+# Actuator & Prometheus Metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
 
 # Football-Data.org API Configuration
 football-data:

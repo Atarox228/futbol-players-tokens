@@ -10,7 +10,10 @@ import com.desapp.futbolplayerstokens.service.StrategyConfigService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -65,7 +68,46 @@ public class StrategyConfigServiceImpl implements StrategyConfigService {
         return repository.save(config);
     }
 
-    private void validateWeights(java.util.Map<String, BigDecimal> weights) {
+    @Override
+    public StrategyConfig updateNormalized(StrategyType type, UpdateStrategyRequest request) {
+        Map<String, BigDecimal> normalized = normalizeWeights(request.getWeights());
+
+        UpdateStrategyRequest normalizedRequest = new UpdateStrategyRequest(
+                request.getValorBase(),
+                request.getFactorEscala(),
+                normalized
+        );
+
+        return update(type, normalizedRequest);
+    }
+
+    private Map<String, BigDecimal> normalizeWeights(Map<String, BigDecimal> weights) {
+        if (weights == null || weights.isEmpty()) {
+            throw new ValidationException("Weights cannot be empty");
+        }
+
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal w : weights.values()) {
+            if (w == null || w.compareTo(BigDecimal.ZERO) < 0) {
+                throw new ValidationException("All weights must be non-negative");
+            }
+            sum = sum.add(w);
+        }
+
+        if (sum.compareTo(BigDecimal.ZERO) == 0) {
+            throw new ValidationException("Sum of weights must be greater than 0");
+        }
+
+        Map<String, BigDecimal> result = new LinkedHashMap<>();
+        for (Map.Entry<String, BigDecimal> entry : weights.entrySet()) {
+            BigDecimal normalized = entry.getValue().divide(sum, 8, RoundingMode.HALF_UP);
+            result.put(entry.getKey(), normalized);
+        }
+
+        return result;
+    }
+
+    private void validateWeights(Map<String, BigDecimal> weights) {
         if (weights == null || weights.isEmpty()) {
             throw new ValidationException("Weights cannot be empty");
         }

@@ -21,7 +21,7 @@ class AuthControllerE2ETest extends AbstractE2ETest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerBody))
                 .andExpect(status().isOk())
-                .andExpect(content().string("User registered successfully"));
+                .andExpect(jsonPath("$.message").value("User registered successfully"));
 
         String loginBody = objectMapper.writeValueAsString(Map.of(
                 "username", "e2euser",

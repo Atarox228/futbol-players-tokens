@@ -13,6 +13,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class MatchScraperServiceImpl implements MatchScraperService {
@@ -32,12 +34,14 @@ public class MatchScraperServiceImpl implements MatchScraperService {
     private final MatchService matchService;
     private final MatchRepository matchRepository;
     private final FootballDataProperties footballDataProperties;
+    private final Environment environment;
 
-    public MatchScraperServiceImpl(RestTemplate restTemplate, MatchService matchService, MatchRepository matchRepository, FootballDataProperties footballDataProperties) {
+    public MatchScraperServiceImpl(RestTemplate restTemplate, MatchService matchService, MatchRepository matchRepository, FootballDataProperties footballDataProperties, Environment environment) {
         this.restTemplate = restTemplate;
         this.matchService = matchService;
         this.matchRepository = matchRepository;
         this.footballDataProperties = footballDataProperties;
+        this.environment = environment;
     }
 
     @Override
@@ -127,13 +131,35 @@ public class MatchScraperServiceImpl implements MatchScraperService {
      * Obtiene el token de la API desde las variables de entorno (cargadas desde .env)
      */
     private String getApiToken() {
-        // Intenta obtener desde System.getProperty() primero (cargado desde .env)
-        String token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
-        if (token != null && !token.isEmpty()) {
+        String token = System.getenv("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isBlank()) {
             return token;
         }
-        
-        // Fallback a System.getenv() por si está seteado en el SO
-        return System.getenv("FOOTBALL_DATA_API_TOKEN");
+
+        token = System.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isBlank()) {
+            return token;
+        }
+
+        token = environment.getProperty("FOOTBALL_DATA_API_TOKEN");
+        if (token != null && !token.isBlank()) {
+            return token;
+        }
+
+        token = footballDataProperties.getToken();
+        if (token != null && !token.isBlank()) {
+            return token;
+        }
+
+        for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
+            if (entry.getKey().trim().equalsIgnoreCase("FOOTBALL_DATA_API_TOKEN")) {
+                String val = entry.getValue();
+                if (val != null && !val.isBlank()) {
+                    return val;
+                }
+            }
+        }
+
+        return null;
     }
 }

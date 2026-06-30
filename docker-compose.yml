@@ -49,6 +49,9 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+      SPRING_JPA_DEFER_DATASOURCE_INITIALIZATION: "true"
+      SPRING_SQL_INIT_SCHEMA_LOCATIONS: classpath:data-migration.sql
       SPRING_SHOW_SQL: "true"
       CHROMIUM_BIN: /usr/bin/chromium
       CHROMEDRIVER_BIN: /usr/bin/chromedriver
@@ -59,10 +62,37 @@ services:
     restart: on-failure
     networks:
       - futbol-network
-    shm_size: '2gb'
+    shm_size: '256m'
+    mem_limit: 512m
+    mem_reservation: 256m
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: futbol_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - futbol-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: futbol_grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - futbol-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  prometheus_data:
 
 networks:
   futbol-network:
