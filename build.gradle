@@ -74,13 +74,8 @@ dependencies {
 
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-
-    testImplementation 'org.mockito:mockito-core'
-    testImplementation 'org.mockito:mockito-junit-jupiter'
 
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.testcontainers:testcontainers:2.0.4'
@@ -103,33 +98,12 @@ jacoco {
 sourceSets {
     test {
         java {
-            srcDirs = ['src/test/java', 'src/test/repository']
+            srcDirs = ['src/test/java']
         }
         resources {
             srcDirs = ['src/test/resources']
         }
     }
-
-    e2e {
-        java {
-            srcDirs = ['src/e2e/java']
-        }
-        resources {
-            srcDirs = ['src/e2e/resources']
-        }
-        compileClasspath += sourceSets.main.output + configurations.e2eCompileClasspath
-        runtimeClasspath += output + compileClasspath + sourceSets.main.output + configurations.e2eRuntimeClasspath
-    }
-}
-
-configurations {
-    e2eImplementation.extendsFrom implementation
-    e2eImplementation.extendsFrom testImplementation
-    e2eRuntimeOnly.extendsFrom runtimeOnly
-    e2eRuntimeOnly.extendsFrom testRuntimeOnly
-    e2eCompileOnly.extendsFrom compileOnly
-    e2eCompileOnly.extendsFrom testCompileOnly
-    e2eAnnotationProcessor.extendsFrom testAnnotationProcessor
 }
 
 def collectTestClassesByAnnotation = { List<File> roots, String annotation ->
@@ -157,7 +131,7 @@ def collectTestClassesByAnnotation = { List<File> roots, String annotation ->
 }
 
 def springBootTests = providers.provider {
-    collectTestClassesByAnnotation([file('src/test/java'), file('src/test/repository')], '@SpringBootTest')
+    collectTestClassesByAnnotation([file('src/test/java')], '@SpringBootTest')
 }
 
 tasks.named('test') {
@@ -190,15 +164,14 @@ tasks.register('unitTest', Test) {
 tasks.register('e2eTest', Test) {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = 'Ejecuta tests @SpringBootTest y tests E2E con perfil e2e.'
-    testClassesDirs = files(sourceSets.test.output.classesDirs, sourceSets.e2e.output.classesDirs)
-    classpath = files(sourceSets.test.runtimeClasspath, sourceSets.e2e.runtimeClasspath)
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform()
     systemProperty 'spring.profiles.active', 'e2e'
 
     doFirst {
         filter {
             springBootTests.get().each { includeTestsMatching it }
-            collectTestClassesByAnnotation([file('src/e2e/java')], 'class ').each { includeTestsMatching it }
         }
     }
 
