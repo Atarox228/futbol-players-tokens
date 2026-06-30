@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Import default Spring Boot configuration -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    
+    <!-- Define properties -->
+    <property name="LOG_DIR" value="${LOG_PATH:-logs}"/>
+    <property name="LOG_FILE_MAX_SIZE" value="100MB"/>
+    <property name="LOG_FILE_MAX_HISTORY" value="30"/>
+    
+    <!-- Define log patterns -->
+    <property name="CONSOLE_LOG_PATTERN" value="%d{ISO8601} [%thread] [%X{requestId}] [%X{user}] [%X{operation}] %-5level %logger{36} - %msg%n"/>
+    <property name="FILE_LOG_PATTERN" value="%d{ISO8601} [%thread] [%X{requestId}] [%X{user}] [%X{operation}] %-5level %logger{36} - %msg%n"/>
+    
+    <!-- Console appender for standard output -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- File appender for audit logs (rolling) -->
+    <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/audit.log</file>
+        
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+        </encoder>
+        
+        <!-- Rolling policy: rotate by size and time -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- Filename pattern with date and index -->
+            <fileNamePattern>${LOG_DIR}/audit-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            
+            <!-- Max file size before rolling -->
+            <maxFileSize>${LOG_FILE_MAX_SIZE}</maxFileSize>
+            
+            <!-- Max history in days -->
+            <maxHistory>${LOG_FILE_MAX_HISTORY}</maxHistory>
+            
+            <!-- Max total size of all archive files (optional) -->
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+    
+    <!-- Async appender for better performance -->
+    <appender name="ASYNC_AUDIT_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="AUDIT_FILE"/>
+    </appender>
+    
+    <!-- Logger specific for LoggingAspect -->
+    <logger name="com.desapp.futbolplayerstokens.config.LoggingAspect" level="INFO">
+        <appender-ref ref="ASYNC_AUDIT_FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    
+    <!-- Spring Framework loggers -->
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="org.springframework.security" level="INFO"/>
+    
+    <!-- Root logger configuration -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+    
+    <!-- Spring Boot profiles -->
+    <springProfile name="dev">
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+    
+    <springProfile name="prod">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+    
+</configuration>
