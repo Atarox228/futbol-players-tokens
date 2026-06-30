@@ -14,8 +14,8 @@ import com.desapp.futbolplayerstokens.service.StrategyConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -65,10 +65,6 @@ public class StrategyConfigController {
 
     @PutMapping("/mode")
     @Operation(summary = "Cambiar modo de puntuación", description = "Cambia el modo de puntuación entre GENERAL (mismas métricas para todos) y POSITION (métricas según posición). Al cambiar el modo se recalculan automáticamente todas las valuaciones.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Modo actualizado y valuaciones recalculadas"),
-        @ApiResponse(responseCode = "400", description = "Modo inválido", content = @Content(schema = @Schema(implementation = String.class)))
-    })
     public ResponseEntity<ScoringConfig> updateMode(@RequestBody UpdateModeRequest request) {
         if (request.getMode() == null) {
             return ResponseEntity.badRequest().build();
@@ -95,10 +91,6 @@ public class StrategyConfigController {
 
     @PutMapping("/{type}")
     @Operation(summary = "Actualizar estrategia", description = "Crea una nueva versión de la estrategia con los pesos actualizados. La suma de los pesos debe ser ≤ 1. Al actualizar se recalculan automáticamente todas las valuaciones.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Estrategia actualizada y valuaciones recalculadas"),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos", content = @Content(schema = @Schema(implementation = String.class)))
-    })
     public ResponseEntity<StrategyConfig> updateStrategy(@PathVariable("type") String type,
                                                            @RequestBody UpdateStrategyRequest request) {
         StrategyType strategyType = StrategyType.valueOf(type.toUpperCase());
@@ -109,10 +101,6 @@ public class StrategyConfigController {
 
     @PutMapping("/{type}/normalized")
     @Operation(summary = "Actualizar estrategia con pesos normalizados", description = "Crea una nueva versión de la estrategia normalizando automáticamente los pesos para que sumen exactamente 1. Al actualizar se recalculan automáticamente todas las valuaciones.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Estrategia actualizada con pesos normalizados y valuaciones recalculadas"),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos", content = @Content(schema = @Schema(implementation = String.class)))
-    })
     public ResponseEntity<StrategyConfig> updateStrategyNormalized(@PathVariable("type") String type,
                                                                      @RequestBody UpdateStrategyRequest request) {
         StrategyType strategyType = StrategyType.valueOf(type.toUpperCase());

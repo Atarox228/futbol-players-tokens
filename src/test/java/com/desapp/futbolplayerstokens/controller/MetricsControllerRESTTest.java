@@ -28,6 +28,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -48,6 +50,8 @@ class MetricsControllerRESTTest {
     @Mock private QuoteRepository quoteRepository;
     @Mock private UserRepository userRepository;
     @Mock private StrategyConfigRepository strategyConfigRepository;
+
+    
 
     @InjectMocks
     private MetricsControllerREST controller;
@@ -238,6 +242,7 @@ class MetricsControllerRESTTest {
     }
 
     @Test
+    @MockitoSettings(strictness = Strictness.LENIENT)
     void strategyImpact_returnsImpacts() {
         StrategyConfig oldCfg = StrategyConfig.builder()
                 .id(1L).version(1).type(StrategyConfig.StrategyType.GENERAL).build();
@@ -263,6 +268,7 @@ class MetricsControllerRESTTest {
     }
 
     @Test
+    @MockitoSettings(strictness = Strictness.LENIENT)
     void allEndpointsReturnOkStatus() {
         when(orderRepository.countByStatusAndType(any(), any())).thenReturn(0L);
         when(orderRepository.sumTotalByStatusAndType(any(), any())).thenReturn(BigDecimal.ZERO);

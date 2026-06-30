@@ -4,10 +4,9 @@ import com.desapp.futbolplayerstokens.modelo.User;
 import com.desapp.futbolplayerstokens.security.JwtUtil;
 import com.desapp.futbolplayerstokens.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -36,10 +35,6 @@ public class AuthController {
 
     @PostMapping("/register")
     @Operation(summary = "Registrar nuevo usuario", description = "Crea una nueva cuenta de usuario con username, email y contraseña")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Usuario registrado exitosamente"),
-        @ApiResponse(responseCode = "400", description = "Error en la validación o usuario ya existe")
-    })
     public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest request) {
         try {
             User user = userService.registerUser(request.getUsername(), request.getPassword(), request.getEmail());
@@ -51,10 +46,6 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "Iniciar sesión", description = "Autentica al usuario y devuelve un token JWT válido por 24 horas")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Login exitoso, token devuelto"),
-        @ApiResponse(responseCode = "400", description = "Credenciales inválidas")
-    })
     public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request, HttpServletResponse response) {
         try {
             Authentication authentication = authenticationManager.authenticate(
@@ -79,9 +70,6 @@ public class AuthController {
 
     @PostMapping("/logout")
     @Operation(summary = "Cerrar sesión", description = "Invalida el token JWT del usuario")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Logout exitoso")
-    })
     public ResponseEntity<Map<String, Object>> logout(HttpServletResponse response) {
         Cookie cookie = new Cookie("authToken", null);
         cookie.setHttpOnly(true);

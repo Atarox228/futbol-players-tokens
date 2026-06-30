@@ -19,7 +19,6 @@ import com.desapp.futbolplayerstokens.modelo.ValuationMode;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import com.desapp.futbolplayerstokens.service.ScoringConfigService;
 import com.desapp.futbolplayerstokens.service.ValuationService;
-import com.desapp.futbolplayerstokens.service.impl.ScoreByPositionStrategy;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
@@ -34,7 +33,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Service
 public class QuoteServiceImpl implements QuoteService {

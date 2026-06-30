@@ -38,7 +38,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.net.URI;
-import java.net.URL;
 
 @Service
 public class PlayerScraperServiceImpl implements PlayerScraperService {
