@@ -1,11 +1,8 @@
 package com.desapp.futbolplayerstokens.controller;
 
-import com.desapp.futbolplayerstokens.controller.dto.UpdateModeRequest;
 import com.desapp.futbolplayerstokens.controller.dto.UpdateStrategyRequest;
 import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
-import com.desapp.futbolplayerstokens.modelo.ScoringConfig;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
-import com.desapp.futbolplayerstokens.modelo.ValuationMode;
 import com.desapp.futbolplayerstokens.service.ActiveStrategyService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
 import com.desapp.futbolplayerstokens.service.ScoringConfigService;
