@@ -9,8 +9,10 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
 
+import org.jspecify.annotations.NullMarked;
 import java.util.List;
 
+@NullMarked
 public class PlayerRankingListSerializer implements RedisSerializer<List<PlayerRankingDTO>> {
 
     private final ObjectMapper objectMapper;
