@@ -136,8 +136,8 @@ class PortfolioServiceImplTest {
 
         portfolioService.updatePosition(1L, 10L, 3, new BigDecimal("150"), Order.OrderType.SELL);
 
-        verify(portfolioRepository).delete(existing);
-        verify(portfolioRepository, never()).save(existing);
+        verify(portfolioRepository).save(existing);
+        assertEquals(0, existing.getTokenQty());
     }
 
     @Test
