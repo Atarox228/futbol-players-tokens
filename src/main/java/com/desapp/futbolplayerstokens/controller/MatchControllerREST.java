@@ -36,9 +36,6 @@ public class MatchControllerREST {
 
     @GetMapping("/all")
     @Operation(summary = "Obtener todos los partidos", description = "Retorna la lista completa de partidos registrados")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de partidos")
-    })
     public ResponseEntity<List<MatchDTO>> getAllMatches() {
         List<Match> matches = matchService.getAllMatches();
         List<MatchDTO> matchDTOs = matches.stream()
@@ -49,10 +46,6 @@ public class MatchControllerREST {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener partido por ID", description = "Retorna la información detallada de un partido específico")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Partido encontrado"),
-        @ApiResponse(responseCode = "404", description = "Partido no encontrado")
-    })
     public ResponseEntity<MatchDTO> getMatchById(
             @Parameter(description = "ID del partido")
             @PathVariable Long id) {
@@ -63,9 +56,6 @@ public class MatchControllerREST {
 
     @GetMapping("/team/{teamId}")
     @Operation(summary = "Obtener partidos por equipo", description = "Retorna todos los partidos de un equipo específico")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de partidos del equipo")
-    })
     public ResponseEntity<List<MatchDTO>> getMatchesByTeamId(
             @Parameter(description = "ID del equipo")
             @PathVariable Long teamId) {
@@ -78,10 +68,6 @@ public class MatchControllerREST {
 
     @PostMapping
     @Operation(summary = "Crear nuevo partido", description = "Crea un nuevo partido en la base de datos")
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Partido creado exitosamente"),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos")
-    })
     public ResponseEntity<MatchDTO> createMatch(@RequestBody MatchDTO matchDTO) {
         Match match = Match.builder()
             .footballDataMatchId(matchDTO.getFootballDataMatchId())
@@ -97,10 +83,6 @@ public class MatchControllerREST {
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar partido", description = "Actualiza la información de un partido existente")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Partido actualizado exitosamente"),
-        @ApiResponse(responseCode = "404", description = "Partido no encontrado")
-    })
     public ResponseEntity<MatchDTO> updateMatch(
             @Parameter(description = "ID del partido")
             @PathVariable Long id, 
@@ -118,10 +100,6 @@ public class MatchControllerREST {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar partido", description = "Elimina un partido de la base de datos")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Partido eliminado exitosamente"),
-        @ApiResponse(responseCode = "404", description = "Partido no encontrado")
-    })
     public ResponseEntity<Void> deleteMatch(
             @Parameter(description = "ID del partido")
             @PathVariable Long id) {
@@ -132,10 +110,6 @@ public class MatchControllerREST {
     @PostMapping("/scrape/today")
     @PermitAll
     @Operation(summary = "Raspar partidos de hoy", description = "Extrae los partidos del día actual de fuentes externas")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Scrape completado exitosamente"),
-        @ApiResponse(responseCode = "400", description = "Error durante el scraping")
-    })
     public ResponseEntity<List<MatchDTO>> scrapeMatchesOfToday() {
         List<Match> matches = matchScraperService.scrapeMatchesOfToday();
         dynamicMatchScheduler.scheduleMatchesForToday();
@@ -148,11 +122,6 @@ public class MatchControllerREST {
     @PostMapping("/reschedule/{id}")
     @PermitAll
     @Operation(summary = "Re-programar partido", description = "Cancela el scheduler existente del partido y crea uno nuevo que se ejecuta en 5 segundos. Sirve para forzar el scrapeo de partidos que ya se jugaron pero cuyo scheduler automático no se ejecutó.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Partido reprogramado exitosamente"),
-        @ApiResponse(responseCode = "404", description = "Partido no encontrado"),
-        @ApiResponse(responseCode = "500", description = "Error al reprogramar")
-    })
     public ResponseEntity<String> rescheduleMatch(
             @Parameter(description = "ID del partido a reprogramar")
             @PathVariable Long id) {

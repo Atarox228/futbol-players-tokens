@@ -27,9 +27,6 @@ public class QuoteControllerREST {
 
     @PostMapping("/recalculate")
     @Operation(summary = "Recalcular cotizaciones", description = "Dispara el recálculo manual de cotizaciones para todos los jugadores")
-    @ApiResponses({
-        @ApiResponse(responseCode = "202", description = "Recalculo iniciado correctamente")
-    })
     public ResponseEntity<String> recalculateAll() {
         quoteService.recalculateAll(QuoteTrigger.MANUAL);
         return ResponseEntity.accepted().body("Recalculation triggered for all players");
@@ -37,9 +34,6 @@ public class QuoteControllerREST {
 
     @GetMapping("/player/{id:[0-9]+}/current")
     @Operation(summary = "Obtener cotización actual", description = "Devuelve la cotización vigente de un jugador por su identificador")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Cotización actual obtenida")
-    })
     public ResponseEntity<QuoteDTO> getCurrentQuote(@PathVariable Long id) {
         QuoteDTO dto = quoteService.getCurrentQuote(id);
         return ResponseEntity.ok(dto);
