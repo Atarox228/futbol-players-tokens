@@ -5,22 +5,36 @@ import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.service.RankingService;
 import com.desapp.futbolplayerstokens.service.ActiveStrategyService;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class RankingServiceImpl implements RankingService {
 
+    private static final String CACHE_KEY_PREFIX = "ranking:";
+
     private final PlayerRepository playerRepository;
     private final ActiveStrategyService activeStrategyService;
+    private final RedisTemplate<String, List<PlayerRankingDTO>> redisTemplate;
+    private final int rankingCacheTtlMinutes;
 
-    public RankingServiceImpl(PlayerRepository playerRepository, ActiveStrategyService activeStrategyService) {
+    public RankingServiceImpl(PlayerRepository playerRepository,
+                              ActiveStrategyService activeStrategyService,
+                              @Nullable RedisTemplate<String, List<PlayerRankingDTO>> redisTemplate,
+                              @Value("${app.cache.ranking-ttl-minutes:5}") int rankingCacheTtlMinutes) {
         this.playerRepository = playerRepository;
         this.activeStrategyService = activeStrategyService;
+        this.redisTemplate = redisTemplate;
+        this.rankingCacheTtlMinutes = rankingCacheTtlMinutes;
     }
 
     @Override
@@ -28,6 +42,50 @@ public class RankingServiceImpl implements RankingService {
         if (page < 0) page = 0;
         if (size <= 0) size = 20;
 
+        String cacheKey = buildCacheKey(page, size);
+        List<PlayerRankingDTO> cachedRanking = getCachedRanking(cacheKey);
+        if (cachedRanking != null) {
+            return cachedRanking;
+        }
+
+        List<PlayerRankingDTO> ranking = loadRankingFromDatabase(page, size);
+        cacheRanking(cacheKey, ranking);
+        return ranking;
+    }
+
+    @Override
+    public void invalidateCache() {
+        if (redisTemplate == null) {
+            return;
+        }
+
+        Set<String> keys = redisTemplate.keys(CACHE_KEY_PREFIX + "*");
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
+    }
+
+    private List<PlayerRankingDTO> getCachedRanking(String cacheKey) {
+        if (redisTemplate == null) {
+            return null;
+        }
+
+        return redisTemplate.opsForValue().get(cacheKey);
+    }
+
+    private void cacheRanking(String cacheKey, List<PlayerRankingDTO> ranking) {
+        if (redisTemplate == null) {
+            return;
+        }
+
+        redisTemplate.opsForValue().set(cacheKey, ranking, rankingCacheTtlMinutes, TimeUnit.MINUTES);
+    }
+
+    private String buildCacheKey(int page, int size) {
+        return CACHE_KEY_PREFIX + page + ":" + size;
+    }
+
+    private List<PlayerRankingDTO> loadRankingFromDatabase(int page, int size) {
         long nonNullCount = playerRepository.countByScoreIsNotNull();
         long totalPlayers = playerRepository.count();
 

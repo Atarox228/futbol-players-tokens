@@ -2,13 +2,17 @@ package com.desapp.futbolplayerstokens.controller.dto;
 
 import com.desapp.futbolplayerstokens.modelo.Player;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Schema(name = "PlayerRankingDTO", description = "DTO que representa un jugador en el ranking")
 public class PlayerRankingDTO {
     @Schema(description = "ID del jugador", example = "5")

@@ -6,6 +6,7 @@ import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
+import com.desapp.futbolplayerstokens.service.RankingService;
 import com.desapp.futbolplayerstokens.service.Strategy;
 import com.desapp.futbolplayerstokens.service.ValuationStrategyRouter;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class ValuationServiceImplTest {
 
     @Mock
     private ValuationStrategyRouter valuationStrategyRouter;
+
+        @Mock
+        private RankingService rankingService;
 
     @Mock
     private Strategy strategy;
@@ -72,6 +76,7 @@ class ValuationServiceImplTest {
         assertSame(player, contextCaptor.getValue().getPlayer());
         assertSame(strategyConfig, contextCaptor.getValue().getStrategyConfig());
         verify(playerRepository).updateScoreById(10L, expectedResult.getPrice());
+                verify(rankingService).invalidateCache();
     }
 
     @Test
@@ -101,6 +106,7 @@ class ValuationServiceImplTest {
         verify(valuationStrategyRouter).resolve("POSITION");
         verify(strategy).evaluate(any(ValuationContext.class));
         verify(playerRepository).updateScoreById(11L, expectedResult.getPrice());
+                verify(rankingService).invalidateCache();
     }
 }
 

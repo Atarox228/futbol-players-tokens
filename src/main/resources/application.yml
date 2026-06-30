@@ -5,6 +5,11 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -20,6 +25,10 @@ spring:
   sql:
     init:
       mode: never
+
+app:
+  cache:
+    ranking-ttl-minutes: ${RANKING_CACHE_TTL_MINUTES:5}
 
 # Springdoc OpenAPI Configuration
 springdoc:

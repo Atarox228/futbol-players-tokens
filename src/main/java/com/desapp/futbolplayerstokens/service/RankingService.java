@@ -6,5 +6,7 @@ import java.util.List;
 
 public interface RankingService {
     List<PlayerRankingDTO> getRanking(int page, int size);
+
+    void invalidateCache();
 }
 

@@ -8,6 +8,7 @@ import com.desapp.futbolplayerstokens.modelo.Player;
 import com.desapp.futbolplayerstokens.modelo.StrategyConfig;
 import com.desapp.futbolplayerstokens.repository.PlayerRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
+import com.desapp.futbolplayerstokens.service.RankingService;
 import com.desapp.futbolplayerstokens.service.Strategy;
 import com.desapp.futbolplayerstokens.service.ValuationStrategyRouter;
 import com.desapp.futbolplayerstokens.service.ValuationService;
@@ -20,13 +21,16 @@ public class ValuationServiceImpl implements ValuationService {
     private final PlayerRepository playerRepository;
     private final StrategyConfigRepository strategyConfigRepository;
     private final ValuationStrategyRouter valuationStrategyRouter;
+    private final RankingService rankingService;
 
     public ValuationServiceImpl(PlayerRepository playerRepository,
                                 StrategyConfigRepository strategyConfigRepository,
-                                ValuationStrategyRouter valuationStrategyRouter) {
+                                ValuationStrategyRouter valuationStrategyRouter,
+                                RankingService rankingService) {
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
         this.valuationStrategyRouter = valuationStrategyRouter;
+        this.rankingService = rankingService;
     }
 
     @Override
@@ -49,6 +53,8 @@ public class ValuationServiceImpl implements ValuationService {
         if (updatedRows == 0) {
             throw new DataUpdateException("Player score could not be updated for id: " + playerId);
         }
+
+        rankingService.invalidateCache();
 
         return valuationResult;
     }
