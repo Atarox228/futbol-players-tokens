@@ -180,5 +180,77 @@ class ValuationServiceImplTest {
         assertThrows(DataUpdateException.class,
                 () -> valuationService.evaluatePlayer(1L, 1L));
     }
+
+    @Test
+    void shouldEvaluatePlayerWithGeneralKey() {
+        Player player = Player.builder().id(12L).build();
+        StrategyConfig strategyConfig = StrategyConfig.builder()
+                .id(22L)
+                .valorBase(new BigDecimal("100.00"))
+                .factorEscala(new BigDecimal("50.00"))
+                .version(3)
+                .build();
+        ValuationResult expectedResult = ValuationResult.builder()
+                .price(new BigDecimal("150.00000000"))
+                .strategyId(22L)
+                .strategyVersion(3)
+                .build();
+
+        when(playerRepository.findById(12L)).thenReturn(Optional.of(player));
+        when(strategyConfigRepository.findById(22L)).thenReturn(Optional.of(strategyConfig));
+        when(valuationStrategyRouter.resolve("GENERAL")).thenReturn(strategy);
+        when(strategy.evaluate(any(ValuationContext.class))).thenReturn(expectedResult);
+        when(playerRepository.updateScoreById(12L, expectedResult.getPrice())).thenReturn(1);
+
+        ValuationResult result = valuationService.evaluatePlayer(12L, 22L, "GENERAL");
+
+        assertEquals(expectedResult, result);
+        verify(valuationStrategyRouter).resolve("GENERAL");
+        verify(playerRepository).updateScoreById(12L, expectedResult.getPrice());
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundException_whenPlayerNotFound() {
+        when(playerRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> valuationService.evaluatePlayer(99L, 1L));
+        verify(strategy, never()).evaluate(any());
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundException_whenStrategyConfigNotFound() {
+        when(playerRepository.findById(1L)).thenReturn(Optional.of(Player.builder().id(1L).build()));
+        when(strategyConfigRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> valuationService.evaluatePlayer(1L, 99L));
+        verify(strategy, never()).evaluate(any());
+    }
+
+    @Test
+    void shouldThrowDataUpdateException_whenScoreUpdateFails() {
+        Player player = Player.builder().id(1L).build();
+        StrategyConfig strategyConfig = StrategyConfig.builder()
+                .id(1L)
+                .valorBase(new BigDecimal("100.00"))
+                .factorEscala(new BigDecimal("50.00"))
+                .version(1)
+                .build();
+        ValuationResult expectedResult = ValuationResult.builder()
+                .price(new BigDecimal("150.00000000"))
+                .strategyId(1L)
+                .strategyVersion(1)
+                .build();
+
+        when(playerRepository.findById(1L)).thenReturn(Optional.of(player));
+        when(strategyConfigRepository.findById(1L)).thenReturn(Optional.of(strategyConfig));
+        when(valuationStrategyRouter.resolve(null)).thenReturn(strategy);
+        when(strategy.evaluate(any(ValuationContext.class))).thenReturn(expectedResult);
+        when(playerRepository.updateScoreById(1L, expectedResult.getPrice())).thenReturn(0);
+
+        assertThrows(DataUpdateException.class,
+                () -> valuationService.evaluatePlayer(1L, 1L));
+    }
 }
 
