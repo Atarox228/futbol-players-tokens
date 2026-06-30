@@ -31,13 +31,8 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
 
     List<Player> findByNameIgnoreCaseAndTeamIgnoreCase(String trim, String trim1);
 
-    long countByScoreIsNotNull();
-
-    @Query("SELECT p FROM Player p WHERE p.score IS NOT NULL ORDER BY p.score DESC")
-    List<Player> findByScoreNotNullOrdered(Pageable pageable);
-
-    @Query("SELECT p FROM Player p WHERE p.score IS NULL ORDER BY p.id ASC")
-    List<Player> findByScoreNullOrdered(Pageable pageable);
+    @Query("SELECT p FROM Player p ORDER BY CASE WHEN p.score IS NULL THEN 1 ELSE 0 END, p.score DESC, p.id ASC")
+    List<Player> findRankedPlayers(Pageable pageable);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "DELETE FROM Player WHERE id NOT IN (SELECT MIN(p2.id) FROM Player p2 GROUP BY p2.name, p2.team)", nativeQuery = true)

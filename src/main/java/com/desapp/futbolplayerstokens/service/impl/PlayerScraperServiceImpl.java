@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.text.Normalizer;
 import java.util.Locale;
@@ -207,12 +209,11 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final class Timings {
         static final Duration MAIN_PAGE_LOAD = Duration.ofSeconds(15);
         static final Duration TEAM_SELECTION = Duration.ofSeconds(30);
-        static final long INITIAL_PAGE_LOAD_MS = 2000;
-        static final long POST_CLICK_DELAY_MS = 500;
-        static final long POST_PAGINATION_DELAY_MS = 1500;
-        static final long POST_POPUP_DELAY_MS = 2000;
-        static final long POST_TEAM_SELECT_DELAY_MS = 1200;
-        static final long TABLE_LOAD_DELAY_MS = 1000;
+        static final long INITIAL_PAGE_LOAD_MS = 800;
+        static final long POST_CLICK_DELAY_MS = 150;
+        static final long POST_PAGINATION_DELAY_MS = 500;
+        static final long POST_POPUP_DELAY_MS = 500;
+        static final long POST_TEAM_SELECT_DELAY_MS = 300;
     }
 
     // Column indices for different table layouts
@@ -233,19 +234,22 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private static final String ERROR_DURING_SCRAPING = "❌ Error durante el scraping: ";
 
     private static final int NAVIGATION_RETRIES = 3;
-    private static final long RETRY_DELAY_MS = 15000;
+    private static final long[] RETRY_DELAYS_MS = {2000, 5000, 10000};
 
     private final PlayerRepository playerRepository;
     private final PlayerService playerService;
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
+    private final ExecutorService teamScraperExecutor;
 
     public PlayerScraperServiceImpl(PlayerRepository playerRepository, PlayerService playerService,
-                                    UserRepository userRepository, PortfolioRepository portfolioRepository) {
+                                    UserRepository userRepository, PortfolioRepository portfolioRepository,
+                                    ExecutorService teamScraperExecutor) {
         this.playerRepository = playerRepository;
         this.playerService = playerService;
         this.userRepository = userRepository;
         this.portfolioRepository = portfolioRepository;
+        this.teamScraperExecutor = teamScraperExecutor;
     }
 
     @Override
@@ -394,9 +398,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 return;
             }
 
-            logger.warn("⚠️ Error 502 detectado al cargar {}. Intento {}/{}. Reintentando en 15s...", url, attempt, NAVIGATION_RETRIES);
+            long delay = RETRY_DELAYS_MS[Math.min(attempt - 1, RETRY_DELAYS_MS.length - 1)];
+            logger.warn("⚠️ Error 502 detectado al cargar {}. Intento {}/{}. Reintentando en {}ms...", url, attempt, NAVIGATION_RETRIES, delay);
             if (attempt < NAVIGATION_RETRIES) {
-                Thread.sleep(RETRY_DELAY_MS);
+                Thread.sleep(delay);
             }
         }
         throw new ScrapingException(ERROR_HTTP_DETECTED + extractHttpErrorDetails(driver));
@@ -417,7 +422,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private void ensurePlayersTableLoaded(WebDriver driver, WebDriverWait wait) throws InterruptedException {
         try {
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector(CSS_TBODY_TR)));
-            Thread.sleep(Timings.TABLE_LOAD_DELAY_MS);
         } catch (TimeoutException e) {
             if (isLikelyHttpErrorPage(driver.getTitle(), driver.getPageSource())) {
                 throw new ScrapingException(ERROR_HTTP_DETECTED + extractHttpErrorDetails(driver));
@@ -496,29 +500,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     @Override
     public List<PlayerDetailDTO> scrapeLeaguePlayersByStarterTeam(String starterTeam, String league) {
+        if (LeagueConstant.WORLD_CUP.equals(league)) {
+            return scrapeWorldCupTeams();
+        }
+
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Timings.TEAM_SELECTION);
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
 
         try {
-            if (LeagueConstant.WORLD_CUP.equals(league)) {
-                for (Map.Entry<String, String> entry : WORLD_CUP_TEAM_URLS.entrySet()) {
-                    String teamName = entry.getKey();
-                    String directUrl = entry.getValue();
-                    logger.info("➡️ Navegando a {} ({})", teamName, directUrl);
-                    navigateWithRetry(driver, wait, directUrl);
-                    applyStealth(driver);
-                    logPageDiagnostics(driver, teamName);
-                    Thread.sleep(Timings.POST_POPUP_DELAY_MS);
-                    closePopupIfPresent(driver, wait);
-                    waitForTeamPageTitle(driver, wait, teamName);
-                    newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, teamName, league));
-                    randomDelay();
-                }
-                return newPlayers;
-            }
-
             String baseUrl = getBaseUrlByLeague(league);
             driver.get(baseUrl);
             applyStealth(driver);
@@ -561,7 +552,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 closePopupIfPresent(driver, wait);
                 waitForTeamPageTitle(driver, wait, currentTeamName);
                 newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, currentTeamName, league));
-                randomDelay();
             }
 
             return newPlayers;
@@ -573,6 +563,35 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         } finally {
             driver.quit();
         }
+    }
+
+    private List<PlayerDetailDTO> scrapeWorldCupTeams() {
+        List<PlayerDetailDTO> allPlayers = new ArrayList<>();
+        List<CompletableFuture<List<PlayerDetailDTO>>> futures = new ArrayList<>();
+
+        for (Map.Entry<String, String> entry : WORLD_CUP_TEAM_URLS.entrySet()) {
+            String teamName = entry.getKey();
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                logger.info("➡️ Scrapeando {} en paralelo", teamName);
+                return scrapeTeamPlayersByName(teamName, LeagueConstant.WORLD_CUP);
+            }, teamScraperExecutor));
+        }
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        for (CompletableFuture<List<PlayerDetailDTO>> future : futures) {
+            try {
+                List<PlayerDetailDTO> teamPlayers = future.get();
+                if (teamPlayers != null) {
+                    allPlayers.addAll(teamPlayers);
+                }
+            } catch (Exception e) {
+                logger.warn("⚠️ Error en scrape de equipo: {}", e.getMessage());
+            }
+        }
+
+        logger.info("✅ Scraping World Cup completado. Total jugadores: {}", allPlayers.size());
+        return allPlayers;
     }
 
     private List<String> getTeamNamesFromDropdown(WebDriverWait wait) {
@@ -704,7 +723,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     private List<WebElement> findAnyTableWithPlayerLinks(WebDriver driver, WebDriverWait wait) {
         ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, document.body.scrollHeight);");
-        try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
 
         String[] xpaths = {
             "//table[.//a[contains(@class, 'player-link')]]//tbody/tr",
@@ -1013,10 +1031,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             throw new ScrapingException(ERROR_TABLE_NOT_LOADED);
         }
 
-        // Pequeño delay adicional para asegurar que los datos se renderizaron
-        Thread.sleep(Timings.TABLE_LOAD_DELAY_MS);
-
-        // Extraer jugadores de la página actual
         List<WebElement> rows = driver.findElements(By.cssSelector(CSS_TBODY_TR));
         return rows;
     }
@@ -1404,7 +1418,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
         try {
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.xpath(squadRowsXPath)));
-            Thread.sleep(1000);
             List<WebElement> rows = driver.findElements(By.xpath(squadRowsXPath));
             if (rows.isEmpty()) {
                 throw new ScrapingException("La tabla de plantilla no contiene filas");
@@ -1412,9 +1425,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
             return rows;
         } catch (TimeoutException e) {
             throw new ScrapingException("No se encontró la tabla de plantilla (Plantilla/Squad) en la página");
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new ScrapingException("Interrumpido al esperar la tabla de plantilla", ie);
         }
     }
 
@@ -1523,15 +1533,10 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                 // Botón no encontrado, continuar
             }
 
-            // Esperar a que se carguen los datos
-            Thread.sleep(2000);
             wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.cssSelector(CSS_TBODY_TR)));
 
         } catch (TimeoutException e) {
             // Timeout, continuar
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            // Interrumpida, continuar
         } catch (Exception e) {
             // Error, continuar
         }
@@ -1571,7 +1576,6 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
                                     "Se reintentará.", teamName);
 
                                 select.selectByVisibleText(optionText);
-                                Thread.sleep(2000);
                                 if (!waitForSquadContentChange(driver, wait, squadBefore)) {
                                     throw new ScrapingException(
                                         "No se pudo cambiar al equipo '" + teamName + "' - la tabla no se actualizó");
@@ -1643,29 +1647,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         }
     }
 
-    private void logPageDiagnostics(WebDriver driver, String teamName) {
-        try {
-            String title = driver.getTitle();
-            String url = driver.getCurrentUrl();
-            ((JavascriptExecutor) driver).executeScript("window.scrollTo(0, document.body.scrollHeight);");
-            Thread.sleep(2000);
-            String bodyText = driver.findElement(By.tagName("body")).getText();
-            String snippet = bodyText.length() > 2000 ? bodyText.substring(0, 2000) : bodyText;
-            logger.info("🔍 Página cargada para {} - Título: '{}'", teamName, title);
-            logger.info("🔍 URL actual: {}", url);
-            logger.info("🔍 Body snippet (2k chars): {}", snippet.replace("\n", " ").replace("\r", ""));
-            boolean hasPlayerLink = !driver.findElements(By.cssSelector("a.player-link")).isEmpty();
-            boolean hasTeamSquad = !driver.findElements(By.id("team-squad-stats-summary")).isEmpty();
-            boolean hasStatsGrid = !driver.findElements(By.id("top-player-stats-summary-grid")).isEmpty();
-            logger.info("🔍 Elementos encontrados: player-link={}, team-squad-summary={}, stats-grid={}",
-                hasPlayerLink, hasTeamSquad, hasStatsGrid);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.warn("⚠️ Diagnóstico interrumpido para {}: {}", teamName, e.getMessage());
-        } catch (RuntimeException e) {
-            logger.warn("⚠️ No se pudo diagnosticar la página para {}: {}", teamName, e.getMessage());
-        }
-    }
+
 
     private String normalize(String text) {
         String normalized = Normalizer.normalize(text == null ? "" : text, Normalizer.Form.NFD)
@@ -1770,13 +1752,7 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         ((JavascriptExecutor) driver).executeScript(js);
     }
 
-    private void randomDelay() {
-        try {
-            Thread.sleep(ThreadLocalRandom.current().nextInt(1000, 5000));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
+
 
     private WebElement findNextButton(WebDriver driver) throws NoSuchElementException {
         String[] selectors = {ID_NEXT, XPATH_NEXT_OPTION, XPATH_NEXT_LOWER, XPATH_NEXT_UPPER};
