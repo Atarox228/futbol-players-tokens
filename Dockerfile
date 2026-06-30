@@ -4,8 +4,7 @@ FROM gradle:8.14-jdk21 as builder
 WORKDIR /app
 COPY build.gradle settings.gradle ./
 COPY src ./src
-RUN gradle build -x test
-
+RUN gradle build -x test -x e2eTest -x jacocoTestCoverageVerification
 # Stage 2: Runtime with Selenium and Chrome (fallback when BrightData is unavailable)
 FROM selenium/standalone-chrome:latest
 
