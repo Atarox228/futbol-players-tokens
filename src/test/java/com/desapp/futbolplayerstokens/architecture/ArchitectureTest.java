@@ -15,22 +15,18 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,17 +36,6 @@ class ArchitectureTest {
 
     static final String ROOT_PACKAGE = "com.desapp.futbolplayerstokens";
     private static final Set<String> DTO_EXACT_NAMES = Set.of("ValuationContext", "ValuationResult");
-
-    private static final List<String> COMMON_EXTERNAL_PACKAGES = List.of(
-            "java..",
-            "jakarta..",
-            "org.springframework..",
-            "org.slf4j..",
-            "lombok..",
-            "com.fasterxml.jackson..",
-            "io.swagger.v3.oas.annotations..",
-            "org.springdoc.."
-    );
 
     private static final List<String> CONTROLLER_ALLOWED_PACKAGES = List.of(
             ROOT_PACKAGE + ".controller..",

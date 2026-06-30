@@ -165,10 +165,11 @@ class LoggingAspectTest {
     void testLoggingAspect_sanitizesSensitiveData() {
         String sanitized = invokeSanitizeValue("username=testuser,password=super-secret-token,authorization=Bearer abc123");
 
-        assertThat(sanitized).doesNotContain("super-secret-token");
-        assertThat(sanitized).doesNotContain("Bearer abc123");
-        assertThat(sanitized).contains("password=***REDACTED***");
-        assertThat(sanitized).contains("authorization=***REDACTED***");
+        assertThat(sanitized)
+        .doesNotContain("super-secret-token")
+        .doesNotContain("Bearer abc123")
+        .contains("password=***REDACTED***")
+        .contains("authorization=***REDACTED***");
     }
 
     /**

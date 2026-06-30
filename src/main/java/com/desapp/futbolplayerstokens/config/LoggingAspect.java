@@ -32,7 +32,6 @@ import static org.slf4j.MDC.remove;
 @Component
 public class LoggingAspect {
 
-    private static final String REQUEST_ID_HEADER = "X-Request-ID";
     private static final String MDC_REQUEST_ID = "requestId";
     private static final String MDC_USER = "user";
     private static final String MDC_OPERATION = "operation";

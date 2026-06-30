@@ -2,9 +2,7 @@ package com.desapp.futbolplayerstokens;
 
 import com.desapp.futbolplayerstokens.scheduler.MatchScraperScheduler;
 import com.desapp.futbolplayerstokens.scheduler.PlayerScraperScheduler;
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -13,10 +11,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -33,8 +33,14 @@ class MetricsTest {
 
     @Test
     void actuatorHealthEndpoint_returns200() throws Exception {
-        mockMvc.perform(get("/actuator/health"))
-                .andExpect(status().isOk());
+        var result = mockMvc.perform(get("/actuator/health"))
+                .andDo(print())
+                .andReturn();
+
+        System.out.println("Status: " + result.getResponse().getStatus());
+        System.out.println("Body: " + result.getResponse().getContentAsString());
+
+        assertEquals(200, result.getResponse().getStatus());
     }
 
     @Test

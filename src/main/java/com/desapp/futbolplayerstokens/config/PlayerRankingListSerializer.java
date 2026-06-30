@@ -4,6 +4,8 @@ import com.desapp.futbolplayerstokens.controller.dto.PlayerRankingDTO;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
 
@@ -22,7 +24,9 @@ public class PlayerRankingListSerializer implements RedisSerializer<List<PlayerR
 
     @Override
     public byte[] serialize(List<PlayerRankingDTO> value) throws SerializationException {
-        if (value == null) return null;
+        if (value == null) {
+            return new byte[0];
+        }
         try {
             return objectMapper.writeValueAsBytes(value);
         } catch (Exception e) {
@@ -31,7 +35,7 @@ public class PlayerRankingListSerializer implements RedisSerializer<List<PlayerR
     }
 
     @Override
-    public List<PlayerRankingDTO> deserialize(byte[] bytes) throws SerializationException {
+    public List<PlayerRankingDTO> deserialize(@Nullable byte[] bytes) throws SerializationException {
         if (bytes == null) return null;
         try {
             return objectMapper.readValue(bytes, type);

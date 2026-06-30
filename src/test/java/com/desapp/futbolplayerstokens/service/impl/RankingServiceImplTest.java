@@ -18,6 +18,10 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -84,7 +88,13 @@ class RankingServiceImplTest {
 
         assertEquals("2", list.get(1).getPlayerId());
         assertEquals(2, list.get(1).getRank());
-    verify(valueOperations).set(eq(CACHE_KEY_PAGE_0_SIZE_2), eq(list), eq(5L), eq(TimeUnit.MINUTES));
+
+        verify(valueOperations).set(
+            CACHE_KEY_PAGE_0_SIZE_2,
+            list,
+            5L,
+            TimeUnit.MINUTES
+        );
     }
 
     @Test

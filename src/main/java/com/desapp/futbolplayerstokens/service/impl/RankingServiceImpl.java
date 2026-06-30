@@ -68,7 +68,7 @@ public class RankingServiceImpl implements RankingService {
 
     private List<PlayerRankingDTO> getCachedRanking(String cacheKey) {
         if (redisTemplate == null) {
-            return null;
+            return List.of();
         }
 
         return redisTemplate.opsForValue().get(cacheKey);
