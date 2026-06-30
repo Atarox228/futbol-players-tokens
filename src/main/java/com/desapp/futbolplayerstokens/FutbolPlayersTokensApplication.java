@@ -62,14 +62,14 @@ public class FutbolPlayersTokensApplication {
             return null;
         }
 
-        Pattern pattern = Pattern.compile("postgresql://([^:]+):([^@]+)@([^:]+):?(\\d+)/(\\w+)");
+        Pattern pattern = Pattern.compile("postgresql://([^:]+):([^@]+)@([^:]+)(?::(\\d+))?/(\\w+)");
         Matcher matcher = pattern.matcher(databaseUrl);
 
         if (matcher.matches()) {
             String user = matcher.group(1);
             String password = matcher.group(2);
             String host = matcher.group(3);
-            String port = matcher.group(4).isEmpty() ? "5432" : matcher.group(4);
+            String port = matcher.group(4) != null ? matcher.group(4) : "5432";
             String db = matcher.group(5);
 
             Properties props = new Properties();
