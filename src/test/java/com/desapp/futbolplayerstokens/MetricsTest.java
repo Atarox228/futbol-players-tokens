@@ -38,13 +38,8 @@ class MetricsTest {
                 .andDo(print())
                 .andReturn();
 
-        int status = result.getResponse().getStatus();
-        String body = result.getResponse().getContentAsString();
-
-        fail("status=" + status + ", body=" + body);
-        
         assertEquals(200, result.getResponse().getStatus(),
-        "body=" + result.getResponse().getContentAsString());
+                "body=" + result.getResponse().getContentAsString());
     }
 
     @Test
