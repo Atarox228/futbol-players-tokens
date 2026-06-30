@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.5'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
+    id 'org.sonarqube' version '7.3.1.8318'
 }
 
 def MIN_COVERAGE = 0.80
@@ -26,6 +27,17 @@ def COVERAGE_EXCLUSIONS = [
         'com/desapp/futbolplayerstokens/service/impl/PlayerScraperServiceImpl*',
         'com/desapp/futbolplayerstokens/service/impl/MatchScraperServiceImpl*'
 ]
+
+    def SONAR_COVERAGE_EXCLUSIONS = [
+        '**/com/desapp/futbolplayerstokens/FutbolPlayersTokensApplication.java',
+        '**/com/desapp/futbolplayerstokens/config/**',
+        '**/com/desapp/futbolplayerstokens/exception/**',
+        '**/com/desapp/futbolplayerstokens/controller/dto/**',
+        '**/com/desapp/futbolplayerstokens/modelo/**',
+        '**/com/desapp/futbolplayerstokens/scheduler/**',
+        '**/com/desapp/futbolplayerstokens/service/impl/PlayerScraperServiceImpl*',
+        '**/com/desapp/futbolplayerstokens/service/impl/MatchScraperServiceImpl*'
+    ]
 
 group = 'com.DesApp'
 version = '0.0.1-SNAPSHOT'
@@ -120,6 +132,8 @@ tasks.register('e2eTest', Test) {
     classpath = sourceSets.test.runtimeClasspath
 
     shouldRunAfter test
+
+    finalizedBy(tasks.named('jacocoE2eTestReport'))
 }
 
 tasks.named('jacocoTestReport', JacocoReport) {
@@ -137,12 +151,49 @@ tasks.named('jacocoTestReport', JacocoReport) {
     )
 }
 
-tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
-    dependsOn(tasks.named('test'))
+tasks.register('jacocoE2eTestReport', JacocoReport) {
+    dependsOn(tasks.named('e2eTest'))
 
+    executionData(file("${buildDir}/jacoco/e2eTest.exec"))
+    sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
     classDirectories.setFrom(
-            files(classDirectories.files.collect {
-                fileTree(dir: it, exclude: COVERAGE_EXCLUSIONS)
+            files(sourceSets.main.output.asFileTree.matching {
+                exclude COVERAGE_EXCLUSIONS
+            })
+    )
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.register('jacocoAggregateReport', JacocoReport) {
+    dependsOn(tasks.named('test'))
+    dependsOn(tasks.named('e2eTest'))
+
+    executionData(file("${buildDir}/jacoco/test.exec"), file("${buildDir}/jacoco/e2eTest.exec"))
+    sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(
+            files(sourceSets.main.output.asFileTree.matching {
+                exclude COVERAGE_EXCLUSIONS
+            })
+    )
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
+    dependsOn(tasks.named('jacocoAggregateReport'))
+
+    executionData(file("${buildDir}/jacoco/test.exec"), file("${buildDir}/jacoco/e2eTest.exec"))
+    sourceDirectories.setFrom(files(sourceSets.main.allSource.srcDirs))
+    classDirectories.setFrom(
+            files(sourceSets.main.output.asFileTree.matching {
+                exclude COVERAGE_EXCLUSIONS
             })
     )
 
@@ -158,5 +209,22 @@ tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
 }
 
 tasks.named('check') {
+    dependsOn(tasks.named('e2eTest'))
     dependsOn(tasks.named('jacocoTestCoverageVerification'))
+}
+
+sonar {
+    properties {
+        property 'sonar.projectKey', System.getenv('SONAR_PROJECT_KEY')
+        property 'sonar.organization', System.getenv('SONAR_ORGANIZATION')
+        property 'sonar.host.url', 'https://sonarcloud.io'
+        property 'sonar.coverage.jacoco.xmlReportPaths', layout.buildDirectory.file('reports/jacoco/jacocoAggregateReport/jacocoAggregateReport.xml').get().asFile.absolutePath
+        property 'sonar.coverage.exclusions', SONAR_COVERAGE_EXCLUSIONS.join(',')
+        property 'sonar.qualitygate.wait', 'true'
+        property 'sonar.gradle.skipCompile', 'true'
+    }
+}
+
+tasks.named('sonar') {
+    dependsOn(tasks.named('jacocoAggregateReport'))
 }
