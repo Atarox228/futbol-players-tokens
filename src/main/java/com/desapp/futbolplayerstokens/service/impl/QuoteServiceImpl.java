@@ -24,6 +24,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -120,6 +121,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "playerRanking", allEntries = true)
     public void recalculateAll(QuoteTrigger trigger) {
         long start = System.nanoTime();
         transactionTemplate.executeWithoutResult(status -> doRecalculateAll(trigger));
@@ -154,6 +156,7 @@ public class QuoteServiceImpl implements QuoteService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "playerRanking", allEntries = true)
     public void recalculatePlayers(List<Long> playerIds, QuoteTrigger trigger) {
         if (playerIds.isEmpty()) return;
 

@@ -13,7 +13,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"name", "team"}))
+@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"name", "team"}),
+       indexes = @Index(name = "idx_player_score_rank", columnList = "score DESC, id"))
 public class Player {
 
     private static final int DEFAULT_COUNT = 1;
