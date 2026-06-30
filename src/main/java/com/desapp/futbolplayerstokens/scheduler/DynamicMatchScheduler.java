@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.Instant;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
@@ -46,6 +47,7 @@ public class DynamicMatchScheduler {
     private final PlayerRepository playerRepository;
     private final FootballDataProperties footballDataProperties;
     private final ExecutorService sequentialExecutor;
+    private final ExecutorService teamScraperExecutor;
 
     private final ConcurrentHashMap<Long, ScheduledFuture<?>> scheduledMatches = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, MatchScheduleInfo> scheduleInfo = new ConcurrentHashMap<>();
@@ -53,7 +55,8 @@ public class DynamicMatchScheduler {
     public DynamicMatchScheduler(TaskScheduler taskScheduler, MatchRepository matchRepository,
                                   RestTemplate restTemplate, PlayerScraperService playerScraperService,
                                   QuoteService quoteService, PlayerRepository playerRepository,
-                                  FootballDataProperties footballDataProperties) {
+                                  FootballDataProperties footballDataProperties,
+                                  ExecutorService teamScraperExecutor) {
         this.taskScheduler = taskScheduler;
         this.matchRepository = matchRepository;
         this.restTemplate = restTemplate;
@@ -61,6 +64,7 @@ public class DynamicMatchScheduler {
         this.quoteService = quoteService;
         this.playerRepository = playerRepository;
         this.footballDataProperties = footballDataProperties;
+        this.teamScraperExecutor = teamScraperExecutor;
         this.sequentialExecutor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "MatchTaskExecutor");
             t.setDaemon(false);
@@ -159,13 +163,19 @@ public class DynamicMatchScheduler {
             logger.info("📋 Team1: {} | Team2: {} | League: {}", team1Name, team2Name, league);
 
             if (team1Name != null && team2Name != null && league != null) {
-                logger.info("🎯 Scrapeando Team1: {}", team1Name);
-                playerScraperService.scrapeTeamPlayersByName(team1Name, league);
-                logger.info("✅ Team1 scraped");
+                CompletableFuture<Void> team1Future = CompletableFuture.runAsync(() -> {
+                    logger.info("🎯 Scrapeando Team1: {}", team1Name);
+                    playerScraperService.scrapeTeamPlayersByName(team1Name, league);
+                    logger.info("✅ Team1 scraped");
+                }, teamScraperExecutor);
 
-                logger.info("🎯 Scrapeando Team2: {}", team2Name);
-                playerScraperService.scrapeTeamPlayersByName(team2Name, league);
-                logger.info("✅ Team2 scraped");
+                CompletableFuture<Void> team2Future = CompletableFuture.runAsync(() -> {
+                    logger.info("🎯 Scrapeando Team2: {}", team2Name);
+                    playerScraperService.scrapeTeamPlayersByName(team2Name, league);
+                    logger.info("✅ Team2 scraped");
+                }, teamScraperExecutor);
+
+                CompletableFuture.allOf(team1Future, team2Future).join();
 
                 recalculateQuotesForTeam(team1Name);
                 recalculateQuotesForTeam(team2Name);

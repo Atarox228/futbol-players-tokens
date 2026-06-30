@@ -8,6 +8,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 @Configuration
 @EnableAsync
 public class AsyncConfig {
@@ -26,6 +29,11 @@ public class AsyncConfig {
     @Bean(name = "applicationTaskExecutor")
     public TaskExecutor applicationTaskExecutor() {
         return quoteRecalculationExecutor();
+    }
+
+    @Bean(name = "teamScraperExecutor", destroyMethod = "shutdown")
+    public ExecutorService teamScraperExecutor() {
+        return Executors.newFixedThreadPool(2);
     }
 
     @Bean

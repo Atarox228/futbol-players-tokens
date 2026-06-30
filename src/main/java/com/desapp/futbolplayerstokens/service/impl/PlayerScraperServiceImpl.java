@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.text.Normalizer;
 import java.util.Locale;
@@ -238,13 +240,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
     private final PlayerService playerService;
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
+    private final ExecutorService teamScraperExecutor;
 
     public PlayerScraperServiceImpl(PlayerRepository playerRepository, PlayerService playerService,
-                                    UserRepository userRepository, PortfolioRepository portfolioRepository) {
+                                    UserRepository userRepository, PortfolioRepository portfolioRepository,
+                                    ExecutorService teamScraperExecutor) {
         this.playerRepository = playerRepository;
         this.playerService = playerService;
         this.userRepository = userRepository;
         this.portfolioRepository = portfolioRepository;
+        this.teamScraperExecutor = teamScraperExecutor;
     }
 
     @Override
@@ -495,26 +500,16 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
 
     @Override
     public List<PlayerDetailDTO> scrapeLeaguePlayersByStarterTeam(String starterTeam, String league) {
+        if (LeagueConstant.WORLD_CUP.equals(league)) {
+            return scrapeWorldCupTeams();
+        }
+
         ChromeOptions options = createChromeOptions();
         WebDriver driver = createDriver(options);
         WebDriverWait wait = new WebDriverWait(driver, Timings.TEAM_SELECTION);
         List<PlayerDetailDTO> newPlayers = new ArrayList<>();
 
         try {
-            if (LeagueConstant.WORLD_CUP.equals(league)) {
-                for (Map.Entry<String, String> entry : WORLD_CUP_TEAM_URLS.entrySet()) {
-                    String teamName = entry.getKey();
-                    String directUrl = entry.getValue();
-                    logger.info("➡️ Navegando a {} ({})", teamName, directUrl);
-                    navigateWithRetry(driver, wait, directUrl);
-                    applyStealth(driver);
-                    closePopupIfPresent(driver, wait);
-                    waitForTeamPageTitle(driver, wait, teamName);
-                    newPlayers.addAll(scrapeCurrentTeamRoster(driver, wait, teamName, league));
-                }
-                return newPlayers;
-            }
-
             String baseUrl = getBaseUrlByLeague(league);
             driver.get(baseUrl);
             applyStealth(driver);
@@ -568,6 +563,35 @@ public class PlayerScraperServiceImpl implements PlayerScraperService {
         } finally {
             driver.quit();
         }
+    }
+
+    private List<PlayerDetailDTO> scrapeWorldCupTeams() {
+        List<PlayerDetailDTO> allPlayers = new ArrayList<>();
+        List<CompletableFuture<List<PlayerDetailDTO>>> futures = new ArrayList<>();
+
+        for (Map.Entry<String, String> entry : WORLD_CUP_TEAM_URLS.entrySet()) {
+            String teamName = entry.getKey();
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                logger.info("➡️ Scrapeando {} en paralelo", teamName);
+                return scrapeTeamPlayersByName(teamName, LeagueConstant.WORLD_CUP);
+            }, teamScraperExecutor));
+        }
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        for (CompletableFuture<List<PlayerDetailDTO>> future : futures) {
+            try {
+                List<PlayerDetailDTO> teamPlayers = future.get();
+                if (teamPlayers != null) {
+                    allPlayers.addAll(teamPlayers);
+                }
+            } catch (Exception e) {
+                logger.warn("⚠️ Error en scrape de equipo: {}", e.getMessage());
+            }
+        }
+
+        logger.info("✅ Scraping World Cup completado. Total jugadores: {}", allPlayers.size());
+        return allPlayers;
     }
 
     private List<String> getTeamNamesFromDropdown(WebDriverWait wait) {
