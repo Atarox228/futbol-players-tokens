@@ -54,6 +54,7 @@ public class PortfolioServiceImpl implements PortfolioService {
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND));
 
         return portfolioRepository.findByUser(user).stream()
+                .filter(p -> p.getTokenQty() > 0)
                 .map(portfolio -> {
                     BigDecimal currentPrice = quoteService.getCurrentQuote(portfolio.getPlayer().getId()).getPrice();
                     return PortfolioDTO.of(portfolio, currentPrice);
@@ -121,7 +122,8 @@ public class PortfolioServiceImpl implements PortfolioService {
 
         int newQty = portfolio.getTokenQty() - qty;
         if (newQty == 0) {
-            portfolioRepository.delete(portfolio);
+            portfolio.setTokenQty(0);
+            portfolioRepository.save(portfolio);
             return;
         }
 

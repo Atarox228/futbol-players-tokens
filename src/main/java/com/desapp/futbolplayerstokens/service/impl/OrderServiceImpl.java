@@ -15,6 +15,9 @@ import com.desapp.futbolplayerstokens.repository.UserRepository;
 import com.desapp.futbolplayerstokens.service.OrderService;
 import com.desapp.futbolplayerstokens.service.PortfolioService;
 import com.desapp.futbolplayerstokens.service.QuoteService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -38,19 +42,37 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final PortfolioService portfolioService;
     private final QuoteService quoteService;
+    private final Counter buyCounter;
+    private final Counter sellCounter;
+    private final Counter orderFilledCounter;
+    private final Timer orderMatchingTimer;
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             PortfolioRepository portfolioRepository,
                             PlayerRepository playerRepository,
                             UserRepository userRepository,
                             PortfolioService portfolioService,
-                            @Lazy QuoteService quoteService) {
+                            @Lazy QuoteService quoteService,
+                            MeterRegistry meterRegistry) {
         this.orderRepository = orderRepository;
         this.portfolioRepository = portfolioRepository;
         this.playerRepository = playerRepository;
         this.userRepository = userRepository;
         this.portfolioService = portfolioService;
         this.quoteService = quoteService;
+        this.buyCounter = Counter.builder("orders.buy.total")
+                .description("Total buy orders created")
+                .register(meterRegistry);
+        this.sellCounter = Counter.builder("orders.sell.total")
+                .description("Total sell orders created")
+                .register(meterRegistry);
+        this.orderFilledCounter = Counter.builder("orders.filled.total")
+                .description("Total matched/filled orders")
+                .register(meterRegistry);
+        this.orderMatchingTimer = Timer.builder("orders.matching.duration")
+                .description("Time taken to match orders")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(meterRegistry);
     }
 
     @Override
@@ -192,9 +214,12 @@ public class OrderServiceImpl implements OrderService {
                 .build();
         order = orderRepository.save(order);
 
+        buyCounter.increment();
         ensureSuperuserSellOrders(order);
 
+        long start = System.nanoTime();
         matchBuyOrder(order);
+        orderMatchingTimer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
 
         return OrderDTO.toDTO(orderRepository.findById(order.getId()).orElse(order));
     }
@@ -271,7 +296,10 @@ public class OrderServiceImpl implements OrderService {
                 .build();
         order = orderRepository.save(order);
 
+        sellCounter.increment();
+        long start = System.nanoTime();
         matchSellOrder(order);
+        orderMatchingTimer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
 
         return OrderDTO.toDTO(orderRepository.findById(order.getId()).orElse(order));
     }
@@ -323,6 +351,7 @@ public class OrderServiceImpl implements OrderService {
 
             if (sellOrder.getRemainingQuantity() == 0) {
                 sellOrder.setStatus(Order.OrderStatus.FILLED);
+                orderFilledCounter.increment();
             } else {
                 sellOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
             }
@@ -335,6 +364,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (buyOrder.getRemainingQuantity() == 0) {
             buyOrder.setStatus(Order.OrderStatus.FILLED);
+            orderFilledCounter.increment();
         } else if (buyOrder.getRemainingQuantity() < buyOrder.getQuantity()) {
             buyOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
         }
@@ -389,6 +419,7 @@ public class OrderServiceImpl implements OrderService {
 
             if (buyOrder.getRemainingQuantity() == 0) {
                 buyOrder.setStatus(Order.OrderStatus.FILLED);
+                orderFilledCounter.increment();
             } else {
                 buyOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
             }
@@ -401,6 +432,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (sellOrder.getRemainingQuantity() == 0) {
             sellOrder.setStatus(Order.OrderStatus.FILLED);
+            orderFilledCounter.increment();
         } else if (sellOrder.getRemainingQuantity() < sellOrder.getQuantity()) {
             sellOrder.setStatus(Order.OrderStatus.PARTIALLY_FILLED);
         }

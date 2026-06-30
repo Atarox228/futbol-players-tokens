@@ -15,9 +15,13 @@ import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
 import com.desapp.futbolplayerstokens.repository.QuoteRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
+import com.desapp.futbolplayerstokens.modelo.ValuationMode;
 import com.desapp.futbolplayerstokens.service.QuoteService;
+import com.desapp.futbolplayerstokens.service.ScoringConfigService;
 import com.desapp.futbolplayerstokens.service.ValuationService;
 import com.desapp.futbolplayerstokens.service.impl.ScoreByPositionStrategy;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -28,6 +32,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 public class QuoteServiceImpl implements QuoteService {
@@ -45,6 +51,8 @@ public class QuoteServiceImpl implements QuoteService {
     private final TransactionTemplate transactionTemplate;
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
+    private final ScoringConfigService scoringConfigService;
+    private final Timer recalculateTimer;
 
 
     public QuoteServiceImpl(QuoteRepository quoteRepository,
@@ -53,7 +61,9 @@ public class QuoteServiceImpl implements QuoteService {
                             ValuationService valuationService,
                             TransactionTemplate transactionTemplate,
                             UserRepository userRepository,
-                            PortfolioRepository portfolioRepository) {
+                            PortfolioRepository portfolioRepository,
+                            ScoringConfigService scoringConfigService,
+                            MeterRegistry meterRegistry) {
         this.quoteRepository = quoteRepository;
         this.playerRepository = playerRepository;
         this.strategyConfigRepository = strategyConfigRepository;
@@ -61,6 +71,11 @@ public class QuoteServiceImpl implements QuoteService {
         this.transactionTemplate = transactionTemplate;
         this.userRepository = userRepository;
         this.portfolioRepository = portfolioRepository;
+        this.scoringConfigService = scoringConfigService;
+        this.recalculateTimer = Timer.builder("quotes.recalculate.duration")
+                .description("Time taken to recalculate all quotes")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(meterRegistry);
     }
 
     @Override
@@ -96,6 +111,8 @@ public class QuoteServiceImpl implements QuoteService {
     private StrategyConfig resolveConfigForPlayer(Player player) {
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
                 .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
+        ValuationMode mode = scoringConfigService.getActiveMode();
+        if (mode == ValuationMode.GENERAL) return general;
         StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
         if (type == StrategyType.GENERAL) return general;
         return strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
@@ -104,20 +121,28 @@ public class QuoteServiceImpl implements QuoteService {
     @Override
     @Transactional
     public void recalculateAll(QuoteTrigger trigger) {
+        long start = System.nanoTime();
         transactionTemplate.executeWithoutResult(status -> doRecalculateAll(trigger));
+        recalculateTimer.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
     }
 
     private void doRecalculateAll(QuoteTrigger trigger) {
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
                 .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
+        ValuationMode mode = scoringConfigService.getActiveMode();
 
         List<Player> players = playerRepository.findAll();
         int total = 0;
         for (Player player : players) {
-            StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
-            StrategyConfig config = type == StrategyType.GENERAL
-                    ? general
-                    : strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
+            StrategyConfig config;
+            if (mode == ValuationMode.GENERAL) {
+                config = general;
+            } else {
+                StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
+                config = type == StrategyType.GENERAL
+                        ? general
+                        : strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
+            }
             recalculateSingle(player, config, trigger);
             total++;
         }
@@ -134,14 +159,20 @@ public class QuoteServiceImpl implements QuoteService {
 
         StrategyConfig general = strategyConfigRepository.findTopByTypeOrderByVersionDesc(StrategyType.GENERAL)
                 .orElseThrow(() -> new ConfigurationException(ESTRATEGIAINACTIVA));
+        ValuationMode mode = scoringConfigService.getActiveMode();
 
         for (Long playerId : playerIds) {
             Player player = playerRepository.findById(playerId)
                     .orElseThrow(() -> new RuntimeException(JUGADOR_NOENCONTRADO + playerId));
-            StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
-            StrategyConfig config = type == StrategyType.GENERAL
-                    ? general
-                    : strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
+            StrategyConfig config;
+            if (mode == ValuationMode.GENERAL) {
+                config = general;
+            } else {
+                StrategyType type = ScoreByPositionStrategy.resolveType(player.getPosition());
+                config = type == StrategyType.GENERAL
+                        ? general
+                        : strategyConfigRepository.findTopByTypeOrderByVersionDesc(type).orElse(general);
+            }
             recalculateSingle(player, config, trigger);
         }
 
@@ -175,7 +206,8 @@ public class QuoteServiceImpl implements QuoteService {
     }
 
     private Quote recalculateSingle(Player player, StrategyConfig config, QuoteTrigger trigger) {
-        String strategyKey = config.getType() == StrategyType.GENERAL ? null : "POSITION";
+        ValuationMode mode = scoringConfigService.getActiveMode();
+        String strategyKey = mode == ValuationMode.GENERAL ? null : "POSITION";
         ValuationResult result = valuationService.evaluatePlayer(player.getId(), config.getId(), strategyKey);
 
         Quote q = Quote.builder()
