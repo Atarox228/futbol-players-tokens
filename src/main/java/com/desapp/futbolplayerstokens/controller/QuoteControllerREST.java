@@ -3,6 +3,10 @@ package com.desapp.futbolplayerstokens.controller;
 import com.desapp.futbolplayerstokens.controller.dto.QuoteDTO;
 import com.desapp.futbolplayerstokens.modelo.QuoteTrigger;
 import com.desapp.futbolplayerstokens.service.QuoteService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/quotes")
+@Tag(name = "Quotes", description = "Endpoints para consultar y recalcular cotizaciones de jugadores")
 public class QuoteControllerREST {
 
     private final QuoteService quoteService;
@@ -21,12 +26,20 @@ public class QuoteControllerREST {
     }
 
     @PostMapping("/recalculate")
+    @Operation(summary = "Recalcular cotizaciones", description = "Dispara el recálculo manual de cotizaciones para todos los jugadores")
+    @ApiResponses({
+        @ApiResponse(responseCode = "202", description = "Recalculo iniciado correctamente")
+    })
     public ResponseEntity<String> recalculateAll() {
         quoteService.recalculateAll(QuoteTrigger.MANUAL);
         return ResponseEntity.accepted().body("Recalculation triggered for all players");
     }
 
     @GetMapping("/player/{id:[0-9]+}/current")
+    @Operation(summary = "Obtener cotización actual", description = "Devuelve la cotización vigente de un jugador por su identificador")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Cotización actual obtenida")
+    })
     public ResponseEntity<QuoteDTO> getCurrentQuote(@PathVariable Long id) {
         QuoteDTO dto = quoteService.getCurrentQuote(id);
         return ResponseEntity.ok(dto);

@@ -20,6 +20,10 @@ import com.desapp.futbolplayerstokens.repository.PortfolioRepository;
 import com.desapp.futbolplayerstokens.repository.QuoteRepository;
 import com.desapp.futbolplayerstokens.repository.StrategyConfigRepository;
 import com.desapp.futbolplayerstokens.repository.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +43,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/metrics")
+@Tag(name = "Metrics", description = "Endpoints para observabilidad y métricas de mercado")
 public class MetricsControllerREST {
 
     private final OrderRepository orderRepository;
@@ -63,6 +68,10 @@ public class MetricsControllerREST {
     }
 
     @GetMapping("/market-overview")
+        @Operation(summary = "Obtener resumen de mercado", description = "Devuelve métricas agregadas del mercado como órdenes abiertas, usuarios activos y tokens en circulación")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Resumen de mercado obtenido")
+        })
     public ResponseEntity<MarketOverviewDTO> marketOverview() {
         long openBuyOrders = orderRepository.countByStatusAndType(Order.OrderStatus.PENDING, Order.OrderType.BUY);
         long openSellOrders = orderRepository.countByStatusAndType(Order.OrderStatus.PENDING, Order.OrderType.SELL);
@@ -86,6 +95,10 @@ public class MetricsControllerREST {
     }
 
     @GetMapping("/market-depth/{playerId}")
+        @Operation(summary = "Obtener profundidad de mercado", description = "Devuelve el libro de ofertas bid/ask de un jugador específico")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Profundidad de mercado obtenida")
+        })
     public ResponseEntity<MarketDepthDTO> marketDepth(@PathVariable Long playerId) {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
@@ -135,6 +148,10 @@ public class MetricsControllerREST {
     }
 
     @GetMapping("/player-valuation/{playerId}")
+        @Operation(summary = "Obtener valuación de jugador", description = "Devuelve precio actual, cambios históricos y volatilidad de un jugador")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Valuación obtenida")
+        })
     public ResponseEntity<PlayerValuationDTO> playerValuation(@PathVariable Long playerId) {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Player not found"));
@@ -165,6 +182,10 @@ public class MetricsControllerREST {
     }
 
     @GetMapping("/top-traded")
+        @Operation(summary = "Obtener jugadores más operados", description = "Devuelve el ranking de jugadores con mayor volumen y cantidad de órdenes")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Ranking obtenido")
+        })
     public ResponseEntity<List<TopTradedDTO>> topTraded() {
         List<Object[]> results = orderRepository.findTopTradedPlayers();
         List<TopTradedDTO> list = new ArrayList<>();
@@ -193,6 +214,10 @@ public class MetricsControllerREST {
     }
 
     @GetMapping("/portfolio-summary/{userId}")
+        @Operation(summary = "Obtener resumen de portfolio", description = "Calcula el estado financiero y la distribución del portfolio de un usuario")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Resumen de portfolio obtenido")
+        })
     public ResponseEntity<PortfolioSummaryDTO> portfolioSummary(@PathVariable Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -319,7 +344,6 @@ public class MetricsControllerREST {
 
     @GetMapping("/strategy-impact")
     public ResponseEntity<List<StrategyImpactDTO>> strategyImpact() {
-        List<StrategyConfig> allStrategies = strategyConfigRepository.findAll();
         List<StrategyImpactDTO> impacts = new ArrayList<>();
 
         for (StrategyConfig.StrategyType type : StrategyConfig.StrategyType.values()) {

@@ -2,6 +2,9 @@ package com.desapp.futbolplayerstokens.controller;
 
 import com.desapp.futbolplayerstokens.modelo.AuditLog;
 import com.desapp.futbolplayerstokens.repository.AuditLogRepository;
+
+import io.swagger.v3.oas.annotations.Hidden;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -11,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Hidden
 @RequestMapping("/api/audit-logs")
 public class AuditLogController {
 

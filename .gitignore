@@ -40,3 +40,4 @@ out/
 
 # Build artifacts
 gradle_compile.log
+logs/audit.log
