@@ -38,8 +38,10 @@ class MetricsTest {
                 .andDo(print())
                 .andReturn();
 
-        assertEquals(200, result.getResponse().getStatus(),
-                "body=" + result.getResponse().getContentAsString());
+        int status = result.getResponse().getStatus();
+        String body = result.getResponse().getContentAsString();
+
+        assertEquals(200, status, "Unexpected response: status=" + status + ", body=" + body);
     }
 
     @Test
