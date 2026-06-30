@@ -32,6 +32,18 @@ def coverageExclusions = [
         'com/desapp/futbolplayerstokens/service/impl/MatchScraperServiceImpl*'
 ]
 
+// Mismos paquetes/clases pero en formato fuente (.java), para sonar.coverage.exclusions
+def sonarCoverageExclusions = [
+        '**/com/desapp/futbolplayerstokens/FutbolPlayersTokensApplication.java',
+        '**/com/desapp/futbolplayerstokens/config/**',
+        '**/com/desapp/futbolplayerstokens/exception/**',
+        '**/com/desapp/futbolplayerstokens/controller/dto/**',
+        '**/com/desapp/futbolplayerstokens/modelo/**',
+        '**/com/desapp/futbolplayerstokens/scheduler/**',
+        '**/com/desapp/futbolplayerstokens/service/impl/PlayerScraperServiceImpl*',
+        '**/com/desapp/futbolplayerstokens/service/impl/MatchScraperServiceImpl*'
+]
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -248,7 +260,7 @@ sonar {
         property 'sonar.organization', System.getenv('SONAR_ORGANIZATION')
         property 'sonar.host.url', 'https://sonarcloud.io'
         property 'sonar.coverage.jacoco.xmlReportPaths', layout.buildDirectory.file('reports/jacoco/jacocoAggregateReport/jacocoAggregateReport.xml').get().asFile.absolutePath
-        property 'sonar.exclusions', coverageExclusions.join(',')
+        property 'sonar.coverage.exclusions', sonarCoverageExclusions.join(',')
         property 'sonar.qualitygate.wait', 'true'
         property 'sonar.gradle.skipCompile', 'true'
     }
