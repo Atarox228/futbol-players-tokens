@@ -35,8 +35,13 @@ public class PlayerRankingListSerializer implements RedisSerializer<List<PlayerR
     }
 
     @Override
-    public List<PlayerRankingDTO> deserialize(byte @Nullable [] bytes) throws SerializationException {
-        if (bytes == null) return null;
+    public @Nullable List<PlayerRankingDTO> deserialize(
+            byte @Nullable [] bytes) throws SerializationException {
+
+        if (bytes == null) {
+            return null;
+        }
+
         try {
             return objectMapper.readValue(bytes, type);
         } catch (Exception e) {

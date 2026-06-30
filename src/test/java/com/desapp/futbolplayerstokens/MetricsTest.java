@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -37,10 +38,13 @@ class MetricsTest {
                 .andDo(print())
                 .andReturn();
 
-        System.out.println("Status: " + result.getResponse().getStatus());
-        System.out.println("Body: " + result.getResponse().getContentAsString());
+        int status = result.getResponse().getStatus();
+        String body = result.getResponse().getContentAsString();
 
-        assertEquals(200, result.getResponse().getStatus());
+        fail("status=" + status + ", body=" + body);
+        
+        assertEquals(200, result.getResponse().getStatus(),
+        "body=" + result.getResponse().getContentAsString());
     }
 
     @Test
