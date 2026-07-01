@@ -217,9 +217,11 @@ sonar {
     properties {
         property 'sonar.projectKey', 'Atarox228_futbol-players-tokens'
         property 'sonar.organization', 'atarox228'
-        property 'sonar.host.url', System.getenv('SONAR_HOST_URL') ?: 'https://sonarcloud.io'
-        property 'sonar.token', System.getenv('SONAR_TOKEN')
-        property 'sonar.coverage.jacoco.xmlReportPaths', layout.buildDirectory.file('reports/jacoco/jacocoAggregateReport/jacocoAggregateReport.xml').get().asFile.absolutePath
+        property 'sonar.host.url', 'https://sonarcloud.io'
+        property 'sonar.coverage.jacoco.xmlReportPaths',
+                layout.buildDirectory.file(
+                    'reports/jacoco/jacocoAggregateReport/jacocoAggregateReport.xml'
+                ).get().asFile.absolutePath
         property 'sonar.coverage.exclusions', SONAR_COVERAGE_EXCLUSIONS.join(',')
         property 'sonar.qualitygate.wait', 'true'
         property 'sonar.gradle.skipCompile', 'true'
