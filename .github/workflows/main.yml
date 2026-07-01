@@ -31,6 +31,12 @@ jobs:
       run: ./gradlew build
       env:
         FOOTBALL_DATA_API_TOKEN: ${{ secrets.FOOTBALL_DATA_API_TOKEN }}
+        
+    - name: Debug Sonar
+      run: |
+        echo "SONAR_TOKEN length: ${#SONAR_TOKEN}"
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     - name: SonarCloud Analysis
       # sonar -> jacocoAggregateReport + quality gate sobre el coverage real del build
