@@ -223,7 +223,6 @@ sonar {
                     'reports/jacoco/jacocoAggregateReport/jacocoAggregateReport.xml'
                 ).get().asFile.absolutePath
         property 'sonar.coverage.exclusions', SONAR_COVERAGE_EXCLUSIONS.join(',')
-        property 'sonar.qualitygate.wait', 'true'
         property 'sonar.gradle.skipCompile', 'true'
     }
 }
